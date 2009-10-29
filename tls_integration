@@ -1,0 +1,43 @@
+History of modification for integrating TLS in SMEWS
+
+Files Added:
+tls.h
+tls.c
+md5.h
+rc4.h
+sha1.h
+record.h
+record.c
+
+
+
+
+Files modified :
+
+-line 63, input.c
+#define HTTPS_PORT 443
+
+-line 242, input.c
+&& UI16(tmp_ui16) != HTTPS_PORT
+
+-line 89, connections.h
+#ifndef DISABLE_HTTPS	
+	struct tls_connections *tls;
+#endif
+
+};
+
+
+
+- line 257, input.c
+if(UI16(tmp_ui16) == HTTPS_PORT) {
+		tmp_connection.tls = mem_alloc(sizeof(tls_connection));
+	}
+
+
+Moved the macros DEV_GET* and functions dev_getc16 and dev_getc32 from input.c to tls.c
+added macro DEV_GETN to tls.c file
+!we should put both in common somewhere
+
+ce facem cu contextele de md5 and sha1. le pun in tls_connection si le dezaloc dupa ce termin cu ele ?
+sau lasam doar o instanta globala dar asta inseamna cand incep un handshake sa-l termin altceva nu mai misca pe linie de TLS

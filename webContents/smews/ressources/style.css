@@ -1,0 +1,11 @@
+body { font-family: sans-serif; font-size: 12pt; color:#333333; }
+img { border: 0px; }
+a { color: #000000; text-decoration: none; }
+a:hover { color: #555555; text-decoration: underline; }
+
+#mainText { float: left; width: 55%; margin-right: 5%; }
+#smewsPorts{ float: right;  width: 40%; }
+#smewsPorts ul { padding: 0 0 2em 0; }
+#smewsPorts ul ul { padding-left: 7em; }
+#smewsPorts li { list-style-type: none; }
+#smewsPorts img { float: left; }

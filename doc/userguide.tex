@@ -1,0 +1,639 @@
+\documentclass{report}
+
+\oddsidemargin 0.96cm   % marge des pages paires - 1 inch
+\evensidemargin -0.04cm % marge des pages impaires - 1 inch
+\textheight 23cm        % hauteur du texte
+\textwidth 14cm         % Largeur du texte
+
+%uncomment this for html generation
+%\usepackage{hevea}
+\usepackage{graphicx}
+\usepackage{url}
+
+%uncomment this for html generation
+%\tocnumber
+%\setcounter{cuttingdepth}{3}
+
+\title{Smews User Guide}
+\author{Alex Negrea \and Simon Duquennoy}
+
+\date{Last revised: \today }
+
+%\graphicspath{{./}{./shots/}}
+%\DeclareGraphicsExtensions{.eps, .ps} 
+
+\sloppy
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    This document contains the necessary information to get started with
+    Smews, understand its philosophy, and master its usage. It should
+    be read by both users willing to use Smews and developers wanting
+    to be introduced to Smews functionalities.
+\end{abstract}
+
+\tableofcontents
+ 
+\chapter{Introduction}
+
+\section{What is Smews}
+\label{sec:about}
+
+Smews is a \emph{Smart and Mobile Embedded Web Server} designed for hardware-constrained devices like smart cards, sensor
+boards and other small targets. Smews provides high performances thanks to several points:
+\begin{itemize}
+ \item Single process event-driven architecture
+ \item TCP-IP stack dedicated to HTTP, allowing cross-layer optimizations
+ \item Off-line pre-calculations done on Web contents (protocol headers, checksums, parsing automatons) 
+\end{itemize}
+
+Smews is able to serve rich Web applications:
+\begin{itemize}
+ \item Able to send static and dynamic contents
+ \item Comet support (server pushed data)
+ \item Advanced typing of dynamic Web contents (persistent, idempotent and volatile contents)
+\end{itemize}
+
+Five ports of Smews are currently available: 
+\begin{enumerate}
+ \item \textbf{MicaZ sensor board} AVR 8 bits at 8 MHz SLIP over serial line
+ \item \textbf{WSN430 sensor board} MSP430 16 bits at 8 MHz SLIP over serial line
+ \item \textbf{Funcard 7 smart card } AVR 8 bits at 4 MHz  APDU
+ \item \textbf{Game Boy Advance Arm7} 32 bits at 16 MHz SLIP over serial line
+ \item \textbf{Linux} via Tun interface
+\end{enumerate}
+
+
+Smews source code is available under the CECILL \footnote{details available here: \url{http://www.cecill.info/}} open-source license.
+
+\section{About this guide}
+
+Chapter \ref{chap:gettingstarted} contains information about compiling Smews and explaining Smews capabilities of creating an
+Web Application, together with examples. Chapter \ref{chap:tools} contains a short description about Smews building 
+process, describing the most important files together with their functionalities.
+
+
+\chapter{Getting Started}
+\label{chap:gettingstarted}
+
+Welcome to this guide to Smews! This chapter will help you getting
+started with Smews. It explains how to build Web Applications from scratch and embed them in Smews.
+
+\section{Preparing Your Environment and Discovering the package}
+
+\subsection{Requirements}
+
+You can download the latest release of source code from \footnote{http://www2.lifl.fr/$\sim$duquenno/Research/Smews}{the Smews website}.
+
+In order to work with Smews, you will need:
+\begin{itemize}
+  \item a valid C compilation environment, depending on your platform the target:
+	\begin{itemize}
+	  \item \emph{for target MicaZ and Funcard7} you will need: \textbf{gcc-avr}  (4.3 or above) and \textbf{avr-libc} packages.
+	  \item \emph{for target MSP430} you will need the following packages: \textbf{binutils-msp430}, \textbf{msp430-libc}, \textbf{gcc-msp430}. These packages can be found in \texttt{deb http://wyper.ca/debian/ i686 repository}. For a Debian based distribution you may need to add a line in \texttt{/etc/apt/sources.list} containing that link.
+	  \item \emph{for target GBA} you will need: DevKitAdvance\footnote{http://devkitadv.sourceforge.net/}.
+	\end{itemize}
+  \item \footnote{http://www.scons.org/}{scons} version 0.96 or later and Python 2.5\footnote{http://www.python.org/download/} or above.
+\end{itemize}
+
+All packages (except when another repository is mentioned) can be found in default Ubuntu (Debian) Repositories.
+Smews has a portable implementation. It works in any environment able to run the above prerequisites. It has been tested on Linux, Windows (using MinGW\footnote{http://www.mingw.org/} and Mac OS).
+
+\subsection{What's in the package}
+
+In the Smews package you can find the following directories and files: 
+
+\begin{itemize}
+\item \texttt{SConstruct, SConscript }                -- Smews general SCons files
+\item \texttt{core/}                                -- Smews core C source code (portable files)
+\item \texttt{tools/}                                 -- Python preprocessing tools
+\item \texttt{targets/ }                              -- Smews ports to different architectures
+\item \texttt{targets/\$target}                       -- Smews port to target \$target
+\item \texttt{targets/\$target/SConscript}            -- SCons target specific build instructions
+\item \texttt{targets/\$target/install}               -- SCons target specific installation script (if needed)
+\item \texttt{targets/\$target/drivers}               -- C source code for Smews port to the target \$target 
+\item \texttt{webContents}                            -- examples of Web applications to be served by Smews
+\end{itemize}
+
+\section{Smews building options}
+
+\subsection{Building and running Smews}
+
+Smews uses SCons for building which allows to design complex build mechanism and dependencies. The multiple preprocessing steps help the server to be more efficient in terms of memory consumption and processing speed. For details about how Smews building works see chapter \ref{chap:tools}.
+
+When building Smews you can specify multiple targets and Web Applications to be embedded with it. For example to build Smews for a destination target A and B and embed in it one ore more Web Applications (eg. X and Y) you can type:
+
+\begin{verbatim}
+$ scons target=A,B [contents=X,Y] [options]
+\end{verbatim}
+
+The default implementation of Smews searches for contents specified in the webContents directory.
+
+To clean Smews build files type:
+\begin{verbatim}
+$ scons -c
+\end{verbatim}
+
+For a complete description of available arguments see section \ref{sec:buildargs} or type:
+\begin{verbatim}
+$ scons -h
+\end{verbatim}
+
+Files are compiled in the \texttt{bin/\$target} directory. This contains the Smews
+executable file. It also contains a \textbf{libsmews.a} file, allowing to embed Smews
+in other software (see \texttt{core/main.c} provided as a sample main C code linked with the library \textbf{libsmews.a}).
+
+\subsection{Building arguments}
+\label{sec:buildargs}
+
+Smews has many arguments that enables different options. The necessary arguments for a build are \textbf{target} and \textbf{contents}. All other arguments are optional and have a default value.
+
+Smews supports the following arguments, passed with SCons:
+
+\paragraph{target} sets the target architecture of the binary file. The argument must match one of the directories in targets/ directory.
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=content
+\end{verbatim}
+
+\paragraph{contents} sets the web applications to be embedded in the binary file. Searches the \texttt{webContents/} directory. Every new application must have a directory here defining specific resources. Contents are separated by comma and the name of the content can be preceded by a replacement URL.
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=contactsBook,mycalendar:calendar
+\end{verbatim}
+
+Resources extracted from the directory \texttt{webcontents/contactsBook} and \texttt{webcontents/calendar} while smews is compiled should be accessed at:
+
+\texttt{http://\$smewsip/contactsBook}
+
+\texttt{http://\$smewsip/calendar}
+
+Notice that if you want one resource to be embedded in the root of Smews (\texttt{http://\$smewsip/}) you precede the name of
+the content with an empty replacement.
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=contactsBook,:calendar
+\end{verbatim}
+
+\textbf{gzip} set to yes/no if you want to gzip static files at compile time. In this way you will reduce the target footprint, but your client browser must be able to unpack the content (eg. IE, FireFox, Mozilla,...). Gzipped service is only available for static contents.
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=webapp gzip=yes
+\end{verbatim}
+
+\paragraph{debug} set to yes to build binary file for debugging purposes. Note that binary file is larger.
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=webapp debug=yes
+\end{verbatim}
+
+\paragraph{disable} disables some of Smews functionalities, making the binary smaller.
+Currently there are 3 options available:
+\begin{itemize}
+\item \texttt{comet} -- removes comet support in the binary, which disables the server to push data to the client.
+\item \texttt{retransmit} -- disable TCP packets retransmission in case of lost segments. The generated web server will not be fully compliant with the TCP RFC.
+\item \texttt{arguments} -- URL arguments parsing will be removed from the source code.
+\end{itemize}
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=webapp disable=comet
+\end{verbatim}
+
+\paragraph{endian} forces endianness little/big data representation. Target dependent option.
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=webapp endian=little
+\end{verbatim}
+
+\paragraph{chuncksNbits} sets the checksum chunk size for offline pre-calculation. The lower it is the better the possibility that the server will match one of the negotiated client MSS.
+
+\textbf{Example:} 
+\begin{verbatim}
+$ scons target=linux contents=webapp chunckNbits=5
+\end{verbatim}
+
+After Smews compiles successfully, the binary file(s) can be found in \texttt{/bin/\$target/}. Depending on the target you may 
+have to upload them to device's ROM/EEPROM. The code in \texttt{target/\$target/driver} will take care of port specific initializations and starting Smews webserver. The script \texttt{target/\$target/install} allows to flash the device with Smews.
+
+The linux target is a particular case where Smews binary file is a process that can be run above the operating system. The binary file can be run from the \texttt{/bin/linux} directory.
+
+The code in \texttt{target/linux/drivers} defines a point-to-point virtual interface TUN in the linux operating system to enable the communication between the Smews process (web server) and the client (localhost or other host in the local area network).
+
+The Smews server can be found at \texttt{http://\$smewsip/.}
+
+\section{Creating your own Web Application}
+
+Web Applications are made of static (files) and dynamic (generated by the server at runtime) contents. Applications are identified by subdirectories of \texttt{webContents/} directories located in the root of Smews project. The \texttt{webContents/examples} contains application examples using various features of Smews.
+
+A folder identifies a particular Web Application or a set of Web Applications which will be embedded in the web server.
+
+\subsection{Static Content}
+
+Smews can serve HTML static content. The HTTP content-type field is automatically inferred from the file extension.
+
+\textbf{Example:}
+\begin{verbatim}
+<html>
+	<head>
+		<title>Hello World !</title>
+	</head>
+	<body>
+		Hello World !
+	</body>
+</html>
+\end{verbatim}
+
+Create a new file containing the above code. Save it in \texttt{webContents/helloWorld/hello.html}. Compile Smews setting the target to \textbf{linux} and the content to be embedded \textbf{helloWorld} as below:
+
+\begin{verbatim}
+$ scons target=linux contents=helloWorld
+\end{verbatim}
+
+Then run the ELF file from the \texttt{/bin/linux} directory. You can now access the server at \texttt{http://\$smewsip/}.
+Keep in mind that the linux target is a particular case where Smews binary file is a process, that is why it can be launched directly. If tested on different target, depending on destination you may have to upload the generated files to device's ROM/EEPROM.
+
+\subsection{Dynamic Content}
+\label{subsub:cando}
+
+Smews can serve content generated by code, which we will refer to as \textit{Dynamic Content}. Smews can work with the following files (we shall explain below every particular case):
+\begin{itemize}
+\item .c or .h files without XML code. It will compile files as usual.
+\item .c files with part of XML code. It will generate new code depending on the XML tags, enriching the .c file.
+\item .c.embed or .h.embed, if you would like to instruct Smews that this is a static content and should be served "as is".
+\end{itemize}
+
+For developing your Web Application Smews offers 3 functions for generating 3 types of content. This functions can only be used in a handler that will generate content to be served to the clients. As you will see later this handler is usually \textbf{doGet} except for push-based content using channels which is \textbf{doComet}. Channels are explained in Section \ref{subsub:channels}.
+\begin{itemize}
+\item char out\_c(char c) -- outputs an 8 bit character
+\item void out\_uint(uint32\_t i) -- outputs an 32 bits integer
+\item void out\_str(const char str[]) -- outputs a string
+\end{itemize}
+
+\subsection{XML Code for Dynamic Content}
+
+If you read the \ref{subsub:cando} Subsection you may have seen that Smews can work with XML code embedded in a  .c file. Smews uses such a code to describe some properties of the application developed. XML code must be commented in the .c source file.
+
+The first type of information is the \textbf{handlers} tag. If one should want to specify a handler for the function that should be called when HTTP GET is processed by the server, needs to write in the .c source file associated with the Web Application such an XML code.
+\begin{verbatim}
+/*
+<generator>
+     <handlers doGet="doGet"/>
+</generator>
+*/
+\end{verbatim}
+
+All handlers type that can be used by Smews to specify a function are:
+\begin{itemize}
+\item \textbf{init} -- function executed when Smews runs for the first time.
+\item \textbf{doGet} -- function executed once per client GET
+\item \textbf{doComet} -- function that identifies a handler for pushing data to clients. Function runs only once per push and might serve multiple clients through channels.
+\end{itemize}
+
+In the XML code you can also specify a \textbf{properties} tag for the functions \textbf{doGet} or \textbf{doComet} that may have the following possible values:
+\begin{itemize}
+\item \textbf{volatile} -- means that the content generated will not be stored in memory and will be regenerated in case of TCP NACK.
+\item \textbf{idempotent} -- means that the function will return the same value no matter when you might call it. Currently equivalent with volatile.
+\item \textbf{persistent} (default option) -- means that the output will be kept in memory and will be delivered from there in case of NACK.
+\end{itemize}
+
+\begin{verbatim}
+/*
+<generator>
+     <handlers init="myInitProc"/>
+     <handlers doGet="doGet"/>
+     <properties type="volatile"/>
+</generator>
+*/
+\end{verbatim}
+
+Another feature of the XML code is argument passing by URL. If one would like to pass arguments to Smews
+and process them in a function, should define an \textbf{arg} tag like below:
+\begin{verbatim}
+/*
+<generator>
+     <args>
+          <arg name="an_integer8bit_var" type="uint8" />
+          <arg name="a_string_var" type="str" size="6" />
+          <arg name="an_integer16bit_var" type="uint16" />
+     </args>
+</generator>
+*/
+\end{verbatim}
+
+The last thing you can do with XML is to define channels. To learn more about channels and how to use them check section \ref{subsub:channels}:
+\begin{verbatim}
+/*
+<generator>
+     <handlers doGet="doGet" doComet="doComet"/>
+     <properties type="volatile"/>
+     <channel name="knockknock"/>
+</generator>
+*/
+\end{verbatim}
+
+\subsection{Channels}
+\label{subsub:channels}
+
+A powerful feature of Smews is the support of Web push, often called \emph{Comet}. In Smews, Comet is implemented via channels. A channel is a way of sending data asynchronously by ways of pushing it from server to clients. Basically there may be many clients listening on a channel and one client that triggers an event. To see how can you accomplish this take a look at the next example:
+\begin{verbatim}
+/*
+<generator>
+     <handlers doGet="doGet" doComet="doComet"/>
+     <properties type="volatile"/>
+     <channel name="knockknock"/>
+</generator>
+*/
+
+extern uint16_t val;
+
+/* launched when the GET request is received */
+static char doGet(struct args_t *args) {
+     return 1;
+}
+
+/* launched when knockknock is triggered */
+static char doComet(struct args_t *args) {
+     out_str("somebody knocked: ");
+     out_uint(val);
+     return 1;
+}
+\end{verbatim}
+
+The above example defines a handler to a \textbf{doGet} and a \textbf{doComet} function. Also by means of XML defines a channel named \textbf{knockknock}. The \textbf{doComet} handler is the function that will be called when someone triggers an event by means of a function named \textbf{server\_push}. The handler for \textbf{doGet} or \textbf{doComet} function can have any name as long as it is specified in XML code. In the \textbf{doGet} function, return 1, instructs the client to block waiting for an response from the server.
+
+To trigger the push event on the channel we must call \textbf{server\_push(\&channel)} function. The below example gets an argument from the URL and triggers a push event to the server. Server will run it's \textbf{doComet} function defined above.
+
+First step is to provide a new XML:
+\begin{verbatim}
+/*
+<generator>
+     <handlers doGet="doGet" doComet="doComet"/>
+     <properties type="volatile"/>
+     <args>
+          <arg name="val" type="uint16" />
+     </args>
+</generator>
+*/
+\end{verbatim}
+
+Define the \textbf{doGet} handler to get the argument and trigger the event via the \textbf{server\_push} function:
+\begin{verbatim}
+#include "channels.h"
+
+uint16_t val;
+
+static char doGet(struct args_t *args) {
+     if(args) {
+          val = args->val;
+          server_push(&knockknock);
+          out_str("knock knock: ");
+          out_uint(val);
+     } else {
+          out_str("No arguments were supplied.");
+     }
+     return 1;
+}
+\end{verbatim}
+
+The output generated will be broadcasted to all the clients waiting for data on the channel defined by the URL \texttt{http://\$smewsip/\$your\_app/\$channel}, where \textbf{\$channel} is the file where you have defined the \textbf{doComet} handler above.
+
+\subsection{Timers}
+
+Another way of triggering an event except channels is by using timers. Smews offers a timer function independent of architecture.
+To set a timer one can use this function (called from a dedicated main.c or from an \textbf{init} procedure declared in a dynamic content application):
+
+\begin{verbatim}
+set_timer(&timer_callback,TIME_MILLIS);
+\end{verbatim}
+
+\begin{description}
+\item \textbf{timer\_callback} -- function that will be called when timer expires
+\item \textbf{TIME\_MILLIS} -- value in milliseconds until the timer expires.
+\end{description}
+
+Let's take for example an application where you would like to push results to the clients every second.
+In the example below we trigger an server push once per second:
+\begin{verbatim}
+<generator>
+     <handlers init="init" doGet="doGet" doComet="doComet"/>
+     <channel name="myStreamedComet"/>
+     <properties type="volatile"/>
+</generator>
+
+static void timer() {
+     /* triggers the channel */
+     server_push(&myStreamedComet);
+}
+
+static char init(void) {
+     /* initialize a timer with a period of 1000 milliseconds */
+     return set_timer(&timer,1000);
+}
+
+static char doGet(struct args_t *args) {
+     return 1;
+}
+
+static char doComet(struct args_t *args) {
+     /* outputs the current time in milliseconds */
+     out_uint(TIME_MILLIS);
+     /* return 2 to tell that the HTTP response has not ended */
+     return 2;
+}
+\end{verbatim}
+
+\chapter{Description of Smews building tools}
+\label{chap:tools}
+
+This chapter will make a summary of Smews building process, to facilitate easy development or changing for developers.
+Smews uses SCons for building.
+
+\section{SCons Files Description}
+\label{sec:scons}
+
+The main SCons configuration file is \textbf{SConstruct} which is located in the root of Smews.
+SConstruct file deals with the following steps of the building process:
+\begin{itemize}
+\item command line interface options management
+\item environment creation, options extraction
+\item association between web contents files and their final URLs
+\item compilation options (compilers,assemblers,flags)
+\item starts building binary for each target specified in the command line using the following steps:
+	\begin{itemize}
+	\item sets target dependent directories / files
+	\item sets target dependent compilation options
+	\item exporting variables for external SConscript files
+	\item runs SConscript files for target
+	\item runs any available SConscript file for webApp
+	\item runs Main SConscript file
+	\end{itemize}
+\end{itemize}
+
+As you can see above there are 3 types of SConscript files that are involved in the building process. You can find a detailed overview of them in the next subsections.
+
+\subsection{Main SConscript}
+
+This file is the last SConscript file called by the SConstruct file on the chain to building the binary file and it is located in the root of Smews. It generates .c files from static or dynamic contents using GenContents tool, file\_index.c file, channels header file, setting dependencies between all files and finally building the library(.a) and the binary file.
+
+\subsection{Web Application SConscript}
+
+This file is optional but adds interesting features to the Application. You can use such a file to generate static files that will serve the application. The file must be located in \texttt{webContent/\$your\_app/} folder, because that is where the SConstruct script file searches for it.
+
+For a good example take a look in the \texttt{webContent/smews} folder at the SConscript file:
+
+The code begins with an import statement which allows us to import from global SCons space some variables that we may need inside a file. Exporting variables for external SConscript files is done with a call to \textbf{Export(var1 var2 ...)}.
+
+\begin{verbatim}
+import os
+import glob
+
+Import('env \
+genDir \
+dirsMap \
+tmpBase \
+target \
+sconsBasePath \
+httpCodesDir \
+wcBase \
+')
+\end{verbatim}
+
+The following two functions are used to search inside directories for files that belong to the Web Application we are currently building.
+\begin{verbatim}
+# used by getWCFiles
+def getWCFilesRec(wcPath,path):
+	files=[]
+	for file in glob.glob(path + '/*'):
+       		if os.path.isdir(file):
+			files = files + (getWCFilesRec(wcPath,file))
+       		else:
+			files.append(file[len(wcPath)+1:])
+	return files
+
+# returns all files contained in path (with recurssion)
+def getWCFiles(path):
+	return getWCFilesRec(path,path)
+\end{verbatim}
+
+The following lines will iterate over the dirsMap hashmap which contains application names versus path to applications.
+It will create an appList.js file with code for adding links to the main page of smews application, links which point to other applications that were also compiled along with it. The script searches the directories of applications for index.html files and adds javascript code to the .js file defining this application. At compile time when SConscript file is called, the .js will be created anyway but will contain relevant code only if there are other applications embedded in the webserver. The generated javascript file can be found in \texttt{/gen/\$target/tmp}.
+
+\begin{verbatim}
+appListName = 'appList.js'
+
+appListPath = os.path.join(genDir,tmpBase,appListName)
+appListAbsPath = os.path.join(sconsBasePath,appListPath)
+
+appList = open(appListAbsPath,'w')
+if len(dirsMap.keys()) > 2:
+     appList.write('var appList = new Array();\n')
+     appsCount = 0
+     for dir in dirsMap.keys():
+          if dir != 'smews' and dir != httpCodesDir:
+                    [.. Code Missing ..] #Get Web Content Files
+                    [.. Code Missing ..] #Write line in .js
+     #if we write some lines in the .js file then write title, else write empty string
+     if appsCount > 0:
+          appList.write('var appTitle = \"' + target.capitalize() + ' app examples:\";\n')
+     else:
+          appList.write('var appTitle = \"\";\n')
+else:
+     appList.write('var appTitle = \"\";\n')
+appList.close()
+
+ret = {appListPath: os.path.join(dirsMap['smews'],appListName)}
+Return('ret')
+\end{verbatim}
+
+The applist.js file is embedded in index.html of the smews web application and then referenced when needed to display link to applications.
+\begin{verbatim}
+<script type="text/javascript" src="appList.js"> </script>
+
+[...]
+
+<script type="text/javascript">
+     if(appTitle != "") {
+          document.write("<h4><p>" + appTitle + "</p></h4>");
+          document.write("<ul><em>")
+          for(app in appList)
+               document.write("<li><a href=" + app + "/>" + appList[app] + "</a></li>");
+          document.write("</em></ul>")
+     }
+</script>
+\end{verbatim}
+
+\subsection{Target SConscript} 
+This is the file that deals with target specific building options. It is invoked in the SConstruct file for each target to determine which tools to use for it. If you want to create a new target, you can replace some of the environment options being exported by SConstruct, like compilers, assemblers, flags and others specific to your architecture. The file resides in \texttt{/targets/\$target/SConscript}. For good examples take a look at the SConscript file for \textbf{Funcard7} or \textbf{WSN430} target.
+
+\section{Smews compilation process}
+
+\subsection{Main SConscript}
+\label{sub:preproc}
+
+For each target compilation supplied in the command line (target option), the SConstruct script calls three different SConscript files as we described in \ref{sec:scons}. The last SConscript file is the main file which deals with final building of the binary file and is located in the root of Smews.
+The following steps are combined in this SConscript file:
+\begin{itemize}
+\item loops on each web content file to generate new files if needed. All output goes to \texttt{gen/} folder. It generates the following:
+	\begin{itemize}
+	 \item static files generates pre-computed .c files which contains data bytes and checksums
+	 \item .c files used for generating content (via \textbf{doComet} or \textbf{doGet} functions) are enriched with new declarations (from their XML)
+	 \item other .c or .h files are simply copied to the \texttt{gen/} folder
+	\end{itemize}
+\item generates a wcList file that contains the list of the web contents embedded with smews
+\item generates file\_index file which links URLs to output\_handler struct, thanks to an URL tree
+\item generates a channels.h file which may contain channel declarations used by one of the application embedded
+\end{itemize}
+
+
+
+In the preprocessing phase Smews uses two tools written in python. These tools are mainly used in the main SConscript as described in \ref{sub:preproc}. A brief description of what these does can be found in section \ref{sub:preproctools}
+\newline
+
+\subsection{Preprocessing Tools}
+\label{sub:preproctools}
+
+\texttt{GenContents.py}
+
+\begin{itemize}
+\item \textbf{generateStaticContent} -- generates a .c file from static files, precomputing chunk checksums and data packet as raw bytes.
+\item \textbf{generateServiceContent} -- enriches a .c file with service output handlers and structure from XML declaration from the .c file
+\item \textbf{generateContentProps} -- generates a .props file with the information declared in property tag from XML declaration. Information is used to build the file\_index.c file.
+\item \textbf{generateFilesIndex} -- generates a file\_index.c file which maps URL's to output handler structures using a ternary tree.
+\item \textbf{generateChannelsH} -- generates a channels.h file that contains an external structure declaration together with a MACRO for the channel name
+\end{itemize}
+
+\texttt{GenBlob.py} is a file that contains functions used for ternary tree construction to map URLs on to web application resources. This enables the byte oriented character of smews to find the resource to serve from the URL without saving the whole URL in memory. This adds
+to low memory footprint and also fast processing because of the ternary tree.
+
+\chapter{Credits}
+
+Contributors of Smews:
+
+
+\begin{description}
+ \item[Simon Duquennoy] is the main author of the Smews Software
+ \item[Geoffroy Cogniaux] is the main contributor of the AVR-FunCard and TUN-TAP/Linux targets
+ \item[Thomas So\"{e}te] is the main contributor of the WSN430 port
+ \item[Alex Negrea] is the main author of this user guide
+ \item[Jean-Fran\c{c}ois Hren] Design of the Smew (bird) in the Smews logo
+\end{description}
+Thanks to \textbf{Gilles Grimaud} for his kind supervision.
+
+Smews also includes part of the softwares listed below:
+\begin{itemize}
+ \item SOSSE: Matthias Br\"{u}stle -- http://www.mbsks.franken.de/sosse/
+ \item TUN-TAP: Maxim Krasnyansky -- http://vtun.sourceforge.net/tun/
+\end{itemize}
+
+Smews is under CeCILL licence compliant with the GPL licence of SOSSE and TUN-TAP.
+
+\end{document}

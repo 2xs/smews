@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">	
+<html>
+<head>
+<title>AGB Pad served by dynWeb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<style type="text/css">
+	BODY{
+		font-family  : sans-serif;	
+	}
+	.triangle{
+		position:absolute;
+		width:0;
+		height:0;
+		border:20px solid white;	
+	}
+	.button{
+		display:inline;
+		position:absolute;
+		width:50px;
+		height:50px;
+		text-align:center;
+		
+	}
+</style>
+<script src="funcs.js" type="text/javascript"></script>
+</head>
+
+<body>
+<!-- Up triangle -->
+<div id="up" class="triangle" style="top:0px;left:50px;border-bottom-color:green;"></div>
+<!-- Down triangle -->
+<div id="down" class="triangle" style="top:100px;left:50px;border-top-color:green;"></div>
+<!-- Left triangle -->
+<div id="left" class="triangle" style="top:50px;left:0px;border-right-color:green;"></div>
+<!-- Right triangle -->
+<div id="right" class="triangle" style="top:50px;left:100px;border-left-color:green;"></div>
+<!-- B button -->
+<div id="btnB" class="button" style="top:50px;left:200px;background-color:green;"><br/>B</div>
+<!-- A button -->
+<div id="btnA" class="button" style="top:50px;left:300px;background-color:green;"><br/>A</div>
+
+<div id="sample" style="position:absolute;top:150px;left:30px;"></div>
+
+<div style="position:absolute;top:30px;left:450px;">
+<table border>
+<tr>
+	<td width="80">Left</td><td id=tleft width="10"></td>
+</tr>
+<tr>
+	<td>Up</td><td id=tup></td>
+</tr>
+<tr>
+	<td>Right</td><td id=tright></td>
+</tr>
+<tr>
+	<td>Down</td><td id=tdown></td>
+</tr>
+<tr>
+	<td>A</td><td id=tA></td>
+</tr>
+<tr>
+	<td>B</td><td id=tB></td>
+</tr>
+</table>
+</div>
+
+<script language="javascript">
+run();
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+[ Smews version 1.4.0 ]
+
+License: CeCILL license, http://www.cecill.info
+Date: 23-10-2009
+Author: Simon Duquennoy
+Contributors:
+	- Thomas Soëte - worked on WSN430 port
+	- Geoffroy Cogniaux - wrote the Funcard 7 port
+	- Jean-François Hren - designed the Smew in the Smews logo
+With advices of: Gilles Grimaud
+Author e-mails: simon.duquennoy@lifl.fr
+Web page: http://www2.lifl.fr/~duquenno/Research/smews
+
+Smews is an efficient embedded Web server for tiny devices, with high
+resource constraints.
+
+Parts of code from SOSSE (Simple Operating system for Smart cards)
+http://www.mbsks.franken.de/sosse/, under GPL license :
+targets/Funcard7/drivers/at_config.h
+targets/Funcard7/drivers/eepromi2c.s
+targets/Funcard7/drivers/io.s
+
+[ Usage: ]
+
+Smews uses scons for building. Python 2.5 or greater has to be installed.
+http://www.scons.org/
+Usage: scons target=<target> [contents=<contents>] [options]
+- Type 'scons -h' for a complete description of available arguments.
+- Type 'scons target=x contents=y' to compile Smews for the x target,
+embedding contents present in webContents/y (the y string can be more
+complex, c.f. scons -h)
+- Type 'scons -c' to clean build files.
+Files are compiled in the bin/$target directory. This last contains the Smews
+executable file. It also contains a libsmews.a file, allowing to embed Smews
+in other software (see core/main.c).
+
+[ Directories and files description: ]
+
+SConstruct, SConscript		- Smews general SCons files
+core/				- Smews c source code
+doc/				- Smews documentation
+tools/ 				- python precompilation tools
+targets/			- Smews ports
+targets/$target			- Smews port to target $target
+targets/$target/SConscript	- SCons target specific buld instructions
+targets/$target/install		- SCons target specific installation script
+targets/$target/drivers		- C source code for Smews port to
+				the target $target (network device drivers,
+				timers management)
+webContents			- Contents to be served by Smews,
+				via the GenContents tool
+
+[ Existing ports and installation: ]
+
+skeleton	- this a target skeleton, listing and explaining all macros
+		to be implemented by a port.
+
+MicaZ:		- port to the MicaZ sensor board (AVR, 8 bits), using its
+		integrated serial line.  The client side only has to
+		redirect TCP/IP requests to its serial line, using the
+		SLIP protocol. Configuration example under a unix system:
+		$slattach -s 115200 -p slip /dev/ttyS0 -L &
+		$ifconfig sl0 192.168.1.5 pointopoint 192.168.1.8 mtu 1500
+
+WSN430:		- port to the WSN430 sensor board (MSP430, 16 bits), using its
+		integrated serial line. The client side configuration is
+		the same than for the MicaZ.
+
+Funcard 7:	- port to the Funcard 7 smart card, using IP over APDU.
+		A dediacted driver is needed to use this port.
+
+GBA:		- port to the Game Boy Advance console (arm7, 32 bits),
+		using its integrated serial line. The client side
+		configuration is the same than for the MicaZ.
+
+linux:		- port to linux, using directly the TUN interface (instead
+		of linux TCP/IP stack). The produced smews.elf binary file
+		can be directly launched as a linux application.

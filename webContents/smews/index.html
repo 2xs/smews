@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+	<title>Smews embedded Web server presentation</title>
+	<link rel="stylesheet" type="text/css" href="ressources/style.css" />
+	<script type="text/javascript" src="appList.js"></script>
+</head>
+
+<body>
+	<a id="smewsLogo" href="http://www2.lifl.fr/~duquenno/Research/Smews/">
+		<img src="ressources/smews.jpg" alt="smews" title="" />
+		<h1>Smews: <em>Smart &amp; Mobile Embedded Web Server</em></h1>
+	</a>
+
+	<div id="mainText">
+		<h2><em>Smews</em> is an embedded Web server with low memory footprint</h2>
+		<ul>
+			<li>Stand-alone Web server, without any underlaying OS</li>
+			<li>Down to 200 bytes of volatile memory</li>
+			<li>Down to 8 kB of persistent memory</li>
+		</ul>
+
+		<h2><em>Smews</em> has high performances</h2>
+		<ul>
+			<li>Single process event-driven architecture</li>
+			<li>TCP stack dedicated to HTTP, allowing cross-layer optimizations</li>
+			<li>Off-line pre-calculations done on Web contents (protocol headers, checksums, parsing automatons)</li>
+		</ul>
+		<h2><em>Smews</em> is able to serve rich Web applications</h2>
+		<ul>
+			<li>Able to send static and dynamic contents</li>
+			<li>Comet support (server pushed data)</li>
+			<li>Advanced typing of dynamic Web contents (persitent, idempotent and volatile contents)</li>
+		</ul>
+		<div id="appList">
+			<script type="text/javascript">
+				if(appTitle != "") {
+					document.write("<h2>" + appTitle + "</h2>");
+					document.write("<ul>")
+					for(app in appList)
+						document.write("<li><a href=" + app + "/>" + appList[app] + "</a></li>");
+					document.write("</ul>")
+				}
+			</script>
+		</div>
+	</div>
+	
+	<div id="smewsPorts">
+		<h2><em>Smews</em> has been ported to</h2>
+
+		<ul>
+			<li>
+				<img src="ressources/micaz.jpg" alt="micaz" title="" width="80" />
+				<ul>
+					<li><strong>MicaZ sensor board</strong></li>
+					<li>AVR 8 bits at 8 MHz, 16 bits bus</li>
+					<li>SLIP over serial line</li>
+				</ul>
+			</li>
+			
+			<li>
+				<img src="ressources/wsn430.jpg" alt="wsn430" title="" width="80" />
+				<ul>
+					<li><strong>WSN430 sensor board</strong></li>
+					<li>MSP430 16 bits at 16 MHz, 16 bits bus</li>
+					<li>SLIP over serial line</li>
+				</ul>
+			</li>
+
+			<li>
+				<img src="ressources/funcard7.jpg" alt="funcard7" title="" width="80" />
+				<ul>
+					<li><strong>Funcard 7 smart card</strong></li>
+					<li>Funcard 7 smart card</li>
+					<li>APDU</li>
+				</ul>
+			</li>
+
+			<li>
+				<img src="ressources/gba.jpg" alt="gba" title="" width="80" /
+				<ul>
+					<li><strong>Game Boy Advance</strong></li>
+					<li>Arm7 32 bits at 16 MHz, 32 bits bus</li>
+					<li>SLIP over serial line</li>
+				</ul>
+			</li>
+
+			<li>
+				<img src="ressources/linux.jpg" alt="linux" title="" width="60" />
+				<ul>
+					<li><strong>Linux</strong></li>
+					<li>TUN virtual drivers</li>
+				</ul>
+			</li>
+		</ul>
+	</div>
+</body>
+
+</html>

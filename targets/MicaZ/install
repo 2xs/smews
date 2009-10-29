@@ -1,0 +1,7 @@
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --wr_fuse_e=0xff
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --wr_fuse_e=0xff
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --wr_fuse_h=0x9f
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --wr_fuse_l=0xbf
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --erase
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --upload if=./bin/MicaZ/smews.bin
+uisp -v=0 -dpart=atmega128 -dprog=mib510 -dserial=/dev/ttyS0 --verify if=./bin/MicaZ/smews.bin

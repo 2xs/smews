@@ -1,0 +1,23 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html>
+	<head>
+		<script language="Javascript" src="funcs.js"></script>
+		<link rel="stylesheet" type="text/css" href="style.css" />
+	</head>
+
+<body onload="init();">
+	<div id="main">
+		<a id="smewsLogo" href="http://www2.lifl.fr/~duquenno/Research/Smews/"><img src="/ressources/smews.jpg" alt="smews" title="" /></a>
+		<h1>Current CPU usage</h1>
+		<div id="infos">
+			<img id="loader" src="ajaxLoader.gif" />
+			Polling interval: <input id="htmlInterval" onKeyUp="setPollInterval(this.value);"></input> ms
+		</div>
+		<div id="svgDoc">
+			<object id="svgDoc0" type="image/svg+xml" data="chart.svg" width="800" height="260" />
+		</div>
+	</div>
+</body>
+</html>
