@@ -2,12 +2,12 @@
 #define __TLS_H__
 
 #include "types.h"
-#include "record.h"
+
 
 extern uint8_t tls_get_client_hello();
 
 
-#define ECDH_ECDSA_RC4_128_SHA1 /* this should be a config option */
+#define ECDH_ECDSA_RC4_128_SHA1 /* this should be a compiler option */
 
 #ifdef ECDH_ECDSA_RC4_128_SHA1
 
@@ -80,10 +80,15 @@ struct tls_connection {
 	uint8_t client_key[CIPHER_KEYSIZE]; 	/* client write key for symmetric alg */
 	uint8_t server_key[CIPHER_KEYSIZE]; 	/* server write key for symmetric alg */
 
-	/* uint8_t ccs_sent:1;  flag indicating if we have sent CCS message */
+	uint8_t ccs_sent:1; /* flag indicating if we have sent CCS message */
 	uint8_t ccs_recv:1; /* flag indicating if we have recv CCS message */
 
-};
+
+	/* hash contexts for computation of handshake hashes required in finish message */
+	struct md5_context *client_md5;
+	struct sha1_context *client_sha1;
+	      
+}; /* ~ 82 + 88 + 92 */
 
 
 

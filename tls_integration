@@ -8,31 +8,75 @@ rc4.h
 sha1.h
 record.h
 record.c
+sha1.c
+md5.c
 
 
 
 
 Files modified :
 
--line 63, input.c
-#define HTTPS_PORT 443
-
--line 242, input.c
-&& UI16(tmp_ui16) != HTTPS_PORT
-
 -line 89, connections.h
 #ifndef DISABLE_HTTPS	
 	struct tls_connections *tls;
+	unsigned char tls_active: 1;
 #endif
 
 };
 
+line 209, input.c
+		tmp_connection.tls_active = 0;
+
+-line 63, input.c
+#define HTTPS_PORT 443
+
+-line 248, input.c
+	if(tmp_ui16[S1] != HTTP_PORT) {
+		/* if we expect a TLS connection allocate memory now */
+		if(UI16(tmp_ui16) == HTTPS_PORT && tmp_connection.tcp_state == tcp_listen){
+			
+			tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
+
+			if(tmp_connection.tls != NULL){
+				(tmp_connection.tls)->tls_state = tls_listen;	
+				tmp_connection.tls_active = 1;
+			} else {
+				return 1;  
+			}
+		} else {
 
 
-- line 257, input.c
-if(UI16(tmp_ui16) == HTTPS_PORT) {
-		tmp_connection.tls = mem_alloc(sizeof(tls_connection));
-	}
+
+
+
+-line 378, input.c
+/* TLS Handshake Layer processing*/
+if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
+		
+		/* TLS state machine management*/
+		switch(  (tmp_connection.tls)->tls_state ){
+
+			case tls_listen:
+			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
+				    (tmp_connection.tls)->tls_state = client_hello;
+
+			      }
+
+			case client_hello:
+
+			case server_hello:
+
+			default:
+			      break;	 	
+    
+
+		}
+
+
+
+	} else {
+		Simon's code for http request
+		}
 
 
 Moved the macros DEV_GET* and functions dev_getc16 and dev_getc32 from input.c to tls.c

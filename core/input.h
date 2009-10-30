@@ -48,5 +48,37 @@
 
 /* Receive and process a single packet. Returns 1 if a packet has been successfully processed, 0 else. */
 extern char smews_receive(void);
+extern char dev_get16(unsigned char *word);
+extern char dev_get32(unsigned char *dword);
+
+/* Get and checksum a byte */
+#define DEV_GETC(c) { int16_t getc; \
+		DEV_GET(getc); \
+		if(getc == -1) return 1; \
+		c = getc; \
+		checksum_add(c);} \
+
+/* Get and checksum 2 bytes */
+#define DEV_GETC16(c) { \
+	if(dev_get16((unsigned char*)(c)) == -1) \
+		return 1; \
+	checksum_add16(UI16(c)); \
+}
+
+/* Get and checksum 4 bytes */
+#define DEV_GETC32(c) { \
+	if(dev_get32((unsigned char*)(c)) == -1) \
+		return 1; \
+	checksum_add32(c); \
+}
+
+
+#define DEV_GETN(a,len){ \
+	uint16_t i; \
+	for(i = 0; i < len; i++) \
+		DEV_GET(a[i]); \
+}
+
+
 
 #endif /* __RECEIVE_H__ */

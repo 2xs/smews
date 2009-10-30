@@ -88,6 +88,7 @@ struct http_connection {
       
 #ifndef DISABLE_HTTPS	
 	struct tls_connection *tls;
+	unsigned char tls_active: 1;
 #endif
 
 };

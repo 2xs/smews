@@ -75,7 +75,7 @@ extern CONST_VAR(struct output_handler_t, webContents_httpCodes_404_html_handler
 static CONST_VAR(unsigned char, blob_http_rqt[]) = {'G','E','T',' ',128};
 
 /* gets 16 bits and checks if nothing wrong appened */
-static char dev_get16(unsigned char *word) {
+char dev_get16(unsigned char *word) {
 	int16_t tmp;
 	DEV_GET(tmp);
 	if(tmp == -1)
@@ -89,7 +89,7 @@ static char dev_get16(unsigned char *word) {
 }
 
 /* gets 16 bits and checks if nothing wrong appened */
-static char dev_get32(unsigned char *dword) {
+char dev_get32(unsigned char *dword) {
 	if(dev_get16(&dword[2]) == -1)
 		return -1;
 	if(dev_get16(&dword[0]) == -1)
@@ -97,26 +97,6 @@ static char dev_get32(unsigned char *dword) {
 	return 1;
 }
 
-/* Get and checksum a byte */
-#define DEV_GETC(c) { int16_t getc; \
-		DEV_GET(getc); \
-		if(getc == -1) return 1; \
-		c = getc; \
-		checksum_add(c);} \
-
-/* Get and checksum 2 bytes */
-#define DEV_GETC16(c) { \
-	if(dev_get16((unsigned char*)(c)) == -1) \
-		return 1; \
-	checksum_add16(UI16(c)); \
-}
-
-/* Get and checksum 4 bytes */
-#define DEV_GETC32(c) { \
-	if(dev_get32((unsigned char*)(c)) == -1) \
-		return 1; \
-	checksum_add32(c); \
-}
 
 /*-----------------------------------------------------------------------------------*/
 char smews_receive(void) {
@@ -236,6 +216,7 @@ char smews_receive(void) {
 #ifndef DISABLE_TIMERS
 		tmp_connection.transmission_time = last_transmission_time;
 #endif
+		tmp_connection.tls_active = 0;
 
 
 	}
@@ -243,26 +224,34 @@ char smews_receive(void) {
 	/* get and check the destination port */
 
 	DEV_GETC16(tmp_ui16);
-	if(tmp_ui16[S1] != HTTP_PORT && UI16(tmp_ui16) != HTTPS_PORT) {
+
+	if(tmp_ui16[S1] != HTTP_PORT) {
+		/* if we expect a TLS connection allocate memory now */
+		if(UI16(tmp_ui16) == HTTPS_PORT && tmp_connection.tcp_state == tcp_listen){
+			
+			tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
+
+			if(tmp_connection.tls != NULL){
+				(tmp_connection.tls)->tls_state = tls_listen;	
+				tmp_connection.tls_active = 1;
+			} else {
+				return 1;  
+			}
+		} else {
+
 #ifdef STACK_DUMP
-		DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
-		for(stack_i = 0; stack_i < STACK_DUMP_SIZE ; stack_i++) {
-			DEV_PUT(stack_base[-stack_i]);
-		}
-		DEV_OUTPUT_DONE;
+			DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
+			for(stack_i = 0; stack_i < STACK_DUMP_SIZE ; stack_i++) {
+				DEV_PUT(stack_base[-stack_i]);
+			}
+			DEV_OUTPUT_DONE;
 #endif
-		return 1;
-	}
-
-	/* signal a possible TLS connection, alocate memory for it */
-	if(UI16(tmp_ui16) == HTTPS_PORT && tmp_connection.tls != NULL) {
-		tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
-		if(tmp_connection.tls != NULL){
-			  (tmp_connection.tls)->tls_state = tls_listen;
+			return 1;
 		}
 
 	}
 
+	
 	/* get TCP sequence number */
 	DEV_GETC32(current_inseqno);
 
@@ -371,13 +360,14 @@ char smews_receive(void) {
 
 
 	/* TLS Handshake Layer processing*/
-	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls != NULL) {
+	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
 		
 		/* TLS state machine management*/
-		switch(  (tmp_connection.tls)->tls_state){
+		switch(  (tmp_connection.tls)->tls_state ){
 
 			case tls_listen:
-			      if(tls_get_client_hello() == HNDSK_OK){
+			     
+			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
 				    (tmp_connection.tls)->tls_state = client_hello;
 
 			      }
@@ -393,195 +383,195 @@ char smews_receive(void) {
 		}
 
 
-	}
-
+	} else {
 	
 
 	/* End of TCP, starting HTTP or TLS*/
-	x = 0;
-	if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
-		const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
+		x = 0;
+		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
+			const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
 
-		/* parse the eventual GET request */
-		unsigned const char * /*CONST_VAR*/ blob;
-		unsigned char blob_curr;
-#ifndef DISABLE_ARGS
-		struct arg_ref_t tmp_arg_ref = {0,0,0};
-#endif
+			/* parse the eventual GET request */
+			unsigned const char * /*CONST_VAR*/ blob;
+			unsigned char blob_curr;
+	#ifndef DISABLE_ARGS
+			struct arg_ref_t tmp_arg_ref = {0,0,0};
+	#endif
 
-		if(tmp_connection.parsing_state == parsing_out) {
-#ifndef DISABLE_ARGS
-			tmp_connection.args = NULL;
-			tmp_connection.arg_ref_index = 128;
-#endif
-			tmp_connection.blob = blob_http_rqt;
-			tmp_connection.parsing_state = parsing_cmd;
-		}
+			if(tmp_connection.parsing_state == parsing_out) {
+	#ifndef DISABLE_ARGS
+				tmp_connection.args = NULL;
+				tmp_connection.arg_ref_index = 128;
+	#endif
+				tmp_connection.blob = blob_http_rqt;
+				tmp_connection.parsing_state = parsing_cmd;
+			}
 
-		blob = tmp_connection.blob;
+			blob = tmp_connection.blob;
 
-#ifndef DISABLE_ARGS
-		if(tmp_connection.arg_ref_index != 128) {
-			struct arg_ref_t * /*CONST_VAR*/ tmp_arg_ref_ptr;
-			tmp_arg_ref_ptr = &(((struct arg_ref_t*)CONST_ADDR(output_handler->handler_args.args_index))[tmp_connection.arg_ref_index]);
-			tmp_arg_ref.arg_type = CONST_UI8(tmp_arg_ref_ptr->arg_type);
-			tmp_arg_ref.arg_size = CONST_UI8(tmp_arg_ref_ptr->arg_size);
-			tmp_arg_ref.arg_offset = CONST_UI8(tmp_arg_ref_ptr->arg_offset);
-		}
-#endif
+	#ifndef DISABLE_ARGS
+			if(tmp_connection.arg_ref_index != 128) {
+				struct arg_ref_t * /*CONST_VAR*/ tmp_arg_ref_ptr;
+				tmp_arg_ref_ptr = &(((struct arg_ref_t*)CONST_ADDR(output_handler->handler_args.args_index))[tmp_connection.arg_ref_index]);
+				tmp_arg_ref.arg_type = CONST_UI8(tmp_arg_ref_ptr->arg_type);
+				tmp_arg_ref.arg_size = CONST_UI8(tmp_arg_ref_ptr->arg_size);
+				tmp_arg_ref.arg_offset = CONST_UI8(tmp_arg_ref_ptr->arg_offset);
+			}
+	#endif
 
-		while(x < segment_length && output_handler != &http_404_handler) {
-			x++;
-			DEV_GETC(tmp_char);
-			blob_curr = CONST_READ_UI8(blob);
-			/* search for the content to send */
-			if(blob_curr >= 128 && output_handler != &http_404_handler) {
-				if(tmp_connection.parsing_state == parsing_cmd) {
-					tmp_connection.parsing_state = parsing_url;
-					blob = urls_tree;
-				} else {
-					if(tmp_char == ' ') {
-						if(!output_handler)
-							output_handler = (struct output_handler_t*)CONST_ADDR(files_index[blob_curr - 128]);
+			while(x < segment_length && output_handler != &http_404_handler) {
+				x++;
+				DEV_GETC(tmp_char);
+				blob_curr = CONST_READ_UI8(blob);
+				/* search for the content to send */
+				if(blob_curr >= 128 && output_handler != &http_404_handler) {
+					if(tmp_connection.parsing_state == parsing_cmd) {
+						tmp_connection.parsing_state = parsing_url;
+						blob = urls_tree;
+					} else {
+						if(tmp_char == ' ') {
+							if(!output_handler)
+								output_handler = (struct output_handler_t*)CONST_ADDR(files_index[blob_curr - 128]);
+							break;
+						} else {
+	#ifndef DISABLE_ARGS
+							if(tmp_char == '?') {
+								uint16_t tmp_args_size;
+								output_handler = (struct output_handler_t*)CONST_ADDR(files_index[blob_curr - 128]);
+								tmp_args_size = CONST_UI16(output_handler->handler_args.args_size);
+								if(tmp_args_size) {
+									uint16_t i;
+									blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
+									tmp_connection.args = mem_alloc(tmp_args_size); /* test NULL: done */
+									if(tmp_connection.args == NULL) {
+										output_handler = &http_404_handler;
+										break;
+									}
+									for(i = 0; i < tmp_args_size ; i++) {
+										((unsigned char *)tmp_connection.args)[i] = 0;
+									}
+									continue;
+								}
+							} else if(tmp_char == '=' && tmp_connection.args) {
+								struct arg_ref_t * /*CONST_VAR*/ tmp_arg_ref_ptr;
+								tmp_connection.arg_ref_index = blob_curr - 128;
+								tmp_arg_ref_ptr = &(((struct arg_ref_t*)CONST_ADDR(output_handler->handler_args.args_index))[tmp_connection.arg_ref_index]);
+								tmp_arg_ref.arg_type = CONST_UI8(tmp_arg_ref_ptr->arg_type);
+								tmp_arg_ref.arg_size = CONST_UI8(tmp_arg_ref_ptr->arg_size);
+								tmp_arg_ref.arg_offset = CONST_UI8(tmp_arg_ref_ptr->arg_offset);
+								tmp_connection.curr_arg = ((unsigned char*)tmp_connection.args) + tmp_arg_ref.arg_offset;
+								if(tmp_arg_ref.arg_type == arg_str)
+									(*((unsigned char*)tmp_connection.curr_arg + tmp_arg_ref.arg_size - 1)) = tmp_arg_ref.arg_size - 1;
+								continue;
+							} else if(tmp_char == '&') {
+								blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
+							} else {
+								blob++;
+							}
+	#else
+						blob++;
+	#endif
+						}
+					}
+				blob_curr = CONST_READ_UI8(blob);
+				}
+	#ifndef DISABLE_ARGS
+				if(tmp_connection.arg_ref_index != 128) {
+					if(tmp_char == '&') {
+						tmp_connection.arg_ref_index = 128;
+						blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
+						continue;
+					} else if(tmp_char == ' ') {
 						break;
 					} else {
-#ifndef DISABLE_ARGS
-						if(tmp_char == '?') {
-							uint16_t tmp_args_size;
-							output_handler = (struct output_handler_t*)CONST_ADDR(files_index[blob_curr - 128]);
-							tmp_args_size = CONST_UI16(output_handler->handler_args.args_size);
-							if(tmp_args_size) {
-								uint16_t i;
-								blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
-								tmp_connection.args = mem_alloc(tmp_args_size); /* test NULL: done */
-								if(tmp_connection.args == NULL) {
+						switch(tmp_arg_ref.arg_type) {
+							case arg_str: {
+								unsigned char *tmp_size_ptr = ((unsigned char*)tmp_connection.curr_arg + tmp_arg_ref.arg_size - 1);
+								if(*tmp_size_ptr) {
+									*((unsigned char*)tmp_connection.curr_arg + (tmp_arg_ref.arg_size - *tmp_size_ptr - 1)) = tmp_char;
+									(*tmp_size_ptr)--;
+								}
+								break;
+							}
+							case arg_ui8:
+								*((unsigned char*)tmp_connection.curr_arg) *= 10;
+								*((unsigned char*)tmp_connection.curr_arg) += tmp_char - '0';
+								break;
+							case arg_ui16:
+								*((uint16_t*)tmp_connection.curr_arg) *= 10;
+								*((uint16_t*)tmp_connection.curr_arg) += tmp_char - '0';
+								break;
+						}
+					}
+				} else
+	#endif
+				{
+					do {
+						unsigned char offsetInf = 0;
+						unsigned char offsetEq = 0;
+						unsigned char blob_next;
+						blob_curr = CONST_READ_UI8(blob);
+						blob_next = CONST_READ_UI8(++blob);
+						if (tmp_char != blob_curr && blob_next >= 128) {
+							blob_next = CONST_READ_UI8(++blob);
+						}
+						if (blob_next < 32) {
+							offsetInf += ((blob_next>>2) & 1) + ((blob_next>>1) & 1) + (blob_next & 1);
+							offsetEq = offsetInf + ((blob_next & 2)?CONST_READ_UI8(blob+1):0);
+						}
+						if (tmp_char == blob_curr) {
+							if (blob_next < 32) {
+								if (blob_next & 2) {
+									blob += offsetEq;
+								} else {
 									output_handler = &http_404_handler;
 									break;
 								}
-								for(i = 0; i < tmp_args_size ; i++) {
-									((unsigned char *)tmp_connection.args)[i] = 0;
-								}
-								continue;
 							}
-						} else if(tmp_char == '=' && tmp_connection.args) {
-							struct arg_ref_t * /*CONST_VAR*/ tmp_arg_ref_ptr;
-							tmp_connection.arg_ref_index = blob_curr - 128;
-							tmp_arg_ref_ptr = &(((struct arg_ref_t*)CONST_ADDR(output_handler->handler_args.args_index))[tmp_connection.arg_ref_index]);
-							tmp_arg_ref.arg_type = CONST_UI8(tmp_arg_ref_ptr->arg_type);
-							tmp_arg_ref.arg_size = CONST_UI8(tmp_arg_ref_ptr->arg_size);
-							tmp_arg_ref.arg_offset = CONST_UI8(tmp_arg_ref_ptr->arg_offset);
-							tmp_connection.curr_arg = ((unsigned char*)tmp_connection.args) + tmp_arg_ref.arg_offset;
-							if(tmp_arg_ref.arg_type == arg_str)
-								(*((unsigned char*)tmp_connection.curr_arg + tmp_arg_ref.arg_size - 1)) = tmp_arg_ref.arg_size - 1;
-							continue;
-						} else if(tmp_char == '&') {
-							blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
+							break;
+						} else if (tmp_char < blob_curr) {
+							if (blob_next < 32 && blob_next & 1) {
+								blob += offsetInf;
+							} else {
+								output_handler = &http_404_handler;
+								break;
+							}
 						} else {
-							blob++;
-						}
-#else
-					blob++;
-#endif
-					}
-				}
-			blob_curr = CONST_READ_UI8(blob);
-			}
-#ifndef DISABLE_ARGS
-			if(tmp_connection.arg_ref_index != 128) {
-				if(tmp_char == '&') {
-					tmp_connection.arg_ref_index = 128;
-					blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
-					continue;
-				} else if(tmp_char == ' ') {
-					break;
-				} else {
-					switch(tmp_arg_ref.arg_type) {
-						case arg_str: {
-							unsigned char *tmp_size_ptr = ((unsigned char*)tmp_connection.curr_arg + tmp_arg_ref.arg_size - 1);
-							if(*tmp_size_ptr) {
-								*((unsigned char*)tmp_connection.curr_arg + (tmp_arg_ref.arg_size - *tmp_size_ptr - 1)) = tmp_char;
-								(*tmp_size_ptr)--;
-							}
-							break;
-						}
-						case arg_ui8:
-							*((unsigned char*)tmp_connection.curr_arg) *= 10;
-							*((unsigned char*)tmp_connection.curr_arg) += tmp_char - '0';
-							break;
-						case arg_ui16:
-							*((uint16_t*)tmp_connection.curr_arg) *= 10;
-							*((uint16_t*)tmp_connection.curr_arg) += tmp_char - '0';
-							break;
-					}
-				}
-			} else
-#endif
-			{
-				do {
-					unsigned char offsetInf = 0;
-					unsigned char offsetEq = 0;
-					unsigned char blob_next;
-					blob_curr = CONST_READ_UI8(blob);
-					blob_next = CONST_READ_UI8(++blob);
-					if (tmp_char != blob_curr && blob_next >= 128) {
-						blob_next = CONST_READ_UI8(++blob);
-					}
-					if (blob_next < 32) {
-						offsetInf += ((blob_next>>2) & 1) + ((blob_next>>1) & 1) + (blob_next & 1);
-						offsetEq = offsetInf + ((blob_next & 2)?CONST_READ_UI8(blob+1):0);
-					}
-					if (tmp_char == blob_curr) {
-						if (blob_next < 32) {
-							if (blob_next & 2) {
-								blob += offsetEq;
+							if (blob_next < 32 && blob_next & 4) {
+								unsigned char offsetSup = offsetEq + ((blob_next & 3)?CONST_READ_UI8(blob+(offsetInf-1)):0);
+								blob += offsetSup;
 							} else {
 								output_handler = &http_404_handler;
 								break;
 							}
 						}
-						break;
-					} else if (tmp_char < blob_curr) {
-						if (blob_next < 32 && blob_next & 1) {
-							blob += offsetInf;
-						} else {
-							output_handler = &http_404_handler;
-							break;
-						}
-					} else {
-						if (blob_next < 32 && blob_next & 4) {
-							unsigned char offsetSup = offsetEq + ((blob_next & 3)?CONST_READ_UI8(blob+(offsetInf-1)):0);
-							blob += offsetSup;
-						} else {
-							output_handler = &http_404_handler;
-							break;
-						}
-					}
-				} while(1);
-			}
-		}
-
-		if(!output_handler) {
-			tmp_connection.blob = blob;
-		} else {
-			if(tmp_connection.parsing_state != parsing_cmd) {
-				tmp_connection.output_handler = output_handler;
-				UI32(tmp_connection.next_outseqno) = UI32(current_inack);
-				if(output_handler->handler_type == type_file) {
-					UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) + CONST_UI32(GET_FILE(output_handler).length);
-				} else {
-					UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) - 1;
+					} while(1);
 				}
-#ifndef DISABLE_COMET
-				tmp_connection.comet_send_ack = CONST_UI8(output_handler->handler_comet) ? 1 : 0;
-				tmp_connection.comet_passive = 0;
-				tmp_connection.comet_streaming = 0;
-#endif
 			}
-			tmp_connection.parsing_state = parsing_out;
-			tmp_connection.blob = blob_http_rqt;
-#ifndef DISABLE_ARGS
-			tmp_connection.arg_ref_index = 128;
-#endif
+
+			if(!output_handler) {
+				tmp_connection.blob = blob;
+			} else {
+				if(tmp_connection.parsing_state != parsing_cmd) {
+					tmp_connection.output_handler = output_handler;
+					UI32(tmp_connection.next_outseqno) = UI32(current_inack);
+					if(output_handler->handler_type == type_file) {
+						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) + CONST_UI32(GET_FILE(output_handler).length);
+					} else {
+						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) - 1;
+					}
+	#ifndef DISABLE_COMET
+					tmp_connection.comet_send_ack = CONST_UI8(output_handler->handler_comet) ? 1 : 0;
+					tmp_connection.comet_passive = 0;
+					tmp_connection.comet_streaming = 0;
+	#endif
+				}
+				tmp_connection.parsing_state = parsing_out;
+				tmp_connection.blob = blob_http_rqt;
+	#ifndef DISABLE_ARGS
+				tmp_connection.arg_ref_index = 128;
+	#endif
+			}
 		}
 	}
 

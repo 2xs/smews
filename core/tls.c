@@ -1,62 +1,10 @@
 
 #include "tls.h"
+#include "memory.h"
+#include "input.h"
 #include "checksum.h"
 
 
-/* hash contexts for computation of handshake hashes required in finish message */
-static struct md5_context client_md5;
-static struct sha1_context client_sha1;
-
-/* gets 16 bits and checks if nothing wrong appened */
-static char dev_get16(unsigned char *word) {
-	int16_t tmp;
-	DEV_GET(tmp);
-	if(tmp == -1)
-		return -1;
-	word[1] = tmp;
-	DEV_GET(tmp);
-	if(tmp == -1)
-		return -1;
-	word[0] = tmp;
-	return 1;
-}
-
-/* gets 16 bits and checks if nothing wrong appened */
-static char dev_get32(unsigned char *dword) {
-	if(dev_get16(&dword[2]) == -1)
-		return -1;
-	if(dev_get16(&dword[0]) == -1)
-		return -1;
-	return 1;
-}
-
-
-/* Get and checksum a byte */
-#define DEV_GETC(c) { int16_t getc; \
-		DEV_GET(getc); \
-		if(getc == -1) return 1; \
-		c = getc; \
-		checksum_add(c);} \
-
-/* Get and checksum 2 bytes */
-#define DEV_GETC16(c) { \
-	if(dev_get16((unsigned char*)(c)) == -1) \
-		return 1; \
-	checksum_add16(UI16(c)); \
-}
-
-/* Get and checksum 4 bytes */
-#define DEV_GETC32(c) { \
-	if(dev_get32((unsigned char*)(c)) == -1) \
-		return 1; \
-	checksum_add32(c); \
-}
-
-#define DEV_GETN(a,len){ \
-	uint16_t i; \
-	for(i = 0; i < len; i++) \
-		DEV_GET(a[i]); \
-}
 
 /* reads a TLS record header and returns size of record data */
 static uint16_t read_header(const uint8_t type){
@@ -105,6 +53,7 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	}
 
 	uint8_t *record_buffer = mem_alloc(length);
+	
 
 	/* -------- Handshake Record Parsing ------- */
 
@@ -271,18 +220,23 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 	}
 
+	/* allocate memory for handshake hashes */
+	tls->client_md5 = mem_alloc(sizeof(struct md5_context));
+	tls->client_sha1 = mem_alloc(sizeof(struct sha1_context));
 
 	/* update finished hash contexts */
-	md5_update(&client_md5, record_buffer, x);
-	sha1_update(&client_sha1, record_buffer, x);
+	md5_update(tls->client_md5, record_buffer, x);
+	sha1_update(tls->client_sha1, record_buffer, x);
 
+	/* free the buffer used in this phase */
+	mem_free(record_buffer,length);
 
 	/* if everything was ok we set the connection parameters */
 	/* TODO revise this */
-	tls.ccs_recv = 0;
-	/* tls.ccs_sent = 0; */
-	tls.encode_seq_no.long_int = 0;
-	tls.decode_seq_no.long_int = 0;
+	tls->ccs_recv = 0;
+	tls->ccs_sent = 0;
+	tls->encode_seq_no.long_int = 0;
+	tls->decode_seq_no.long_int = 0;
 
 
 	return HNDSK_OK;
