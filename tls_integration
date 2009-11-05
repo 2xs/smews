@@ -11,10 +11,13 @@ record.c
 sha1.c
 md5.c
 
+Moved macros for getting data and externalized functions from input.c in input.h to be accessed also by tls.c
+
 
 
 
 Files modified :
+-----------------
 
 -line 89, connections.h
 #ifndef DISABLE_HTTPS	
@@ -24,13 +27,15 @@ Files modified :
 
 };
 
-line 209, input.c
+input.c
+----------
+line 209
 		tmp_connection.tls_active = 0;
 
--line 63, input.c
+-line 63
 #define HTTPS_PORT 443
 
--line 248, input.c
+-line 248
 	if(tmp_ui16[S1] != HTTP_PORT) {
 		/* if we expect a TLS connection allocate memory now */
 		if(UI16(tmp_ui16) == HTTPS_PORT && tmp_connection.tcp_state == tcp_listen){
@@ -49,7 +54,7 @@ line 209, input.c
 
 
 
--line 378, input.c
+-line 378
 /* TLS Handshake Layer processing*/
 if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
 		
@@ -79,9 +84,18 @@ if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connecti
 		}
 
 
-Moved the macros DEV_GET* and functions dev_getc16 and dev_getc32 from input.c to tls.c
-added macro DEV_GETN to tls.c file
-!we should put both in common somewhere
+output.c
+----------
 
-ce facem cu contextele de md5 and sha1. le pun in tls_connection si le dezaloc dupa ce termin cu ele ?
-sau lasam doar o instanta globala dar asta inseamna cand incep un handshake sa-l termin altceva nu mai misca pe linie de TLS
+if(!connection->tls_active){
+		DEV_PUT16_VAL(TCP_HTTP_PORT);
+	} else {
+		DEV_PUT16_VAL(TCP_HTTPS_PORT);
+	}
+
+if(!connection->tls_active){
+		checksum_add16(TCP_HTTP_PORT);
+	} else {
+		checksum_add16(TCP_HTTPS_PORT);
+	}
+	

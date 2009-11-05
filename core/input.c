@@ -358,7 +358,7 @@ char smews_receive(void) {
 		DEV_GETC32(tmp_ui32);
 	}
 
-
+ 
 	/* TLS Handshake Layer processing*/
 	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
 		

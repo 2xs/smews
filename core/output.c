@@ -48,14 +48,15 @@
 #define IP_ID 0x0000
 #define IP_OFFSET 0x0000
 #define IP_TTL_PROTOCOL 0x4006
-#define TCP_SRC_PORT 0x0050
+#define TCP_HTTP_PORT 0x0050
+#define TCP_HTTPS_PORT 0x01BB
 #define TCP_WINDOW 0x1000
 #define TCP_URGP 0x0000
 
 /* Pre-calculated partial IP checksum (for outgoing packets) */
 #define BASIC_IP_CHK 0x8506
 /* Pre-calculated partial TCP checksum (for outgoing packets) */
-#define BASIC_TCP_CHK 0x1056
+#define BASIC_TCP_CHK 0x1006
 
 /* Maximum output size depending on the MSS */
 #define MAX_OUT_SIZE(mss) ((mss) & (~0 << (CHUNCKS_NBITS)))
@@ -249,7 +250,11 @@ void smews_send_packet(struct http_connection *connection) {
 	/* start to send TCP header */
 
 	/* send TCP source port */
-	DEV_PUT16_VAL(TCP_SRC_PORT);
+	if(!connection->tls_active){
+		DEV_PUT16_VAL(TCP_HTTP_PORT);
+	} else {
+		DEV_PUT16_VAL(TCP_HTTPS_PORT);
+	}
 
 	/* send TCP destination port */
 	DEV_PUT16(port);
@@ -281,6 +286,11 @@ void smews_send_packet(struct http_connection *connection) {
 	checksum_add(GET_FLAGS(output_handler));
 
 	checksum_add32(ip_addr);
+	if(!connection->tls_active){
+		checksum_add16(TCP_HTTP_PORT);
+	} else {
+		checksum_add16(TCP_HTTPS_PORT);
+	}
 	
 	checksum_add16(UI16(port));
 
