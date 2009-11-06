@@ -115,6 +115,11 @@ enum {
         TLS_HANDSHAKE_TYPE_FINISHED = 20
 };
 
+#define DEBUG
 
+#ifdef DEBUG
+#define DEBUG_MSG(x) printf("%s",x)
+#define DEBUG_VAR(x,format) printf(format,x)
+#endif
 
 #endif

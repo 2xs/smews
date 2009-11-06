@@ -49,6 +49,9 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	uint8_t tmp;
 	
 	if( (length = read_header(TLS_CONTENT_TYPE_HANDSHAKE)) ){
+#ifdef DEBUG
+		DEBUG_MSG("FATAL:tls_get_client_hello: Bad Record Type. Expected HANDSHAKE");
+#endif
 		return HNDSK_ERR;
 	}
 

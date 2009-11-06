@@ -250,7 +250,7 @@ void smews_send_packet(struct http_connection *connection) {
 	/* start to send TCP header */
 
 	/* send TCP source port */
-	if(!connection->tls_active){
+	if(connection->tls_active == 0){
 		DEV_PUT16_VAL(TCP_HTTP_PORT);
 	} else {
 		DEV_PUT16_VAL(TCP_HTTPS_PORT);
@@ -286,7 +286,7 @@ void smews_send_packet(struct http_connection *connection) {
 	checksum_add(GET_FLAGS(output_handler));
 
 	checksum_add32(ip_addr);
-	if(!connection->tls_active){
+	if(connection->tls_active == 0){
 		checksum_add16(TCP_HTTP_PORT);
 	} else {
 		checksum_add16(TCP_HTTPS_PORT);
