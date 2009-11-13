@@ -101,6 +101,7 @@ struct output_handler_t {
 	unsigned char handler_comet;
 	unsigned char handler_stream;
 	union handler_contents_u {
+		/* this synthethise the information needed to generate the next packet in output.c */
 		const struct tcp_control control;
 		const struct static_contents file;
 		const struct dynamic_contents service;

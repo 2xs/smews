@@ -2,12 +2,14 @@
 #define __TLS_H__
 
 #include "types.h"
+#include "stdio.h"
 
 
 extern uint8_t tls_get_client_hello();
 
-
-#define ECDH_ECDSA_RC4_128_SHA1 /* this should be a compiler option */
+#define DEBUG  /* this should be a build option */
+#define DEBUG_DEEP
+#define ECDH_ECDSA_RC4_128_SHA1 /* this should be a build option */
 
 #ifdef ECDH_ECDSA_RC4_128_SHA1
 
@@ -115,9 +117,11 @@ enum {
         TLS_HANDSHAKE_TYPE_FINISHED = 20
 };
 
-#define DEBUG
+
 
 #ifdef DEBUG
+
+
 #define DEBUG_MSG(x) printf("%s",x)
 #define DEBUG_VAR(x,format) printf(format,x)
 #endif

@@ -225,20 +225,26 @@ char smews_receive(void) {
 
 	DEV_GETC16(tmp_ui16);
 
+
 	if(tmp_ui16[S1] != HTTP_PORT) {
-		/* if we expect a TLS connection allocate memory now */
-		if(UI16(tmp_ui16) == HTTPS_PORT && tmp_connection.tcp_state == tcp_listen){
+		/* check to see if it's TLS */
+		if(UI16(tmp_ui16) == HTTPS_PORT){
 			
-			tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
+			if(tmp_connection.tcp_state == tcp_listen) {
 
-			if(tmp_connection.tls != NULL){
-				(tmp_connection.tls)->tls_state = tls_listen;	
-				tmp_connection.tls_active = 1;
-			} else {
-				return 1;  
+				/* if we expect a TLS connection allocate memory now */
+				tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
+
+				if(tmp_connection.tls != NULL){
+					(tmp_connection.tls)->tls_state = tls_listen;
+					tmp_connection.tls_active = 1;
+				} else {
+					return 1;
+				}
 			}
-		} else {
 
+		} else {
+			/* neither 80 nor 443 */
 #ifdef STACK_DUMP
 			DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
 			for(stack_i = 0; stack_i < STACK_DUMP_SIZE ; stack_i++) {
@@ -366,7 +372,7 @@ char smews_receive(void) {
 		switch(  (tmp_connection.tls)->tls_state ){
 
 			case tls_listen:
-			     
+
 			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
 				    (tmp_connection.tls)->tls_state = client_hello;
 

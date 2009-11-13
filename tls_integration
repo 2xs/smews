@@ -36,19 +36,36 @@ line 209
 #define HTTPS_PORT 443
 
 -line 248
-	if(tmp_ui16[S1] != HTTP_PORT) {
-		/* if we expect a TLS connection allocate memory now */
-		if(UI16(tmp_ui16) == HTTPS_PORT && tmp_connection.tcp_state == tcp_listen){
+if(tmp_ui16[S1] != HTTP_PORT) {
+		/* check to see if it's TLS */
+		if(UI16(tmp_ui16) == HTTPS_PORT){
 			
-			tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
+			if(tmp_connection.tcp_state == tcp_listen) {
 
-			if(tmp_connection.tls != NULL){
-				(tmp_connection.tls)->tls_state = tls_listen;	
-				tmp_connection.tls_active = 1;
-			} else {
-				return 1;  
+				/* if we expect a TLS connection allocate memory now */
+				tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
+
+				if(tmp_connection.tls != NULL){
+					(tmp_connection.tls)->tls_state = tls_listen;
+					tmp_connection.tls_active = 1;
+				} else {
+					return 1;
+				}
 			}
+
 		} else {
+			/* neither 80 nor 443 */
+#ifdef STACK_DUMP
+			DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
+			for(stack_i = 0; stack_i < STACK_DUMP_SIZE ; stack_i++) {
+				DEV_PUT(stack_base[-stack_i]);
+			}
+			DEV_OUTPUT_DONE;
+#endif
+			return 1;
+		}
+
+	}
 
 
 
@@ -86,16 +103,24 @@ if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connecti
 
 output.c
 ----------
-
-if(!connection->tls_active){
+/* send TCP source port */
+	if(connection != NULL){
+		if(connection->tls_active == 1){
+			DEV_PUT16_VAL(TCP_HTTPS_PORT);
+		} else {
+			DEV_PUT16_VAL(TCP_HTTP_PORT);
+		}
+	} else {
 		DEV_PUT16_VAL(TCP_HTTP_PORT);
-	} else {
-		DEV_PUT16_VAL(TCP_HTTPS_PORT);
 	}
 
-if(!connection->tls_active){
-		checksum_add16(TCP_HTTP_PORT);
-	} else {
+if(connection != NULL){
+	if(connection->tls_active == 1){
 		checksum_add16(TCP_HTTPS_PORT);
+	} else {
+		checksum_add16(TCP_HTTP_PORT);
 	}
+} else {
+	checksum_add16(TCP_HTTP_PORT);
+}
 	

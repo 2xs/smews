@@ -44,19 +44,16 @@ static uint16_t read_header(const uint8_t type){
 uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 	int16_t x = 0;
-	int16_t i = 0;
+	int16_t i = 0, j = 0;
 	uint16_t length;
 	uint8_t tmp;
 	
-	if( (length = read_header(TLS_CONTENT_TYPE_HANDSHAKE)) ){
-#ifdef DEBUG
-		DEBUG_MSG("FATAL:tls_get_client_hello: Bad Record Type. Expected HANDSHAKE");
-#endif
+	if( !(length = read_header(TLS_CONTENT_TYPE_HANDSHAKE)) ){
 		return HNDSK_ERR;
 	}
 
 	uint8_t *record_buffer = mem_alloc(length);
-	
+
 
 	/* -------- Handshake Record Parsing ------- */
 
@@ -64,7 +61,7 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	DEV_GETN( record_buffer, 38 );
 	if(record_buffer[0] != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
 #ifdef DEBUG
-		DEBUG_MSG("FATAL:tls_get_client_hello: Bad Handshake Type. Expected Client Hello (0x01)");
+		DEBUG_MSG("FATAL:tls_get_client_hello: Bad Handshake Type. Expected Client Hello (0x01) \n");
 #endif
 		return HNDSK_ERR;
 	}
@@ -78,43 +75,47 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	DEBUG_MSG("INFO:tls_get_client_hello: Client Random Bytes : ");
 	for( i = 0; i < 32 ; i++)
 		DEBUG_VAR( (record_buffer + 6)[i],"%02x");
+	DEBUG_MSG("\n");
 #endif	
 	
 	/* get session id length */
-	DEV_GETC(record_buffer[x++]);
+	DEV_GETC(record_buffer[x]); x++;
 	/* TODO if session support is added then we must get additional 32 bytes here to save the session ID*/
 
 	/* cipher suites length */
-	DEV_GETC(record_buffer[x++]);
-	DEV_GETC(record_buffer[x++]); /* cipher len never more than 255 */
+	DEV_GETC(record_buffer[x]);  x++;
+	DEV_GETC(record_buffer[x]);  x++; /* cipher len never more than 255 */
 	
 	
 #ifdef DEBUG
-	DEBUG_MSG("\nINFO:tls_get_client_hello: Number of cipher suites proposed is ");
-	DEBUG_VAR(record_buffer[x - 1]/2,"%d ");
+	DEBUG_MSG("INFO:tls_get_client_hello: Number of cipher suites proposed is ");
+	DEBUG_VAR(record_buffer[x - 1]/2,"%d \n");
 #endif
 
 	/* get cipher suite bytes */
 	DEV_GETN( (record_buffer + x), record_buffer[x - 1]);
 
 #ifdef DEBUG_DEEP
-	DEBUG_MSG("\nINFO:tls_get_client_hello: Cipher suites : \n ");
-	for( i = x ; i < record_buffer[x - 1] ; i+=2){
-		DEBUG_VAR(record_buffer[i],"0x%02x");
-		DEBUG_VAR(record_buffer[i + 1],"%02x | ");
+	{
 
+		DEBUG_MSG("INFO:tls_get_client_hello: Cipher suites : \n");
+		for( i = x, j= 0 ; j < record_buffer[x - 1] ; j+=2, i+=2){
+			DEBUG_VAR(record_buffer[i],"0x%02x");
+			DEBUG_VAR(record_buffer[i + 1],"%02x | ");
+		}
+		DEBUG_MSG("\n");
 	}
 #endif
 
 	/* check if client supports our only cipher suite */
-	for( i = x ; i < record_buffer[x - 1]; i+=2)
+	for( i = x, j = 0 ; j < record_buffer[x - 1]; j+=2, i+=2)
 		/* found ciphersuite TLS_ECDH_ECDSA_WITH_RC4_SHA */
 		if(record_buffer[i] == 0xc0 && record_buffer[i + 1] == 0x02) break;
 
-	if(i == record_buffer[x - 1] - 1){
+	if(j == record_buffer[x - 1]){
 
 #ifdef DEBUG
-		DEBUG_MSG("\nFATAL:tls_get_client_hello: Compatible cipher suite not found! \n");
+		DEBUG_MSG("FATAL:tls_get_client_hello: Compatible cipher suite not found! \n");
 #endif
 		return HNDSK_ERR;
 	}
@@ -122,25 +123,25 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	x+= record_buffer[x - 1];
 
 	/* get compression length */
-	DEV_GETC(record_buffer[x++]);
+	DEV_GETC(record_buffer[x]);  x++;
 
 	/*  get compression methods and check for null */
 	DEV_GETN((record_buffer + x), record_buffer [x - 1]);
-	for(i = x; i < record_buffer [x - 1] ; i++){
+	for(i = x, j = 0; j < record_buffer [x - 1] ; j++, i++){
 		if(record_buffer[i] == TLS_COMPRESSION_NULL) break;
 	}
 
-	if(i == record_buffer [x - 1] - 1){
+	if(j == record_buffer [x - 1]){
 		 /* this is almost impossible to reach because every TLS SHOULD support null */
 #ifdef DEBUG
-		DEBUG_MSG("\nFATAL:tls_get_client_hello: Client does not support compression method null");
+		DEBUG_MSG("FATAL:tls_get_client_hello: Client does not support compression method null\n");
 #endif
 		return HNDSK_ERR;
 	}
 
 	/* get extensions lenght */
-	DEV_GETC(record_buffer[x++]);
-	DEV_GETC(record_buffer[x++]); /* assume ext len never more than 255 */
+	DEV_GETC(record_buffer[x]);  x++;
+	DEV_GETC(record_buffer[x]);  x++; /* assume ext len never more than 255 */
 	tmp = record_buffer[x - 1];
 
 	/* parse extensions */
@@ -169,11 +170,10 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 
 
-			if(j == record_buffer[x - 1] - 1) {
+			if(j == record_buffer[x - 1]) {
 #ifdef DEBUG
-				DEBUG_MSG("\nFATAL:tls_get_client_hello: Unsupported elliptic curve extensions");
-#endif
-				return HNDSK_ERR;
+				DEBUG_MSG("FATAL:tls_get_client_hello: Unsupported elliptic curve extensions \n");
+#endif			return HNDSK_ERR;
 			}
 
 			x+= record_buffer [ x - 1 ] ;
@@ -199,7 +199,7 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 			if(j == record_buffer[x - 1]) {
 #ifdef DEBUG
-				DEBUG_MSG("\nFATAL:tls_get_client_hello: Unsupported point formats\n");
+				DEBUG_MSG("FATAL:tls_get_client_hello: Unsupported point formats\n");
 #endif
 				return HNDSK_ERR;
 			}
@@ -211,7 +211,7 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 		} /* point format extension */
 
 		x+=2;
-		DEV_GETC(record_buffer[x]); /* get extension len */
+		DEV_GETC(record_buffer[x]);     /* get extension type */
 		DEV_GETC(record_buffer[x + 1]); /* get extension len */
 		i+= record_buffer[x+1] + 2;
 		x+=2;

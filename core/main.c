@@ -41,7 +41,9 @@ party software. */
 
 /*-----------------------------------------------------------------------------------*/
 int main(void) {
+
 	smews_init();
+
 	while(1) {
 		smews_main_loop_step();
 	}
