@@ -10,6 +10,7 @@ record.h
 record.c
 sha1.c
 md5.c
+rand.c
 
 Moved macros for getting data and externalized functions from input.c in input.h to be accessed also by tls.c
 
@@ -123,4 +124,20 @@ if(connection != NULL){
 } else {
 	checksum_add16(TCP_HTTP_PORT);
 }
+
+case type_tls_handshake:
+
+			switch(connection->tls->tls_state) {
+				case server_hello:
+					segment_length = TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN;
+					break;
+
+			}
+
+
+- changed TCP checksum
+
+handlers.h
+============
+added type_tls_handshake to handler type
 	

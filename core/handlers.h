@@ -97,11 +97,12 @@ struct arg_ref_t {
 
 /* handler structure to be served */
 struct output_handler_t {
-	enum handler_type_e {type_control, type_file, type_generator} handler_type;
+	enum handler_type_e {type_control, type_file, type_generator, type_tls_handshake} handler_type;
 	unsigned char handler_comet;
 	unsigned char handler_stream;
 	union handler_contents_u {
 		/* this synthethise the information needed to generate the next packet in output.c */
+		/* for TLS the next info to send is known by the tls state */
 		const struct tcp_control control;
 		const struct static_contents file;
 		const struct dynamic_contents service;

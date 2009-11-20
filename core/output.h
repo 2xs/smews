@@ -39,4 +39,5 @@
 /* Select a connection, process and send data. Returns 1 something has been sent, 0 else. */
 extern char smews_send(void);
 
+
 #endif /* __SEND_H__ */

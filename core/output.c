@@ -96,16 +96,8 @@ struct curr_output_t {
 };
 static struct curr_output_t curr_output;
 
-/* default DEV_PUT16 */
-#ifndef DEV_PUT16
-static void dev_put16(unsigned char *word) {
-	DEV_PUT(word[1]);
-	DEV_PUT(word[0]);
-}
-	#define DEV_PUT16(w) dev_put16(w)
-#endif
 
-static void dev_put16_val(uint16_t word) {
+void dev_put16_val(uint16_t word) {
 	DEV_PUT(word >> 8);
 	DEV_PUT(word);
 }
@@ -113,7 +105,7 @@ static void dev_put16_val(uint16_t word) {
 
 /* default DEV_PUT32 */
 #ifndef DEV_PUT32
-static void dev_put32(unsigned char *dword) {
+void dev_put32(unsigned char *dword) {
 	DEV_PUT16(dword+2);
 	DEV_PUT16(dword);
 }
@@ -190,6 +182,15 @@ void smews_send_packet(struct http_connection *connection) {
 		case type_control:
 			segment_length = CONST_UI8(GET_CONTROL(output_handler).length);
 			break;
+		case type_tls_handshake:
+
+			switch(connection->tls->tls_state) {
+				case server_hello:
+					segment_length = TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN;
+					break;
+
+			}
+
 		case type_file: {
 			uint16_t max_out_size;
 			uint32_t file_remaining_bytes;
@@ -508,6 +509,9 @@ char smews_send(void) {
 #endif
 			break;
 		case type_file:
+			smews_send_packet(connection);
+			break;
+		case type_tls_handshake:
 			smews_send_packet(connection);
 			break;
 		case type_generator: {

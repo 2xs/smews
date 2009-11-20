@@ -236,7 +236,7 @@ char smews_receive(void) {
 				tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
 
 				if(tmp_connection.tls != NULL){
-					(tmp_connection.tls)->tls_state = tls_listen;
+					(tmp_connection.tls)->tls_state = client_hello; /* waiting for client hello */
 					tmp_connection.tls_active = 1;
 				} else {
 					return 1;
@@ -371,14 +371,13 @@ char smews_receive(void) {
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
 
-			case tls_listen:
+			case client_hello:
 
 			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
-				    (tmp_connection.tls)->tls_state = client_hello;
+				    (tmp_connection.tls)->tls_state = server_hello;
 
 			      }
 
-			case client_hello:
 
 			case server_hello:
 

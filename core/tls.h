@@ -43,8 +43,15 @@ extern uint8_t tls_get_client_hello();
 #define TLS_EXT_POINT_FORMATS 0x0b
 #define TLS_EXT_EC 0x0a
 #define TLS_EXT_LEN 0x06
+
 /* Compression Method - no compression*/
 #define TLS_COMPRESSION_NULL 0x00
+
+/* lengths for Hello,Certificate and HelloDone handshake records */
+#define TLS_HELLO_RECORD_LEN 50
+#define TLS_CERT_RECORD_LEN 482
+#define TLS_HDONE_RECORD_LEN 4
+#define TLS_RECORD_HEADER_LEN 5
 
 /* needed for sequence number manipulation */
 union long_byte {
@@ -52,21 +59,27 @@ union long_byte {
 	uint64_t long_int;
 };
 
+/* structure for random value */
+union int_char{
+    uint32_t lfsr_int[8];
+    uint8_t lfsr_char[32];
+
+};
+
 
 struct tls_connection {
 
 	/* TLS connection */
 	enum tls_state_e { 
-			   tls_listen,
-			   client_hello, /* Client Hello message received */
-			   server_hello, /* Server Hello sent */
-			   certificate,  /* Server Certificate Sent */
-			   hello_done, 	 /* Send Server Hello Done Sent */
-			   key_exchange, /* Client Key Exchange received */
-			   ccs_recv,     /* Change Cipher Spec received */
-			   fin_recv, 	 /* Finished Message Received (encrypted) */
-			   ccs_send,     /* Change Cipher Spec Sent */
-			   fin_sent, 	 /* Finished Message Sent (encrypted) */
+
+			   client_hello, /* Waiting for Client Hello message */
+			   server_hello, /* Server Hello (including Certificate Message and Hello Done) */
+
+			   key_exchange, /* Waiting for Client Key Exchange */
+			   ccs_recv,     /* Waiting for Change Cipher Spec */
+			   fin_recv, 	 /* Waiting for Finished Message (encrypted) */
+			   ccs_send,     /* Sending Change Cipher Spec */
+			   fin_sent, 	 /* Sending Finished Message (encrypted) */
 			   
 			  } tls_state: 4;
 

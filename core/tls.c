@@ -3,41 +3,17 @@
 #include "memory.h"
 #include "input.h"
 #include "checksum.h"
+#include "record.h"
 
+/* current value of server random (for each connection a next sequence random is generated) */
+union int_char server_random;
+extern CONST_VAR(uint8_t, server_cert[]);
 
+static CONST_VAR(uint8_t,part1_srv_hello[6]) = { TLS_HANDSHAKE_TYPE_SERVER_HELLO, 0, 0, TLS_HELLO_RECORD_LEN - 4, TLS_SUPPORTED_MAJOR, TLS_SUPPORTED_MINOR };
+static CONST_VAR(uint8_t,part2_srv_hello[4]) = { 0, TLS1_ECDH_ECDSA_WITH_RC4_128_SHA >> 8, (uint8_t)TLS1_ECDH_ECDSA_WITH_RC4_128_SHA, TLS_COMPRESSION_NULL};
+static CONST_VAR(uint8_t,part3_srv_ext[8]) = { 0, TLS_EXT_LEN, 0, TLS_EXT_POINT_FORMATS, 0, 0x02, 0x01, TLS_COMPRESSION_NULL };
+static CONST_VAR(uint8_t,srv_hello_done[4]) = { TLS_HANDSHAKE_TYPE_SERVER_HELLO_DONE, 0, 0, 0 };
 
-/* reads a TLS record header and returns size of record data */
-static uint16_t read_header(const uint8_t type){
-
-	uint8_t tmp[2];
-
-	/* get record type */
-	DEV_GETC(tmp[0]);
-
-	if(tmp[0] != type) {
-
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:read_header: Unexpected record type");
-#endif
-		return HNDSK_ERR;
-	}
-
-	/* get TLS Version */
-	DEV_GETC16(tmp);
-
-	if(tmp[1] != TLS_SUPPORTED_MAJOR && tmp[0] != TLS_SUPPORTED_MINOR){
-
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:read_header: Unsupported or damaged TLS Version");
-#endif
-		return HNDSK_ERR;
-	}
-
-	DEV_GETC16(tmp);
-
-	return UI16(tmp);
-
-}
 
 
 /* fetch & parse TLS client hello */
@@ -243,5 +219,93 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 
 	return HNDSK_OK;
+
+}
+
+
+/* send in one record 3 handshake messages : hello,certificate,hello done */
+uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
+
+	uint16_t i;
+
+	/* prepare output buffer - target dependent */
+	 /* DEV_PREPARE_OUTPUT; */
+
+	write_header(TLS_CONTENT_TYPE_HANDSHAKE,TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN );
+
+	/* --- beginning record filling ---*/
+
+	for( i = 0 ; i < 6; i++)
+		DEV_PUT(part1_srv_hello[i]);
+
+	/* update handshake hash */
+	md5_update(tls->client_md5, part1_srv_hello, 6);
+	sha1_update(tls->client_sha1, part1_srv_hello, 6);
+
+	init_rand(server_random.lfsr_int, 0xABCDEF12); /* TODO move random init somewhere else */
+	rand_next(server_random.lfsr_int);
+
+	for(i = 0; i < 32 ; i++){
+		DEV_PUT(server_random.lfsr_char[i]);
+	}
+
+#ifdef DEBUG
+	DEBUG_MSG("INFO:tls_send_hello_cert_done: Server Generated Random :");
+	for( i = 0; i < 32 ; i++)
+		DEBUG_VAR( server_random.lfsr_char[i],"%02x");
+	DEBUG_MSG("\n");
+#endif
+
+	/* updating digest with server random */
+	md5_update(tls->client_md5, server_random.lfsr_char, 32);
+	sha1_update(tls->client_sha1, server_random.lfsr_char, 32);
+
+	/* session id length, ciphersuite, comp method */
+	for(i = 0; i < 4 ; i++){
+		DEV_PUT(part2_srv_hello[i]);
+	}
+
+	/* update handshake hash */
+	md5_update(tls->client_md5, part2_srv_hello, 4);
+	sha1_update(tls->client_sha1, part2_srv_hello, 4);
+
+
+	/* Section 5.2 RFC 4492
+	 * If no
+	 * Supported Point Formats Extension is received with the ServerHello,this is equivalent
+	 * to an extension allowing only the uncompressed point format.
+	 */
+	for(i = 0; i < 8 ; i++){
+		DEV_PUT(part3_srv_ext[i]);
+	}
+
+	/* update handshake hash */
+	md5_update(tls->client_md5, part3_srv_ext, 8);
+	sha1_update(tls->client_sha1, part3_srv_ext, 8);
+
+
+	for(i = 0 ; i < TLS_CERT_RECORD_LEN ; i++)
+			DEV_PUT(server_cert[i]);
+
+	md5_update(tls->client_md5, server_cert, TLS_CERT_RECORD_LEN);
+	sha1_update(tls->client_sha1, server_cert,TLS_CERT_RECORD_LEN);
+
+	/* write record body */
+	for(i = 0; i < 4; i++)
+		DEV_PUT(srv_hello_done[i]);
+
+	/* update final handshake */
+	md5_update(tls->client_md5,srv_hello_done,4);
+	sha1_update(tls->client_sha1,srv_hello_done,4);
+
+
+#ifdef DEBUG
+	DEBUG_MSG("\nINFO:tls_send_server_hello: Server Hello, Certificate, Done sent");
+#endif
+
+	/* DEV_OUTPUT_DONE;*/
+
+	return HNDSK_OK;
+
 
 }
