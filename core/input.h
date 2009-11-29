@@ -37,6 +37,7 @@
 #define __RECEIVE_H__
 
 #include "types.h"
+#include "checksum.h"
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP

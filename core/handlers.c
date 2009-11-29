@@ -73,3 +73,8 @@ CONST_VAR(struct output_handler_t, ref_rst) = {
 		}
 	},
 };
+
+CONST_VAR(struct output_handler_t, ref_tlshandshake) = {
+	.handler_type = type_tls_handshake,
+
+};

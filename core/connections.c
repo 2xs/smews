@@ -64,16 +64,20 @@ struct http_rst_connection rst_connection;
 
 /*-----------------------------------------------------------------------------------*/
 char something_to_send(const struct http_connection *connection) {
+
 	if(!connection->output_handler)
 		return 0;
 		
-	if(CONST_UI8(connection->output_handler->handler_type) == type_control
+
+	if(CONST_UI8(connection->output_handler->handler_type) == type_control || CONST_UI8(connection->output_handler->handler_type) == type_tls_handshake
 #ifndef DISABLE_COMET
 		|| connection->comet_send_ack == 1
 #endif
 		) {
+
 		return 1;
 	} else {
+
 		return connection->tcp_state == tcp_established
 			&& UI32(connection->next_outseqno) != UI32(connection->final_outseqno);
 	}

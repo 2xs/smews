@@ -74,6 +74,8 @@ extern CONST_VAR(struct output_handler_t, ref_synack);
 extern CONST_VAR(struct output_handler_t, ref_ack);
 extern CONST_VAR(struct output_handler_t, ref_finack);
 extern CONST_VAR(struct output_handler_t, ref_rst);
+extern CONST_VAR(struct output_handler_t, ref_tlshandshake);
+
 
 
 /** URLs arguments **/

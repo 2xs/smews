@@ -375,8 +375,10 @@ char smews_receive(void) {
 
 			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
 				    (tmp_connection.tls)->tls_state = server_hello;
+				    //tmp_connection.output_handler = &ref_tlshandshake;
 
 			      }
+			      break;
 
 
 			case server_hello:
@@ -391,7 +393,7 @@ char smews_receive(void) {
 	} else {
 	
 
-	/* End of TCP, starting HTTP or TLS*/
+	/* End of TCP, starting HTTP*/
 		x = 0;
 		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
 			const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
@@ -586,6 +588,7 @@ char smews_receive(void) {
 
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
+		printf("Gonna ACK this segment\n");
 		tmp_connection.output_handler = &ref_ack;
 	}
 

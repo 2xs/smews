@@ -36,8 +36,25 @@
 #ifndef __SEND_H__
 #define __SEND_H__
 
+#include "checksum.h"
+
 /* Select a connection, process and send data. Returns 1 something has been sent, 0 else. */
 extern char smews_send(void);
+extern void dev_put16(unsigned char *word);
+extern void dev_put32(unsigned char *dword);
+extern void dev_put16_val(uint16_t word);
+
+#define DEV_PUT16_VAL(w) dev_put16_val(w)
+
+#ifndef DEV_PUT16
+#define DEV_PUT16(w) dev_put16(w)
+#endif
+
+
+#ifndef DEV_PUT32
+#define DEV_PUT32(dw) dev_put32(dw)
+#endif
+
 
 
 #endif /* __SEND_H__ */

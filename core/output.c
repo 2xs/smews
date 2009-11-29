@@ -41,6 +41,7 @@
 #include "smews.h"
 #include "connections.h"
 #include "memory.h"
+#include "tls.h"
 
 /* Common values used for IP and TCP headers */
 #define MSS_OPT 0x0204
@@ -96,21 +97,27 @@ struct curr_output_t {
 };
 static struct curr_output_t curr_output;
 
+/* default DEV_PUT16 */
+
+
+void dev_put16(unsigned char *word) {
+        DEV_PUT(word[1]);
+        DEV_PUT(word[0]);
+}
 
 void dev_put16_val(uint16_t word) {
 	DEV_PUT(word >> 8);
 	DEV_PUT(word);
 }
-#define DEV_PUT16_VAL(w) dev_put16_val(w)
+
 
 /* default DEV_PUT32 */
-#ifndef DEV_PUT32
+
 void dev_put32(unsigned char *dword) {
 	DEV_PUT16(dword+2);
 	DEV_PUT16(dword);
 }
-	#define DEV_PUT32(dw) dev_put32(dw)
-#endif
+
 
 /* default DEV_PUTN */
 #ifndef DEV_PUTN
@@ -182,15 +189,6 @@ void smews_send_packet(struct http_connection *connection) {
 		case type_control:
 			segment_length = CONST_UI8(GET_CONTROL(output_handler).length);
 			break;
-		case type_tls_handshake:
-
-			switch(connection->tls->tls_state) {
-				case server_hello:
-					segment_length = TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN;
-					break;
-
-			}
-
 		case type_file: {
 			uint16_t max_out_size;
 			uint32_t file_remaining_bytes;
@@ -212,7 +210,17 @@ void smews_send_packet(struct http_connection *connection) {
 					segment_length += CHUNK_LENGTH_SIZE + 4;
 					break;
 			}
-		break;
+			break;
+
+		case type_tls_handshake:
+
+			switch(connection->tls->tls_state) {
+				case server_hello:
+					segment_length = TLS_RECORD_HEADER_LEN + TLS_HELLO_CERT_DONE_LEN;
+					break;
+
+			}
+			break;
 	}
 
 	DEV_PREPARE_OUTPUT(segment_length + 40);
@@ -280,6 +288,7 @@ void smews_send_packet(struct http_connection *connection) {
 	/* complete precalculated TCP checksum */
 
 	checksum_init();
+	/* start to construct TCP checksum starting from a precalculated value */
 	UI16(current_checksum) = BASIC_TCP_CHK;
 	checksum_add32(local_ip_addr);
 
@@ -369,6 +378,17 @@ void smews_send_packet(struct http_connection *connection) {
 			checksum_add32((const unsigned char*)&tmp_sum);
 			break;
 		}
+		case type_tls_handshake:
+
+			switch(connection->tls->tls_state) {
+				uint8_t i;
+				case server_hello:
+					for(i = 0; i < TLS_HELLO_CERT_DONE_LEN; i++) {
+						checksum_add(s_hello_cert_done[i]);
+					}
+					break;
+
+			}
 	}
 	
 	checksum_end();
@@ -413,6 +433,9 @@ void smews_send_packet(struct http_connection *connection) {
 			DEV_PUTN_CONST(tmpptr, segment_length);
 			break;
 		}
+
+		case type_tls_handshake:
+			tls_send_hello_cert_done(connection->tls);
 	}
 	
 	/* update next sequence number and inflight segments */
@@ -439,6 +462,7 @@ if(handler_type==type_generator){
 
 /*-----------------------------------------------------------------------------------*/
 static inline int32_t able_to_send(const struct http_connection *connection) {
+
 	return something_to_send(connection)
 		&& UI16(connection->inflight) + (uint16_t)connection->tcp_mss <= UI16(connection->cwnd);
 }
@@ -460,6 +484,7 @@ char smews_send(void) {
 	/* we first choose a valid connection */
 #ifndef DISABLE_COMET
 	FOR_EACH_CONN(conn, {
+
 		if(able_to_send(conn) && conn->comet_passive == 0) {
 			connection = conn;
 			break;

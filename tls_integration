@@ -13,8 +13,10 @@ md5.c
 rand.c
 
 Moved macros for getting data and externalized functions from input.c in input.h to be accessed also by tls.c
+Moved macros for getting data and externalized functions from output.c in output.h to be accessed also by tls.c
 
-
+Optimized Server Hello Done message. Now the message is precomputed and only the random is injected at runtime. Avoiding multiple
+calls to hash update.
 
 
 Files modified :
@@ -134,6 +136,7 @@ case type_tls_handshake:
 
 			}
 
+added same case in checksum calculation and sending content
 
 - changed TCP checksum
 

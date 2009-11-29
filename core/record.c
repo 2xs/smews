@@ -3,6 +3,7 @@
 #include "types.h"
 #include "tls.h"
 #include "input.h"
+#include "output.h"
 
 
 /* reads a TLS record header and returns size of record data */
@@ -49,6 +50,6 @@ void write_header(uint8_t type, uint16_t len){
 	DEV_PUT(TLS_SUPPORTED_MINOR);
 
 	/* this is the record lenght */
-	DEV_PUT16(len);
+	DEV_PUT16_VAL(len);
 
 }

@@ -6,6 +6,10 @@
 
 
 extern uint8_t tls_get_client_hello();
+extern uint8_t tls_send_hello_cert_done();
+
+/* partially precomputed server hello, certificate and done message */
+extern uint8_t s_hello_cert_done[];
 
 #define DEBUG  /* this should be a build option */
 #define DEBUG_DEEP
@@ -47,10 +51,11 @@ extern uint8_t tls_get_client_hello();
 /* Compression Method - no compression*/
 #define TLS_COMPRESSION_NULL 0x00
 
-/* lengths for Hello,Certificate and HelloDone handshake records */
+/* lengths for Hello,Certificate and HelloDone handshake records containing the size of header */
 #define TLS_HELLO_RECORD_LEN 50
 #define TLS_CERT_RECORD_LEN 482
 #define TLS_HDONE_RECORD_LEN 4
+#define TLS_HELLO_CERT_DONE_LEN 536
 #define TLS_RECORD_HEADER_LEN 5
 
 /* needed for sequence number manipulation */
