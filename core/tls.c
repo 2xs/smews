@@ -10,8 +10,6 @@
 union int_char server_random;
 
 
-
-
 /* fetch & parse TLS client hello */
 uint8_t tls_get_client_hello(struct tls_connection *tls){
 
@@ -203,7 +201,14 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	/* update finished hash contexts */
 	md5_update(tls->client_md5, record_buffer, x);
 	sha1_update(tls->client_sha1, record_buffer, x);
-
+#ifdef DEBUG
+	printf("Dumping Hello Data :\n");
+	for(i = 0; i < length; i++){
+		printf("%02x ",record_buffer[i]);
+		if(i%30 == 0) printf("\n");
+	}
+	printf("\n");
+#endif
 	/* free the buffer used in this phase */
 	mem_free(record_buffer,length);
 

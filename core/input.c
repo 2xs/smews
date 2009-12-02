@@ -63,10 +63,12 @@ extern CONST_VAR(struct output_handler_t, webContents_httpCodes_404_html_handler
 /* IP and TCP constants */
 #define HTTP_PORT 80
 #define HTTPS_PORT 443
+#define HTTPS_PORTX 0x01bb
 #define IP_PROTO_TCP 6
 
 /* TCP pre-calculated partial pseudo-header checksum (for incoming packets)*/
-#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffff - (IP_PROTO_TCP - 0x15)))
+#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffbe))
+//#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffff - (IP_PROTO_TCP - 0x15)))
 
 /* Initial sequence number */
 #define BASIC_SEQNO 0x42b7a491
@@ -238,6 +240,7 @@ char smews_receive(void) {
 				if(tmp_connection.tls != NULL){
 					(tmp_connection.tls)->tls_state = client_hello; /* waiting for client hello */
 					tmp_connection.tls_active = 1;
+
 				} else {
 					return 1;
 				}
@@ -364,10 +367,11 @@ char smews_receive(void) {
 		DEV_GETC32(tmp_ui32);
 	}
 
- 
+	x = 0;
 	/* TLS Handshake Layer processing*/
 	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
 		
+		checksum_add16(0x01bb);
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
 
@@ -376,7 +380,7 @@ char smews_receive(void) {
 			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
 				    (tmp_connection.tls)->tls_state = server_hello;
 				    //tmp_connection.output_handler = &ref_tlshandshake;
-
+				    x+= segment_length;
 			      }
 			      break;
 
@@ -394,7 +398,7 @@ char smews_receive(void) {
 	
 
 	/* End of TCP, starting HTTP*/
-		x = 0;
+
 		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
 			const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
 
@@ -583,9 +587,10 @@ char smews_receive(void) {
 	}
 
 	/* drop remaining TCP data */
+	//printf("I parsed %d TCP payload\n",x);
 	while(x++ < segment_length)
 		DEV_GETC(tmp_char);
-
+	//printf("%p %d %d %d\n",tmp_connection.output_handler,tmp_connection.tcp_state, segment_length,tcp_established);
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
 		printf("Gonna ACK this segment\n");
@@ -641,6 +646,9 @@ char smews_receive(void) {
 				*connection = tmp_connection;
 			}
 		}
+	} else {
+		//todo erase this else
+		printf("TCP Checksum not good\n");
 	}
 
 	return 1;

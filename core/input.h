@@ -77,7 +77,7 @@ extern char dev_get32(unsigned char *dword);
 #define DEV_GETN(a,len){ \
 	uint16_t i; \
 	for(i = 0; i < len; i++) \
-		DEV_GET(a[i]); \
+		DEV_GETC(a[i]); \
 }
 
 
