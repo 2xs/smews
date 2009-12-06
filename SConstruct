@@ -144,7 +144,7 @@ for wcDir in dirsMap.keys():
 globalEnv.Replace(CC = 'gcc')
 globalEnv.Replace(AS = 'as')
 globalEnv.Replace(AR = 'ar')
-globalEnv.Append(CCFLAGS = '-Wall')
+globalEnv.Append(CCFLAGS = '-Wall -fno-strict-aliasing')
 if sdump:
 	globalEnv.Append(CCFLAGS = '-DSTACK_DUMP')
 if debug:

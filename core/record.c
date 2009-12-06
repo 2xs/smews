@@ -23,7 +23,8 @@ uint16_t read_header(const uint8_t type){
 	}
 
 	/* get TLS Version */
-	DEV_GETC16(tmp);
+	DEV_GETC(tmp[S0]);
+	DEV_GETC(tmp[S1]);
 
 	if(tmp[1] != TLS_SUPPORTED_MAJOR && tmp[0] != TLS_SUPPORTED_MINOR){
 
@@ -33,7 +34,11 @@ uint16_t read_header(const uint8_t type){
 		return HNDSK_ERR;
 	}
 
-	DEV_GETC16(tmp);
+	/* get record length */
+	DEV_GETC(tmp[S0]);
+	DEV_GETC(tmp[S1]);
+
+	printf("Received a record of %d bytes\n",UI16(tmp));
 
 	return UI16(tmp);
 

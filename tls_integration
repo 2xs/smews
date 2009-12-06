@@ -102,6 +102,8 @@ if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connecti
 	} else {
 		Simon's code for http request
 		}
+		
+
 
 
 output.c
@@ -143,4 +145,13 @@ added same case in checksum calculation and sending content
 handlers.h
 ============
 added type_tls_handshake to handler type
+
+
+handlers.c
+===========
+CONST_VAR(struct output_handler_t, ref_tlshandshake) = {
+	.handler_type = type_tls_handshake,
+
+};
+
 	

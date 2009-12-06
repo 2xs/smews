@@ -44,6 +44,8 @@ static unsigned char checksum_carry;
 static unsigned char checksum_flip;
 /* current checksum */
 unsigned char current_checksum[2];
+//TODO remove this variable
+unsigned int bytes;
 
 /*-----------------------------------------------------------------------------------*/
 void checksum_init() {
@@ -51,6 +53,7 @@ void checksum_init() {
 	current_checksum[S1] = 0;
 	checksum_carry = 0;
 	checksum_flip = S0;
+	bytes = 0;
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -61,6 +64,7 @@ void checksum_add(unsigned char val) {
 	current_checksum[checksum_flip] = tmp_sum;
 	checksum_carry = tmp_sum >> 8;
 	checksum_flip ^= 0x01;
+	bytes++;
 }
 
 /* Te be used only with an even alignment */
@@ -75,6 +79,7 @@ void checksum_add16(const uint16_t val) {
 	tmp_sum = current_checksum[S1] + (val & 0xff) + checksum_carry;
 	current_checksum[S1] = tmp_sum;
 	checksum_carry = tmp_sum >> 8;
+	bytes+=2;
 }
 
 /* Te be used only with an even alignment */
@@ -89,10 +94,12 @@ void checksum_add32(const unsigned char val[]) {
 	tmp_sum = current_checksum[S1] + val[W1] + val[W3] + checksum_carry;
 	current_checksum[S1] = tmp_sum;
 	checksum_carry = tmp_sum >> 8;
+	bytes+=4;
 }
 
 /*-----------------------------------------------------------------------------------*/
 void checksum_end() {
 	while(checksum_carry)
 		checksum_add(0);
+	printf("Checksumed %d bytes\n",bytes);
 }

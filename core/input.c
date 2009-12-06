@@ -63,12 +63,13 @@ extern CONST_VAR(struct output_handler_t, webContents_httpCodes_404_html_handler
 /* IP and TCP constants */
 #define HTTP_PORT 80
 #define HTTPS_PORT 443
-#define HTTPS_PORTX 0x01bb
+#define HTTPS_PORTX 0x1bb
+#define HTTP_PORTX 0x50
 #define IP_PROTO_TCP 6
 
 /* TCP pre-calculated partial pseudo-header checksum (for incoming packets)*/
-#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffbe))
-//#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffff - (IP_PROTO_TCP - 0x15)))
+//#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0001005e))
+#define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffff - (IP_PROTO_TCP - 0x15 - 0x50)))
 
 /* Initial sequence number */
 #define BASIC_SEQNO 0x42b7a491
@@ -353,6 +354,7 @@ char smews_receive(void) {
 	checksum_add32(tmp_connection.ip_addr);
 	checksum_add16(packet_length);
 	
+
 	/* get TCP mss (for initial negociation) */
 	tcp_header_length -= 20;
 	if(tcp_header_length >= 4) {
@@ -371,7 +373,7 @@ char smews_receive(void) {
 	/* TLS Handshake Layer processing*/
 	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
 		
-		checksum_add16(0x01bb);
+		checksum_add16(HTTPS_PORTX);
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
 
@@ -395,9 +397,9 @@ char smews_receive(void) {
 
 
 	} else {
-	
 
-	/* End of TCP, starting HTTP*/
+		/* End of TCP, starting HTTP*/
+		checksum_add16(HTTP_PORTX);
 
 		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
 			const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
@@ -599,6 +601,7 @@ char smews_receive(void) {
 
 	/* check TCP checksum using the partially precalculated pseudo header checksum */
 	checksum_end();
+	printf("Current calculated checksum is %04x and precalc is %04x\n",UI16(current_checksum), TCP_PRECALC_CHECKSUM);
 	if(UI16(current_checksum) == TCP_PRECALC_CHECKSUM) {
 		
 		if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */

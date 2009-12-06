@@ -55,7 +55,7 @@ int get_free_mem() {
 }
 
 /* reset the allocator (free all) */
-void *mem_reset(void) {
+void mem_reset(void) {
 	first_free = (struct free_bloc_s *)alloc_buffer;
 	alloc_buffer[0] = (uint32_t)(ALLOC_SIZE/4) << 16 | (ALLOC_SIZE/4);
 }
