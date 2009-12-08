@@ -36,6 +36,10 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
+/* Checksum is checked by checksumming(without complementing) the data together with the checksum received(which is complemented)
+ * The result should be equal to 0xffff (not complemented), when you add an element with it's complement it's 0.
+ * All the functions for checksumming does not complement when finishing but from the network we receive complemented checksum
+ */
 #include "checksum.h"
 
 /* current checksum carry */

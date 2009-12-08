@@ -56,7 +56,9 @@
 
 /* Pre-calculated partial IP checksum (for outgoing packets) */
 #define BASIC_IP_CHK 0x8506
+
 /* Pre-calculated partial TCP checksum (for outgoing packets) */
+/* Constant parts are : Window + IP_PROTO_TCP(6) */
 #define BASIC_TCP_CHK 0x1006
 
 /* Maximum output size depending on the MSS */
@@ -216,7 +218,7 @@ void smews_send_packet(struct http_connection *connection) {
 
 			switch(connection->tls->tls_state) {
 				case server_hello:
-					segment_length = TLS_RECORD_HEADER_LEN + TLS_HELLO_CERT_DONE_LEN;
+					segment_length = TLS_HELLO_CERT_DONE_LEN;
 					break;
 
 			}
@@ -381,7 +383,7 @@ void smews_send_packet(struct http_connection *connection) {
 		case type_tls_handshake:
 
 			switch(connection->tls->tls_state) {
-				uint8_t i;
+				uint16_t i;
 				case server_hello:
 					for(i = 0; i < TLS_HELLO_CERT_DONE_LEN; i++) {
 						checksum_add(s_hello_cert_done[i]);
@@ -389,11 +391,12 @@ void smews_send_packet(struct http_connection *connection) {
 					break;
 
 			}
+			break;
 	}
 	
 	checksum_end();
 
-	/* send TCP checksum */
+	/* send TCP checksum (complemented)*/
 	DEV_PUT16_VAL(~UI16(current_checksum));
 
 	/* send TCP urgent pointer */
@@ -436,6 +439,9 @@ void smews_send_packet(struct http_connection *connection) {
 
 		case type_tls_handshake:
 			tls_send_hello_cert_done(connection->tls);
+			connection->tls->tls_state = key_exchange;
+
+			break;
 	}
 	
 	/* update next sequence number and inflight segments */
@@ -538,6 +544,7 @@ char smews_send(void) {
 			break;
 		case type_tls_handshake:
 			smews_send_packet(connection);
+			connection->output_handler = NULL;
 			break;
 		case type_generator: {
 			char is_persistent;

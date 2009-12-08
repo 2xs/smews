@@ -230,7 +230,6 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 
 	uint16_t i;
-	uint8_t *ptr;
 
 
 	/*write_header(TLS_CONTENT_TYPE_HANDSHAKE,TLS_HELLO_CERT_DONE_LEN);*/
@@ -239,7 +238,7 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 	init_rand(server_random.lfsr_int, 0xABCDEF12); /* TODO move random init somewhere else */
 	rand_next(server_random.lfsr_int);
 
-
+	/* writing the generated random in the message */
 	for(i = 0; i < 32 ; i++){
 		s_hello_cert_done[12+i] = server_random.lfsr_char[i];
 	}
@@ -251,19 +250,17 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 	DEBUG_MSG("\n");
 #endif
 
-	/* skipping record header */
-	ptr = s_hello_cert_done + 5;
 
-	/* updating digest with this message */
-	md5_update(tls->client_md5, ptr, TLS_HELLO_CERT_DONE_LEN);
-	sha1_update(tls->client_sha1, ptr, TLS_HELLO_CERT_DONE_LEN);
+	/* updating digest with this message (the whole message skipping record header) */
+	md5_update(tls->client_md5, s_hello_cert_done + 5, TLS_HELLO_CERT_DONE_LEN);
+	sha1_update(tls->client_sha1, s_hello_cert_done + 5, TLS_HELLO_CERT_DONE_LEN);
 
 	for(i = 0; i < TLS_HELLO_CERT_DONE_LEN ; i++){
 		DEV_PUT(s_hello_cert_done[i]);
 	}
 
 #ifdef DEBUG
-	DEBUG_MSG("\nINFO:tls_send_server_hello: Server Hello, Certificate, Done sent");
+	DEBUG_MSG("\nINFO:tls_send_server_hello: Server Hello, Certificate, Done sent\n");
 #endif
 
 	/* DEV_OUTPUT_DONE;*/
