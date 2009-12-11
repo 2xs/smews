@@ -2,18 +2,19 @@
 #define __TLS_H__
 
 #include "types.h"
-#include "stdio.h"
+#include "rand.h"
 
 
 extern uint8_t tls_get_client_hello();
 extern uint8_t tls_send_hello_cert_done();
 
-/* partially precomputed server hello, certificate and done message */
+/* partially precomputed server hello, certificate and done message together with TLS record header */
 extern uint8_t s_hello_cert_done[];
+extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 
-#define DEBUG  /* this should be a build option */
+#define DEBUG  /* TODO this should be a build option */
 #define DEBUG_DEEP
-#define ECDH_ECDSA_RC4_128_SHA1 /* this should be a build option */
+#define ECDH_ECDSA_RC4_128_SHA1 /* TODO this should be a build option */
 
 #ifdef ECDH_ECDSA_RC4_128_SHA1
 
@@ -32,6 +33,7 @@ extern uint8_t s_hello_cert_done[];
 
 /* supported by Firefox */
 #define TLS1_ECDH_ECDSA_WITH_RC4_128_SHA 0xc007
+#define TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN 70
 #define TLS1_ECDHE_ECDSA_WITH_RC4_128_SHA 0xc007
 #define TLS1_ECDH_ECDSA_WITH_AES_128_CBC_SHA 0xc004
 
@@ -51,12 +53,21 @@ extern uint8_t s_hello_cert_done[];
 /* Compression Method - no compression*/
 #define TLS_COMPRESSION_NULL 0x00
 
-/* lengths for Hello,Certificate and HelloDone handshake records containing the size of header */
+/* lengths for Hello,Certificate and HelloDone handshake records
+ * containing the size of handshake header (eg length(3) + handshake type(1)*/
 #define TLS_HELLO_RECORD_LEN 50
 #define TLS_CERT_RECORD_LEN 482
 #define TLS_HDONE_RECORD_LEN 4
-#define TLS_HELLO_CERT_DONE_LEN 536
+
 #define TLS_RECORD_HEADER_LEN 5
+#define TLS_HELLO_CERT_DONE_LEN (TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN)
+
+
+#define PRF_LABEL_SIZE 13 /* label size for MS and Session Keys computation */
+#define MS_LEN 48 	  	  /* master secret len */
+#define PMS_LEN 32	  	  /* pre-master secret len */
+#define KEY_MATERIAL_LEN 72		/* Material Len for Session Keys */
+
 
 /* needed for sequence number manipulation */
 union long_byte {
@@ -64,12 +75,6 @@ union long_byte {
 	uint64_t long_int;
 };
 
-/* structure for random value */
-union int_char{
-    uint32_t lfsr_int[8];
-    uint8_t lfsr_char[32];
-
-};
 
 
 struct tls_connection {
@@ -95,10 +100,17 @@ struct tls_connection {
 	union long_byte encode_seq_no;
 	union long_byte decode_seq_no;
 
-	uint8_t client_mac[MAC_KEYSIZE]; 	/* client write mac key */
-	uint8_t server_mac[MAC_KEYSIZE]; 	/* server write mac key */
+	/* life of random variables is limited to a handshake (even if resumed) */
+	uint8_t *client_random;
+	union int_char server_random;
+
+	uint8_t client_mac[MAC_KEYSIZE]; 		/* client write mac key */
+	uint8_t server_mac[MAC_KEYSIZE]; 		/* server write mac key */
 	uint8_t client_key[CIPHER_KEYSIZE]; 	/* client write key for symmetric alg */
 	uint8_t server_key[CIPHER_KEYSIZE]; 	/* server write key for symmetric alg */
+
+	/* this memory should be saved if session resumed will be implemented */
+	uint8_t master_secret[MS_LEN];
 
 	uint8_t ccs_sent:1; /* flag indicating if we have sent CCS message */
 	uint8_t ccs_recv:1; /* flag indicating if we have recv CCS message */
@@ -108,7 +120,7 @@ struct tls_connection {
 	struct md5_context *client_md5;
 	struct sha1_context *client_sha1;
 	      
-}; /* ~ 82 + 88 + 92 */
+}; /* ~ (min) 128 + 88 + 92 */
 
 
 
@@ -136,12 +148,18 @@ enum {
 };
 
 
-
+/* Macros for printing DEBUG information */
 #ifdef DEBUG
 
-
+#define PRINT_ARRAY(x,len,msg) { \
+		uint16_t i; \
+		printf("%s",msg); \
+		for(i = 0 ; i < len ; i++) printf("%02x",x[i]);\
+		printf("\n");\
+	}
 #define DEBUG_MSG(x) printf("%s",x)
 #define DEBUG_VAR(x,format) printf(format,x)
+
 #endif
 
 #endif

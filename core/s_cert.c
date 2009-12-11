@@ -9,6 +9,7 @@
 
 
 /* Server Hello, Cert, Done with Record Header - just ready to send */
+/* Length of this array is TLS_HELLO_CERT_DONE_LEN + TLS_RECORD_HEADER_LEN */
 uint8_t s_hello_cert_done[] = {
 		0x16, 0x03, 0x01, 0x02, 0x18, /* record header */
 		0x02, 0x00, 0x00, 0x2e, 0x03, 0x01, /* handshake type(1), handhshake len(3), tls version(2)*/

@@ -42,7 +42,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/select.h>
-
+#include <stdio.h>
 /* Network drivers */
 
 extern void dev_init(void);

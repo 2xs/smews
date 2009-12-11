@@ -388,6 +388,7 @@ char smews_receive(void) {
 			case key_exchange:
 				printf("Waiting for key exchange \n");
 
+
 			default:
 			      break;	 	
     

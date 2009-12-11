@@ -42,6 +42,7 @@
 #include "connections.h"
 #include "memory.h"
 #include "tls.h"
+#include "rand.h"
 
 /* Common values used for IP and TCP headers */
 #define MSS_OPT 0x0204
@@ -49,8 +50,8 @@
 #define IP_ID 0x0000
 #define IP_OFFSET 0x0000
 #define IP_TTL_PROTOCOL 0x4006
-#define TCP_HTTP_PORT 0x0050
-#define TCP_HTTPS_PORT 0x01BB
+#define TCP_HTTP_PORT 80
+#define TCP_HTTPS_PORT 443
 #define TCP_WINDOW 0x1000
 #define TCP_URGP 0x0000
 
@@ -303,6 +304,7 @@ void smews_send_packet(struct http_connection *connection) {
 
 	checksum_add32(ip_addr);
 
+	/* checksum source port */
 	if(connection != NULL){
 		if(connection->tls_active == 1){
 			checksum_add16(TCP_HTTPS_PORT);
@@ -385,6 +387,15 @@ void smews_send_packet(struct http_connection *connection) {
 			switch(connection->tls->tls_state) {
 				uint16_t i;
 				case server_hello:
+
+					init_rand(0xABCDEF12); /* TODO move random init somewhere else */
+					rand_next(connection->tls->server_random.lfsr_int);
+
+					/* writing the generated random in the message */
+					for(i = 0; i < 32 ; i++){
+						s_hello_cert_done[11+i] = connection->tls->server_random.lfsr_char[i];
+					}
+
 					for(i = 0; i < TLS_HELLO_CERT_DONE_LEN; i++) {
 						checksum_add(s_hello_cert_done[i]);
 					}

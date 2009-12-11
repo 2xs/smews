@@ -133,10 +133,11 @@ case type_tls_handshake:
 
 			switch(connection->tls->tls_state) {
 				case server_hello:
-					segment_length = TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN;
+					segment_length = TLS_HELLO_CERT_DONE_LEN;
 					break;
 
 			}
+			break;
 
 added same case in checksum calculation and sending content
 
