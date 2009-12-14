@@ -3,8 +3,9 @@
 
 #include "types.h"
 
-#define MD5_SIZE 16
+#define MD5_KEYSIZE 16
 
+#define MD5 2
 
 struct md5_context {
 

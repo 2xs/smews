@@ -39,6 +39,7 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 		return HNDSK_ERR;
 	}
 
+	// TODO discutabil daca sa-l aloc dinamic sau static
 	uint8_t *record_buffer = mem_alloc(length);
 
 
@@ -217,17 +218,15 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	/* allocate memory for handshake hashes */
 	tls->client_md5 = mem_alloc(sizeof(struct md5_context));
 	tls->client_sha1 = mem_alloc(sizeof(struct sha1_context));
+	md5_init(tls->client_md5);
+	sha1_init(tls->client_sha1);
 
 	/* update finished hash contexts */
 	md5_update(tls->client_md5, record_buffer, x);
 	sha1_update(tls->client_sha1, record_buffer, x);
+
 #ifdef DEBUG
-	printf("Dumping Hello Data : %d bytes\n",x);
-	for(i = 0; i < length; i++){
-		printf("%02x ",record_buffer[i]);
-		if(i%30 == 0) printf("\n");
-	}
-	printf("\n");
+	PRINT_ARRAY(record_buffer,length,"=========== Client Hello Data ============\n")
 #endif
 	/* free the buffer used in this phase */
 	mem_free(record_buffer,length);
@@ -265,7 +264,8 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 	DEBUG_MSG("\nINFO:tls_send_server_hello: Server Hello, Certificate, Done sent\n");
 #endif
 
-	/* DEV_OUTPUT_DONE;*/
+	/* change TLS state to the next valid state */
+	tls->tls_state = key_exchange;
 
 	return HNDSK_OK;
 
@@ -391,7 +391,7 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	PRINT_ARRAY(tls->server_mac,MAC_KEYSIZE,"Server MAC Secret :");
 	PRINT_ARRAY(tls->client_key,CIPHER_KEYSIZE,"Client Key Secret :");
 	PRINT_ARRAY(tls->server_key,CIPHER_KEYSIZE,"Server Key Secret :");
-	DEBUG_MSG("************************** SESSION KEYS END *******************************************");
+	DEBUG_MSG("************************** SESSION KEYS END *******************************************\n");
 #endif
 
 	//TODO free client_random and server_random memory; don't need them anymore
@@ -399,4 +399,221 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	return HNDSK_OK;
 
 }
+
+/* get client change cipher spec which is exactly 6 bytes */
+uint8_t tls_get_change_cipher(struct tls_connection *tls){
+
+	uint8_t tmp_char;
+
+	if( read_header(TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC) != 1){
+			return HNDSK_ERR;
+	}
+
+	DEV_GETC(tmp_char);
+
+	if(tmp_char != 1){
+
+#ifdef DEBUG
+		DEBUG_MSG("\nINFO:tls_get_change_cipher: Damaged Change Cipher Spec message\n");
+#endif
+		return HNDSK_ERR;
+	}
+
+	tls->ccs_recv = 1;
+
+#ifdef DEBUG
+		DEBUG_MSG("\nINFO:tls_get_change_cipher: Change Cipher Spec Message received\n");
+#endif
+
+	return HNDSK_OK;
+
+}
+
+uint8_t tls_send_change_cipher(struct tls_connection *tls){
+
+
+
+	//write_header(TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC,1);
+	uint8_t i;
+
+	for(i = 0; i < TLS_CHANGE_CIPHER_SPEC_LEN; i++){
+		DEV_PUT(tls_ccs_msg[i]);
+	}
+
+
+	tls->ccs_sent = 1;
+
+#ifdef DEBUG
+		DEBUG_MSG("\nINFO:tls_send_change_cipher: Change Cipher Spec Message Sent \n");
+#endif
+
+	return HNDSK_OK;
+
+
+}
+
+
+static void compute_finished(struct tls_connection *tls, struct md5_context* md5, struct sha1_context *sha1,uint8_t role, uint8_t *r){
+
+	/* seed for finished message is : "client finished" || "server finished" | MD5 Hash | SHA1 Hash */
+	uint8_t byte_seed[51];
+
+	md5_digest(md5);
+	sha1_digest(sha1);
+
+	/* creating seed */
+
+	copy_bytes(f_label[role],byte_seed,0,15);
+	copy_bytes(md5->buffer,byte_seed,15,MD5_KEYSIZE);
+	copy_bytes(sha1->buffer,byte_seed,31,SHA1_KEYSIZE);
+
+	/* generate finished message payload*/
+	prf(byte_seed,51,tls->master_secret,MS_LEN,r,12);
+
+
+}
+
+uint8_t tls_get_finished(struct tls_connection *tls){
+
+
+	uint8_t expected_finished[12];
+	uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
+	uint8_t *start_buffer = (record_buffer + START_BUFFER);
+
+	/* used for saving hash contexts */
+	struct md5_context temp_md5;
+	struct sha1_context temp_sha1;
+
+
+#ifdef DEBUG_DEEP
+	DEBUG_MSG("\n******************** FINISHED CLIENT MESSAGE BEGIN *****************************\n");
+#endif
+
+	if( read_header(TLS_CONTENT_TYPE_HANDSHAKE) != TLS_FINISHED_MSG_LEN ){
+		return HNDSK_ERR;
+	}
+
+
+	DEV_GETN( start_buffer, TLS_FINISHED_MSG_LEN);
+
+	/* if CCS was received that means the read state changed */
+	/* this is the first message encoded with the csuite just negotiated */
+	if(tls->ccs_recv == 1){
+
+		if(!decode_record(tls,TLS_CONTENT_TYPE_HANDSHAKE,record_buffer,TLS_FINISHED_MSG_LEN)){
+			return HNDSK_ERR;
+		}
+
+		if( start_buffer[0] != TLS_HANDSHAKE_TYPE_FINISHED){
+#ifdef DEBUG
+			DEBUG_MSG("\nFATAL:tls_get_finished: Bad Record Data Type");
+#endif
+			return HNDSK_ERR;
+		}
+
+	} else {
+		/* if we didn't received CCS it's fatal */
+#ifdef DEBUG
+		DEBUG_MSG("\nFATAL:tls_get_finished: Finished Message Received before Change Cipher Spec Message");
+		return HNDSK_ERR;
+#endif
+
+	}
+
+	/* cloning hash contexts to continue calculation after */
+	md5_clone(tls->client_md5,&temp_md5);
+	sha1_clone(tls->client_sha1,&temp_sha1);
+
+	/* compute finished message for the client */
+	compute_finished(tls, tls->client_md5,tls->client_sha1,CLIENT,expected_finished);
+
+	/* restore contexts */
+	md5_clone(&temp_md5,tls->client_md5);
+	sha1_clone(&temp_sha1,tls->client_sha1);
+
+	{
+		uint8_t i;
+		for(i = 0 ; i < 12 ; i++)
+			if(expected_finished[i] != start_buffer[4 + i]) {
+#ifdef DEBUG
+			DEBUG_MSG("\nFATAL:tls_get_finished: Client Finished Message does not match local calculated\n");
+			PRINT_ARRAY(expected_finished,12,"\t\t Local Calculated Finish Message:");
+			PRINT_ARRAY( (start_buffer + 4) ,12,"\t\t Client Calculated Finish Message:");
+#endif
+			return HNDSK_ERR;
+			}
+	}
+
+
+	/* last update of hash message */
+	md5_update(tls->client_md5,start_buffer,16);
+	sha1_update(tls->client_sha1,start_buffer,16);
+
+#ifdef DEBUG_DEEP
+	DEBUG_MSG("******************** FINISHED CLIENT MESSAGE END *****************************");
+#endif
+
+	return HNDSK_OK;
+
+
+}
+
+void build_finished(struct tls_connection *tls,uint8_t *finished){
+
+
+	uint8_t *startbuffer = (finished + START_BUFFER);
+
+	/* fill in handshake header */
+	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
+	startbuffer[1] = 0;
+	startbuffer[2] = 0;
+	startbuffer[3] = 12; /* size of finished message */
+
+	/*computing finished directly in the record_buffer */
+	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);
+
+}
+
+
+uint8_t tls_send_finished(struct tls_connection *tls, uint8_t *record_buffer){
+
+	//uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
+	uint8_t *startbuffer = (record_buffer + START_BUFFER);
+
+/*	 fill in handshake header
+	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
+	startbuffer[1] = 0;
+	startbuffer[2] = 0;
+	startbuffer[3] = 12;  size of finished message
+
+	computing finished directly in the record_buffer
+	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);*/
+
+
+#ifdef DEBUG_DEEP
+	DEBUG_MSG("******************** FINISHED SERVER MESSAGE BEGIN *****************************\n");
+#endif
+
+#ifdef DEBUG_DEEP
+	PRINT_ARRAY( (startbuffer + 4), 12,"INFO:tls_send_finished: Calculated SERVER Finished Message :");
+#endif
+
+	//DEV_PREPARE_OUTPUT;
+	write_record(tls, TLS_CONTENT_TYPE_HANDSHAKE, record_buffer, 16);
+	//DEV_OUTPUT_DONE;
+
+#ifdef DEBUG
+	DEBUG_MSG("INFO:tls_send_finished: Finished message sent");
+#endif
+
+#ifdef DEBUG_DEEP
+	DEBUG_MSG("\n******************** FINISHED SERVER MESSAGE END *****************************\n");
+#endif
+
+	return HNDSK_OK;
+
+}
+
+
+
 

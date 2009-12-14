@@ -105,5 +105,5 @@ void checksum_add32(const unsigned char val[]) {
 void checksum_end() {
 	while(checksum_carry)
 		checksum_add(0);
-	printf("Checksumed %d bytes\n",bytes);
+	//printf("Checksumed %d bytes\n",bytes);
 }

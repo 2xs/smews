@@ -154,6 +154,11 @@ CONST_VAR(uint8_t, server_cert[]) = {
 		0xe7
 };
 
+CONST_VAR(uint8_t, tls_ccs_msg[]) = {
+
+		0x14, 0x03, 0x01, 0x00, 0x01, 0x01
+};
+
 
 /* Server's ECC Private Key this should be generated @ precompilation
  * when generating key along with certificate */

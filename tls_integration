@@ -155,4 +155,7 @@ CONST_VAR(struct output_handler_t, ref_tlshandshake) = {
 
 };
 
+
+TODO
+remove VLA\s from prf & p_hash or hmac replace with mem_alloc
 	

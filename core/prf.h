@@ -8,26 +8,19 @@
 #ifndef PRF_H_
 #define PRF_H_
 
-#include "target.h"
+//#include "target.h"
 #include "md5.h"
 #include "sha1.h"
 
+/* SEED for key exchange phase */
 #define SEED_LEN 77
 
-/* hashing algorithms*/
-#define SHA1 1
-#define MD5 2
-
-/* number of bytes in digest */
-#define MD5_SIZE 16
-#define SHA1_SIZE 20
 
 struct secret {
 
 	uint8_t bytes[48]; 		  /* premaster or master secret */
 	uint8_t length; 		  /* secret length */
 };
-
 
 
 /* common blocksize for both hashing algo */

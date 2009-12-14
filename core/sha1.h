@@ -5,6 +5,8 @@
 
 #define SHA1_KEYSIZE 20
 
+#define SHA1 1
+
 struct sha1_context {
 
 	uint32_t state[5];

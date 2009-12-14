@@ -7,9 +7,14 @@
 
 extern uint8_t tls_get_client_hello();
 extern uint8_t tls_send_hello_cert_done();
+extern uint8_t tls_get_client_keyexch();
+extern uint8_t tls_get_change_cipher();
+extern uint8_t tls_send_change_cipher();
+extern uint8_t tls_send_finished();
 
 /* partially precomputed server hello, certificate and done message together with TLS record header */
 extern uint8_t s_hello_cert_done[];
+extern CONST_VAR(uint8_t, tls_ccs_msg[]);
 extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 
 #define DEBUG  /* TODO this should be a build option */
@@ -60,13 +65,26 @@ extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 #define TLS_HDONE_RECORD_LEN 4
 
 #define TLS_RECORD_HEADER_LEN 5
+
 #define TLS_HELLO_CERT_DONE_LEN (TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN)
+#define TLS_FINISHED_MSG_LEN (16 + MAC_KEYSIZE)
+#define TLS_CHANGE_CIPHER_SPEC_LEN (TLS_RECORD_HEADER_LEN + 1)
 
-
-#define PRF_LABEL_SIZE 13 /* label size for MS and Session Keys computation */
-#define MS_LEN 48 	  	  /* master secret len */
-#define PMS_LEN 32	  	  /* pre-master secret len */
+#define PRF_LABEL_SIZE 13 		/* label size for MS and Session Keys computation */
+#define MS_LEN 48 	  	  		/* master secret len */
+#define PMS_LEN 32	  	  		/* pre-master secret len */
 #define KEY_MATERIAL_LEN 72		/* Material Len for Session Keys */
+
+/* used for saving record data starting from this offset to avoid buffer copying when calculating MAC*/
+#define START_BUFFER 13
+
+/* roles for finished message calculation */
+#define SERVER 0
+#define CLIENT 1
+
+/* MAC operations */
+#define ENCODE 1
+#define DECODE 2
 
 
 /* needed for sequence number manipulation */
@@ -83,14 +101,16 @@ struct tls_connection {
 	enum tls_state_e { 
 
 			   client_hello, /* Waiting for Client Hello message */
-			   server_hello, /* Server Hello (including Certificate Message and Hello Done) */
+			   server_hello, /* Sending Server Hello (including Certificate Message and Hello Done) */
 
 			   key_exchange, /* Waiting for Client Key Exchange */
 			   ccs_recv,     /* Waiting for Change Cipher Spec */
 			   fin_recv, 	 /* Waiting for Finished Message (encrypted) */
 			   ccs_send,     /* Sending Change Cipher Spec */
-			   fin_sent, 	 /* Sending Finished Message (encrypted) */
+			   ccs_fin_send, 	 /* Sending Finished Message (encrypted) */
 			   
+			   established,  /* handshake phase finished*/
+
 			  } tls_state: 4;
 
 	unsigned char tls_active: 1; /* flag which says that a TLS handshake should be expected on this connection */
@@ -154,7 +174,10 @@ enum {
 #define PRINT_ARRAY(x,len,msg) { \
 		uint16_t i; \
 		printf("%s",msg); \
-		for(i = 0 ; i < len ; i++) printf("%02x",x[i]);\
+		for(i = 0 ; i < len ; i++){ \
+			printf("%02x",x[i]); \
+			if((i+1) % 50 == 0) printf("\n"); \
+		}\
 		printf("\n");\
 	}
 #define DEBUG_MSG(x) printf("%s",x)

@@ -165,6 +165,9 @@ void smews_send_packet(struct http_connection *connection) {
 	#define CHUNK_LENGTH_SIZE 4
 	char content_length_buffer[CONTENT_LENGTH_SIZE];
 
+	/* shameless variable TODO revise */
+	uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
+
 #ifdef SMEWS_SENDING
 	SMEWS_SENDING;
 #endif
@@ -220,6 +223,10 @@ void smews_send_packet(struct http_connection *connection) {
 			switch(connection->tls->tls_state) {
 				case server_hello:
 					segment_length = TLS_HELLO_CERT_DONE_LEN;
+					break;
+
+				case ccs_fin_send:
+					segment_length = TLS_CHANGE_CIPHER_SPEC_LEN + TLS_FINISHED_MSG_LEN + TLS_RECORD_HEADER_LEN;
 					break;
 
 			}
@@ -401,6 +408,23 @@ void smews_send_packet(struct http_connection *connection) {
 					}
 					break;
 
+				case ccs_fin_send:
+					/* calculating checksum for CCS */
+					for(i = 0; i < TLS_CHANGE_CIPHER_SPEC_LEN; i++) {
+						checksum_add(tls_ccs_msg[i]);
+					}
+					/* calculating checksum for Finished message */
+					build_finished(connection->tls,record_buffer);
+					checksum_add(TLS_CONTENT_TYPE_HANDSHAKE);
+					checksum_add(TLS_SUPPORTED_MAJOR);
+					checksum_add(TLS_SUPPORTED_MINOR);
+					checksum_add(0);
+					checksum_add(TLS_FINISHED_MSG_LEN);
+					for(i = 0; i < TLS_FINISHED_MSG_LEN; i++)
+						checksum_add(record_buffer[START_BUFFER + i]);
+
+					break;
+
 			}
 			break;
 	}
@@ -449,10 +473,20 @@ void smews_send_packet(struct http_connection *connection) {
 		}
 
 		case type_tls_handshake:
-			tls_send_hello_cert_done(connection->tls);
-			connection->tls->tls_state = key_exchange;
 
-			break;
+			switch(connection->tls->tls_state) {
+				case server_hello:
+					tls_send_hello_cert_done(connection->tls);
+					connection->tls->tls_state = key_exchange;
+					break;
+
+				case ccs_fin_send:
+					tls_send_change_cipher(connection->tls);
+					tls_send_finished(connection->tls);
+					connection->tls->tls_state = established;
+					break;
+			}
+
 	}
 	
 	/* update next sequence number and inflight segments */

@@ -377,19 +377,47 @@ char smews_receive(void) {
 
 			case client_hello:
 
-			      if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
-				    (tmp_connection.tls)->tls_state = server_hello;
-				    tmp_connection.output_handler = &ref_tlshandshake;
-				    x+= segment_length;
-			      }
-			      break;
+				if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
+					(tmp_connection.tls)->tls_state = server_hello;
+					tmp_connection.output_handler = &ref_tlshandshake;
+				}
+				x+= segment_length;
+				if(segment_length == x )
+					break;;
 
 
 			case key_exchange:
 				printf("Waiting for key exchange \n");
+				if(tls_get_client_keyexch(tmp_connection.tls) == HNDSK_OK){
+					(tmp_connection.tls)->tls_state = ccs_recv;
+
+				}
+				x+= TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN + TLS_RECORD_HEADER_LEN;
+				if(segment_length == x )
+					break;
+
+			case ccs_recv:
+				printf("Waiting for Change Cipher Spec\n");
+				if(tls_get_change_cipher(tmp_connection.tls) == HNDSK_OK){
+					(tmp_connection.tls)->tls_state = fin_recv;
+				}
+				x+= TLS_CHANGE_CIPHER_SPEC_LEN;
+				if(segment_length == x )
+					break;
+
+			case fin_recv:
+				printf("Waiting for Finished Message\n");
+				if(tls_get_finished(tmp_connection.tls) == HNDSK_OK){
+					(tmp_connection.tls)->tls_state = ccs_fin_send;
+					tmp_connection.output_handler = &ref_tlshandshake;
+				}
+				x+= TLS_FINISHED_MSG_LEN + TLS_RECORD_HEADER_LEN;
+				if(segment_length == x )
+					break;
 
 
 			default:
+				  printf("record not implemented\n");
 			      break;	 	
     
 
@@ -593,13 +621,13 @@ char smews_receive(void) {
 	//printf("%p %d %d %d\n",tmp_connection.output_handler,tmp_connection.tcp_state, segment_length,tcp_established);
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
-		printf("Gonna ACK this segment\n");
+		printf("Sending VOID ACK\n");
 		tmp_connection.output_handler = &ref_ack;
 	}
 
 	/* check TCP checksum using the partially precalculated pseudo header checksum */
 	checksum_end();
-	printf("Current calculated checksum is %04x\n",UI16(current_checksum));
+	//printf("Current calculated checksum is %04x\n",UI16(current_checksum));
 	if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
 		
 		if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */

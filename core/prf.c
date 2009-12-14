@@ -6,6 +6,7 @@
  */
 
 #include "prf.h"
+#include "memory.h"
 
 static void p_hash(uint8_t, uint8_t*, uint8_t,uint8_t*, uint8_t,  uint8_t *);
 
@@ -52,7 +53,7 @@ void hmac(uint8_t alg, uint8_t *secret, uint8_t secret_len, uint8_t *seed, uint1
 		md5_update(&md5,seed,seed_len);
 		md5_digest(&md5);
 
-		copy_bytes(md5.buffer,ipad,0,MD5_SIZE); /* TODO revise */
+		copy_bytes(md5.buffer,ipad,0,MD5_KEYSIZE); /* TODO revise */
 
 	} else {
 		sha1_init(&sha1);
@@ -60,7 +61,7 @@ void hmac(uint8_t alg, uint8_t *secret, uint8_t secret_len, uint8_t *seed, uint1
 		sha1_update(&sha1,seed,seed_len);
 		sha1_digest(&sha1);
 
-		copy_bytes(sha1.buffer,ipad,0,SHA1_SIZE); /* TODO revise*/
+		copy_bytes(sha1.buffer,ipad,0,SHA1_KEYSIZE); /* TODO revise*/
 
 	}
 
@@ -72,7 +73,7 @@ void hmac(uint8_t alg, uint8_t *secret, uint8_t secret_len, uint8_t *seed, uint1
 	if(alg == MD5){
 		md5_init(&md5);
 		md5_update(&md5, opad,HMAC_BLOCKSIZE);
-		md5_update(&md5, ipad,MD5_SIZE);
+		md5_update(&md5, ipad,MD5_KEYSIZE);
 
 		/* get final hash */
 		md5_digest(&md5);
@@ -82,15 +83,15 @@ void hmac(uint8_t alg, uint8_t *secret, uint8_t secret_len, uint8_t *seed, uint1
 
 		sha1_init(&sha1);
 		sha1_update(&sha1,opad,HMAC_BLOCKSIZE);
-		sha1_update(&sha1,ipad,SHA1_SIZE);
+		sha1_update(&sha1,ipad,SHA1_KEYSIZE);
 
 		/* get final hash */
 		sha1_digest(&sha1);
 
 	}
 
-	if(alg == MD5) copy_bytes(md5.buffer,r,0,MD5_SIZE);
-	if(alg == SHA1) copy_bytes(sha1.buffer,r,0,SHA1_SIZE);
+	if(alg == MD5) copy_bytes(md5.buffer,r,0,MD5_KEYSIZE);
+	if(alg == SHA1) copy_bytes(sha1.buffer,r,0,SHA1_KEYSIZE);
 
 
 }
@@ -106,7 +107,7 @@ static void p_hash(uint8_t alg, uint8_t* secret, uint8_t secret_len, uint8_t* re
 	uint8_t r_index = 0;
 	uint8_t i;
 
-	uint8_t alg_size = (alg == MD5 ? MD5_SIZE : SHA1_SIZE);
+	uint8_t alg_size = (alg == MD5 ? MD5_KEYSIZE : SHA1_KEYSIZE);
 	uint8_t iterations = (len % alg_size == 0) ? len/alg_size : len/alg_size + 1 ;
 	/* TODO not c90 compliant ,have VLA */
 	uint8_t temp[seed_len+alg_size];
@@ -157,8 +158,10 @@ void prf(uint8_t *seed, uint8_t slen, uint8_t* secret, uint8_t secret_len, uint8
 	uint8_t i;
 
 	/* results of p_hash function */
-	uint8_t *p_md5 = seed + slen + secret_len;
-	uint8_t *p_sha1 = seed + slen + secret_len + len;
+	//uint8_t *p_md5 = mem_alloc(len);
+	//uint8_t *p_sha1 = mem_alloc(len);
+	uint8_t p_md5[len];
+	uint8_t p_sha1[len];
 
 	seed_len = slen;
 
@@ -174,6 +177,9 @@ void prf(uint8_t *seed, uint8_t slen, uint8_t* secret, uint8_t secret_len, uint8
 
 		result[i] = p_md5[i] ^ p_sha1[i];
 	}
+
+	//mem_free(p_md5,len);
+	//mem_free(p_sha1,len);
 
 
 }
