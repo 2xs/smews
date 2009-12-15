@@ -166,7 +166,7 @@ void smews_send_packet(struct http_connection *connection) {
 	char content_length_buffer[CONTENT_LENGTH_SIZE];
 
 	/* shameless variable TODO revise */
-	uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
+	uint8_t *record_buffer;
 
 #ifdef SMEWS_SENDING
 	SMEWS_SENDING;
@@ -414,6 +414,7 @@ void smews_send_packet(struct http_connection *connection) {
 						checksum_add(tls_ccs_msg[i]);
 					}
 					/* calculating checksum for Finished message */
+					record_buffer = mem_alloc(TLS_FINISHED_MSG_LEN + START_BUFFER);
 					build_finished(connection->tls,record_buffer);
 					checksum_add(TLS_CONTENT_TYPE_HANDSHAKE);
 					checksum_add(TLS_SUPPORTED_MAJOR);
@@ -482,8 +483,10 @@ void smews_send_packet(struct http_connection *connection) {
 
 				case ccs_fin_send:
 					tls_send_change_cipher(connection->tls);
-					tls_send_finished(connection->tls);
+					/* send de before calculated finished message */
+					tls_send_finished(record_buffer + START_BUFFER);
 					connection->tls->tls_state = established;
+					mem_free(record_buffer,TLS_FINISHED_MSG_LEN + START_BUFFER);
 					break;
 			}
 

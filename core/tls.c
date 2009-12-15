@@ -558,40 +558,40 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 
 }
 
-void build_finished(struct tls_connection *tls,uint8_t *finished){
+/*void build_finished(struct tls_connection *tls,uint8_t *finished){
 
 
 	uint8_t *startbuffer = (finished + START_BUFFER);
 
-	/* fill in handshake header */
-	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
-	startbuffer[1] = 0;
-	startbuffer[2] = 0;
-	startbuffer[3] = 12; /* size of finished message */
-
-	/*computing finished directly in the record_buffer */
-	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);
-
-}
-
-
-uint8_t tls_send_finished(struct tls_connection *tls, uint8_t *record_buffer){
-
-	//uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
-	uint8_t *startbuffer = (record_buffer + START_BUFFER);
-
-/*	 fill in handshake header
+	 fill in handshake header
 	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
 	startbuffer[1] = 0;
 	startbuffer[2] = 0;
 	startbuffer[3] = 12;  size of finished message
 
 	computing finished directly in the record_buffer
-	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);*/
+	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);
+
+}*/
+
+
+uint8_t build_finished(struct tls_connection *tls, uint8_t *record_buffer){
+
+	//uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
+	uint8_t *startbuffer = (record_buffer + START_BUFFER);
+
+	//fill in handshake header
+	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
+	startbuffer[1] = 0;
+	startbuffer[2] = 0;
+	startbuffer[3] = 12;  //size of finished message
+
+	//computing finished directly in the record_buffer
+	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);
 
 
 #ifdef DEBUG_DEEP
-	DEBUG_MSG("******************** FINISHED SERVER MESSAGE BEGIN *****************************\n");
+	DEBUG_MSG("\n******************** FINISHED SERVER MESSAGE BEGIN *****************************\n");
 #endif
 
 #ifdef DEBUG_DEEP
@@ -608,6 +608,22 @@ uint8_t tls_send_finished(struct tls_connection *tls, uint8_t *record_buffer){
 
 #ifdef DEBUG_DEEP
 	DEBUG_MSG("\n******************** FINISHED SERVER MESSAGE END *****************************\n");
+#endif
+
+	return HNDSK_OK;
+
+}
+
+uint8_t tls_send_finished(uint8_t *record_buffer){
+
+	uint8_t i;
+	write_header(TLS_CONTENT_TYPE_HANDSHAKE, TLS_FINISHED_MSG_LEN);
+
+	for(i = 0; i < TLS_FINISHED_MSG_LEN ; i++)
+		DEV_PUT(record_buffer[i]);
+
+#ifdef DEBUG_DEEP
+	PRINT_ARRAY( record_buffer, 41,"INFO:tls_send_finished: Sent SERVER Finished Message :");
 #endif
 
 	return HNDSK_OK;

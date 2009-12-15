@@ -158,10 +158,10 @@ void prf(uint8_t *seed, uint8_t slen, uint8_t* secret, uint8_t secret_len, uint8
 	uint8_t i;
 
 	/* results of p_hash function */
-	//uint8_t *p_md5 = mem_alloc(len);
-	//uint8_t *p_sha1 = mem_alloc(len);
-	uint8_t p_md5[len];
-	uint8_t p_sha1[len];
+	uint8_t *p_md5 = mem_alloc(len);
+	uint8_t *p_sha1 = mem_alloc(len);
+	//uint8_t p_md5[len];
+	//uint8_t p_sha1[len];
 
 	seed_len = slen;
 
@@ -178,8 +178,8 @@ void prf(uint8_t *seed, uint8_t slen, uint8_t* secret, uint8_t secret_len, uint8
 		result[i] = p_md5[i] ^ p_sha1[i];
 	}
 
-	//mem_free(p_md5,len);
-	//mem_free(p_sha1,len);
+	mem_free(p_md5,len);
+	mem_free(p_sha1,len);
 
 
 }

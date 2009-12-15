@@ -97,7 +97,6 @@ void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buff
 	uint16_t i;
 	uint8_t *startbuffer = record_buffer + START_BUFFER;
 
-	write_header(type, len + MAC_KEYSIZE);
 
 	/* computing MAC for plaintext and adding it to the end of record*/
 	compute_mac(tls, type, record_buffer, len, ENCODE, (startbuffer + len) );
@@ -124,8 +123,8 @@ void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buff
 
 
 	/* send to TCP */
-	for( i = 0 ; i < len + 20; i++)
-		DEV_PUT(startbuffer[i]);
+	//for( i = 0 ; i < len + 20; i++)
+		//DEV_PUT(startbuffer[i]);
 
 
 
