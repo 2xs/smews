@@ -125,9 +125,6 @@ void gfp_reduce(uint32_t *x,uint32_t *r){
 
 	uint32_t s2[GFP_ARRAY_LENGHT32] = { 0, 0, 0 ,x[11],x[12],x[13],x[14],x[15]};
 
-
-	//s2[0] = 0; s2[1] = 0; s2[2] = 0; s2[3] = x[12]; s2[4] = x[13]; s2[5] = x[14]; s2[6] = x[15]; s2[7] = 0;
-
 	uint32_t s3[GFP_ARRAY_LENGHT32] = { 0, 0, 0 ,x[12],x[13],x[14],x[15],0 };
 
 	uint32_t s4[GFP_ARRAY_LENGHT32] = { x[8],x[9],x[10],0,0,0,x[14],x[15] };

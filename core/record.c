@@ -94,7 +94,6 @@ static void compute_mac(struct tls_connection *tls, uint8_t type, uint8_t *buff,
 /* len - data length without MAC */
 void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buffer, uint16_t len){
 
-	uint16_t i;
 	uint8_t *startbuffer = record_buffer + START_BUFFER;
 
 
@@ -125,7 +124,6 @@ void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buff
 	/* send to TCP */
 	//for( i = 0 ; i < len + 20; i++)
 		//DEV_PUT(startbuffer[i]);
-
 
 
 }

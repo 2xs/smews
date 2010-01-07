@@ -18,7 +18,7 @@ static CONST_VAR(uint8_t,f_label[2][15]) = { {0x73,0x65,0x72,0x76,0x65,0x72,0x20
 
 
 /*TODO revise functions for stack optimization maybe convert to macro */
-void copy_bytes(const uint8_t* src, uint8_t* dest,uint16_t start,uint16_t len){
+void inline copy_bytes(const uint8_t* src, uint8_t* dest,uint16_t start,uint16_t len){
 
 	int16_t i;
 
@@ -280,23 +280,16 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 
 	/* 77 = 70 (keyexchange message) + 7 (to accomodate seed length that will reuse the existing buffer) */
 	uint8_t record_buffer[TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN + 7];
+
 	/* TODO, this can be optimized to share stack between key_block and pms_secret because they are in mutual exclusion */
 	uint8_t pms_secret[PMS_LEN];
 	uint8_t key_block[KEY_MATERIAL_LEN];
 
 
-	/* where keyblock will be saved temporary */
-	//uint8_t *key_block = record_buffer + SEED_LEN;
-
-	/* set pointers in the buffer for the client random and pms */
-	//uint8_t *client_random = record_buffer + BUFFER_SIZE - RANDOM_SIZE;
-
 
 	if( read_header(TLS_CONTENT_TYPE_HANDSHAKE) != TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN){
 		return HNDSK_ERR;
 	}
-
-	//record_buffer = mem_alloc(TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN + 7); /* 7 is to cover the seed length*/
 
 
 	/* the record len should always be 70 for this key exchange */
@@ -372,13 +365,12 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 
 	/* generate KEY_MATERIAL_LEN key material for connection keys*/
 	prf(record_buffer,SEED_LEN,tls->master_secret,MS_LEN,key_block,KEY_MATERIAL_LEN);
-	//PRINT_ARRAY(key_block,KEY_MATERIAL_LEN,"keyblock ; ");
 
 	/* save session keys in tls connection */
 	copy_bytes(key_block,tls->client_mac,0,MAC_KEYSIZE);
 	copy_bytes(key_block + MAC_KEYSIZE,tls->server_mac,0,MAC_KEYSIZE);
-	copy_bytes(key_block + (MAC_KEYSIZE<<1),tls->client_key,0,CIPHER_KEYSIZE);
-	copy_bytes(key_block + (MAC_KEYSIZE<<1) + (CIPHER_KEYSIZE),tls->server_key,0,CIPHER_KEYSIZE);
+	//copy_bytes(key_block + (MAC_KEYSIZE<<1),tls->client_key,0,CIPHER_KEYSIZE);
+	//copy_bytes(key_block + (MAC_KEYSIZE<<1) + (CIPHER_KEYSIZE),tls->server_key,0,CIPHER_KEYSIZE);
 
 	/* initialization of encode/decode ciphers */
 	rc4_init(key_block + 2*MAC_KEYSIZE, MODE_DECRYPT);
@@ -389,8 +381,8 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	PRINT_ARRAY(tls->master_secret,MS_LEN,"Master Secret :");
 	PRINT_ARRAY(tls->client_mac,MAC_KEYSIZE,"Client MAC Secret :");
 	PRINT_ARRAY(tls->server_mac,MAC_KEYSIZE,"Server MAC Secret :");
-	PRINT_ARRAY(tls->client_key,CIPHER_KEYSIZE,"Client Key Secret :");
-	PRINT_ARRAY(tls->server_key,CIPHER_KEYSIZE,"Server Key Secret :");
+	//PRINT_ARRAY(tls->client_key,CIPHER_KEYSIZE,"Client Key Secret :");
+	//PRINT_ARRAY(tls->server_key,CIPHER_KEYSIZE,"Server Key Secret :");
 	DEBUG_MSG("************************** SESSION KEYS END *******************************************\n");
 #endif
 
@@ -557,22 +549,6 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 
 
 }
-
-/*void build_finished(struct tls_connection *tls,uint8_t *finished){
-
-
-	uint8_t *startbuffer = (finished + START_BUFFER);
-
-	 fill in handshake header
-	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
-	startbuffer[1] = 0;
-	startbuffer[2] = 0;
-	startbuffer[3] = 12;  size of finished message
-
-	computing finished directly in the record_buffer
-	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);
-
-}*/
 
 
 uint8_t build_finished(struct tls_connection *tls, uint8_t *record_buffer){

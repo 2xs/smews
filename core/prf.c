@@ -10,7 +10,7 @@
 
 static void p_hash(uint8_t, uint8_t*, uint8_t,uint8_t*, uint8_t,  uint8_t *);
 
-extern void /*TODO add inline */copy_bytes(const uint8_t*,uint8_t*,uint16_t,uint16_t);
+extern void inline copy_bytes(const uint8_t*,uint8_t*,uint16_t,uint16_t);
 
 
 static uint8_t seed_len;

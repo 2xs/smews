@@ -68,7 +68,6 @@ extern CONST_VAR(struct output_handler_t, webContents_httpCodes_404_html_handler
 #define TCP_HEADER_SIZE 20
 
 /* tcp constant checksum part: ip_proto_tcp from pseudoheader*/
-
 #define TCP_CHK_CONSTANT_PART (uint16_t)~IP_PROTO_TCP
 
 /* Initial sequence number */
@@ -387,7 +386,7 @@ char smews_receive(void) {
 
 
 			case key_exchange:
-				printf("Waiting for key exchange \n");
+				//printf("Waiting for key exchange \n");
 				if(tls_get_client_keyexch(tmp_connection.tls) == HNDSK_OK){
 					(tmp_connection.tls)->tls_state = ccs_recv;
 
@@ -397,7 +396,7 @@ char smews_receive(void) {
 					break;
 
 			case ccs_recv:
-				printf("Waiting for Change Cipher Spec\n");
+				//printf("Waiting for Change Cipher Spec\n");
 				if(tls_get_change_cipher(tmp_connection.tls) == HNDSK_OK){
 					(tmp_connection.tls)->tls_state = fin_recv;
 				}
@@ -417,7 +416,7 @@ char smews_receive(void) {
 
 
 			default:
-				  printf("record not implemented\n");
+				  printf("Record not implemented\n");
 			      break;	 	
     
 

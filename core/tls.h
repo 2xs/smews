@@ -126,8 +126,8 @@ struct tls_connection {
 
 	uint8_t client_mac[MAC_KEYSIZE]; 		/* client write mac key */
 	uint8_t server_mac[MAC_KEYSIZE]; 		/* server write mac key */
-	uint8_t client_key[CIPHER_KEYSIZE]; 	/* client write key for symmetric alg */
-	uint8_t server_key[CIPHER_KEYSIZE]; 	/* server write key for symmetric alg */
+	//uint8_t client_key[CIPHER_KEYSIZE]; 	/* client write key for symmetric alg */
+	//uint8_t server_key[CIPHER_KEYSIZE]; 	/* server write key for symmetric alg */
 
 	/* this memory should be saved if session resumed will be implemented */
 	uint8_t master_secret[MS_LEN];

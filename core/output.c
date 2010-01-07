@@ -225,6 +225,7 @@ void smews_send_packet(struct http_connection *connection) {
 					segment_length = TLS_HELLO_CERT_DONE_LEN;
 					break;
 
+				/* sending the CCS & Finished message in one segment */
 				case ccs_fin_send:
 					segment_length = TLS_CHANGE_CIPHER_SPEC_LEN + TLS_FINISHED_MSG_LEN + TLS_RECORD_HEADER_LEN;
 					break;
