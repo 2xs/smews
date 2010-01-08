@@ -86,8 +86,9 @@ struct http_connection {
 	struct http_connection *next;
 	struct http_connection *prev;
       
-#ifndef DISABLE_HTTPS	
+#ifndef DISABLE_TLS
 	struct tls_connection *tls;
+	/* flag which says that a TLS connection has been established on this connection */
 	unsigned char tls_active: 1;
 #endif
 

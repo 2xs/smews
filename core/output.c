@@ -427,6 +427,8 @@ void smews_send_packet(struct http_connection *connection) {
 
 					break;
 
+
+
 			}
 			break;
 	}

@@ -218,8 +218,10 @@ char smews_receive(void) {
 #ifndef DISABLE_TIMERS
 		tmp_connection.transmission_time = last_transmission_time;
 #endif
-		tmp_connection.tls_active = 0;
 
+#ifndef DISABLE_TLS
+		tmp_connection.tls_active = 0;
+#endif
 
 	}
 
@@ -239,6 +241,7 @@ char smews_receive(void) {
 
 				if(tmp_connection.tls != NULL){
 					(tmp_connection.tls)->tls_state = client_hello; /* waiting for client hello */
+					(tmp_connection.tls)->parsing_state = parsing_hdr;
 					tmp_connection.tls_active = 1;
 
 				} else {
@@ -368,8 +371,9 @@ char smews_receive(void) {
 	}
 
 	x = 0;
+
 	/* TLS Handshake Layer processing*/
-	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1) {
+	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1 && (tmp_connection.tls)->tls_state != established ) {
 		
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
@@ -426,6 +430,7 @@ char smews_receive(void) {
 	} else {
 
 		/* End of TCP, starting HTTP*/
+		/* TLS record layer operation if TLS active */
 		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
 			const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
 
@@ -458,8 +463,48 @@ char smews_receive(void) {
 	#endif
 
 			while(x < segment_length && output_handler != &http_404_handler) {
-				x++;
+
+#ifndef DISABLE_TLS
+				if(tmp_connection.tls_active == 1){
+					if((tmp_connection.tls)->parsing_state == parsing_hdr){
+
+						x+=5;
+						/* TODO parse ALERT TYPE */
+						if( ((tmp_connection.tls)->record_size = read_header(TLS_CONTENT_TYPE_APPLICATION_DATA)) == HNDSK_ERR){
+							break;
+						}
+						/* preparing the HMAC hash for calculation */
+						hmac_init(SHA1,(tmp_connection.tls)->server_mac,SHA1_KEYSIZE);
+
+						(tmp_connection.tls)->parsing_state == parsing_data;
+						continue;
+					}
+				}
+#endif
 				DEV_GETC(tmp_char);
+				x++;
+
+#ifndef DISABLE_TLS
+				if(tmp_connection.tls_active == 1){
+
+					if((tmp_connection.tls)->parsing_state == parsing_data){
+						rc4_crypt(&tmp_char,MODE_DECRYPT);
+						hmac_update(tmp_char);
+						/* updating remaining bytes to parse from payload of the current record*/
+						(tmp_connection.tls)->record_size--;
+						/* entering MAC portion */
+						if((tmp_connection.tls)->record_size == MAC_KEYSIZE)
+							(tmp_connection.tls)->parsing_state == parsing_mac;
+
+					} else
+
+					if((tmp_connection.tls)->parsing_state == parsing_mac){
+						hmac_finish(SHA1);
+						//if(tmp_char==)
+					}
+				}
+#endif
+
 				blob_curr = CONST_READ_UI8(blob);
 				/* search for the content to send */
 				if(blob_curr >= 128 && output_handler != &http_404_handler) {

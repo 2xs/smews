@@ -47,8 +47,8 @@ void rc4_init(const uint8_t* key, uint8_t mode) {
 
 }
 
-
-void rc4_crypt(uint8_t *in, uint8_t in_off, uint16_t in_len, uint8_t mode) {
+/* old rc4_crypt working on strings */
+/*void rc4_crypt(uint8_t *in, uint8_t in_off, uint16_t in_len, uint8_t mode) {
 
 	uint8_t tmp;
 	uint32_t t;
@@ -81,13 +81,54 @@ void rc4_crypt(uint8_t *in, uint8_t in_off, uint16_t in_len, uint8_t mode) {
 		t = (S[ii] + tmp) & 255;
 		kt = S[t];
 		in[i] = in[in_off + i] ^ kt;
+
 	}
 
 
 	ctx->i = ii;
 	ctx->j = jj;
 
+}*/
+
+void rc4_crypt(uint8_t *in, uint8_t mode) {
+
+	uint8_t tmp;
+	uint32_t t;
+	uint8_t kt;
+	uint8_t *S;
+	uint8_t ii,jj;
+
+	struct rc4_context *ctx;
+
+	if(mode == MODE_ENCRYPT){
+		ctx = &rc4_encrypt;
+	}
+	else{
+		ctx = &rc4_decrypt;
+	}
+
+	S = ctx->state;
+
+	ii = ctx->i;
+	jj = ctx->j;
+
+
+	ii = (ii + 1) & 255;
+	tmp = S[ii];
+	jj = (jj + (tmp & 255) ) & 255;
+	S[ii] = S[jj];
+	S[jj] = tmp;
+	t = (S[ii] + tmp) & 255;
+	kt = S[t];
+	*in = *in ^ kt;
+
+
+	ctx->i = ii;
+	ctx->j = jj;
+
 }
+
+
 
 
 /*

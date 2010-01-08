@@ -97,6 +97,10 @@ union long_byte {
 
 struct tls_connection {
 
+	/* size of the record currently being parsed with MAC*/
+	uint16_t record_size;
+	/* current parsed size of record_size */
+	uint16_t current_size;
 	/* TLS connection */
 	enum tls_state_e { 
 
@@ -113,7 +117,7 @@ struct tls_connection {
 
 			  } tls_state: 4;
 
-	unsigned char tls_active: 1; /* flag which says that a TLS handshake should be expected on this connection */
+	enum record_parsing_state_e {parsing_hdr, parsing_data, parsing_mac} parsing_state: 2;
 
 	/* The sequence number ensures that attempts to delete or reorder messages will be detected.  
 	   Since sequence numbers are 64 bits long, they should never overflow. */

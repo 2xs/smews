@@ -14,7 +14,8 @@ struct rc4_context{
 	uint8_t i,j;
 };
 
-void rc4_crypt(uint8_t*, uint8_t, uint16_t, uint8_t);
+//void rc4_crypt(uint8_t*, uint8_t, uint16_t, uint8_t);
+void rc4_crypt(uint8_t*, uint8_t);
 void rc4_init(const uint8_t* , uint8_t);
 
 

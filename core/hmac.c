@@ -5,8 +5,8 @@ static uint8_t ipad[HMAC_BLOCKSIZE];
 static uint8_t opad[HMAC_BLOCKSIZE];
 
 /* local contexts for hash computation */
-static struct md5_context md5;
-static struct sha1_context sha1;
+struct md5_context md5;
+struct sha1_context sha1;
 
 
 /* function needed to update HMAC bytewise */

@@ -94,6 +94,7 @@ static void compute_mac(struct tls_connection *tls, uint8_t type, uint8_t *buff,
 /* len - data length without MAC */
 void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buffer, uint16_t len){
 
+	uint8_t i;
 	uint8_t *startbuffer = record_buffer + START_BUFFER;
 
 
@@ -106,7 +107,9 @@ void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buff
 #endif
 
 	/* cipher in place the plaintext together with MAC */
-	rc4_crypt(startbuffer, 0, len + 20, MODE_ENCRYPT);
+	for(i = 0; i < len + 20 ; i++)
+		rc4_crypt(&startbuffer[i],MODE_ENCRYPT);
+	//rc4_crypt(startbuffer, 0, len + 20, MODE_ENCRYPT);
 
 #ifdef DEBUG_DEEP
 	PRINT_ARRAY( (startbuffer) ,len + 20,"Record Data after encryption :");
@@ -139,7 +142,9 @@ uint8_t decode_record(struct tls_connection *tls,uint8_t type,uint8_t *record_da
 	uint8_t exp_mac[MAC_KEYSIZE];
 
 	/* decrypt record_data in place obtaining [payload + MAC] */
-	rc4_crypt(startbuffer,0,len,MODE_DECRYPT);
+	for(i = 0; i < len ; i++)
+			rc4_crypt(&startbuffer[i],MODE_DECRYPT);
+	//rc4_crypt(startbuffer,0,len,MODE_DECRYPT);
 
 #ifdef DEBUG_DEEP
 	PRINT_ARRAY(startbuffer, len, "Record data after decryption :");
