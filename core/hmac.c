@@ -29,7 +29,6 @@ void hmac_finish(uint8_t alg){
 
 	} else {
 
-
 		sha1_digest(&sha1);
 		copy_bytes(sha1.buffer,ipad,0,SHA1_KEYSIZE);
 		sha1_init(&sha1);

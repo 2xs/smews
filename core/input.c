@@ -42,6 +42,7 @@
 #include "coroutines.h"
 
 #include "tls.h"
+#include "hmac.h"
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
@@ -373,7 +374,7 @@ char smews_receive(void) {
 	x = 0;
 
 	/* TLS Handshake Layer processing*/
-	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1 && (tmp_connection.tls)->tls_state != established ) {
+	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1 /*&& (tmp_connection.tls)->tls_state != established*/ ) {
 		
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
@@ -466,8 +467,10 @@ char smews_receive(void) {
 
 #ifndef DISABLE_TLS
 				if(tmp_connection.tls_active == 1){
+
 					if((tmp_connection.tls)->parsing_state == parsing_hdr){
 
+						uint8_t i;
 						x+=5;
 						/* TODO parse ALERT TYPE */
 						if( ((tmp_connection.tls)->record_size = read_header(TLS_CONTENT_TYPE_APPLICATION_DATA)) == HNDSK_ERR){
@@ -476,7 +479,17 @@ char smews_receive(void) {
 						/* preparing the HMAC hash for calculation */
 						hmac_init(SHA1,(tmp_connection.tls)->server_mac,SHA1_KEYSIZE);
 
-						(tmp_connection.tls)->parsing_state == parsing_data;
+						/* HMAC first 13 bytes necessary for later MAC calculation */
+						for( i = 0 ; i < 8 ; i++)
+								hmac_update((tmp_connection.tls)->decode_seq_no.bytes[7-i]);
+
+						hmac_update(TLS_CONTENT_TYPE_APPLICATION_DATA);
+						hmac_update(TLS_SUPPORTED_MAJOR);
+						hmac_update(TLS_SUPPORTED_MINOR);
+						hmac_update((tmp_connection.tls)->record_size >> 8);
+						hmac_update((uint8_t)((tmp_connection.tls)->record_size));
+
+						(tmp_connection.tls)->parsing_state = parsing_data;
 						continue;
 					}
 				}
@@ -487,20 +500,36 @@ char smews_receive(void) {
 #ifndef DISABLE_TLS
 				if(tmp_connection.tls_active == 1){
 
+					/* updating remaining bytes to parse from payload of the current record */
+					(tmp_connection.tls)->record_size--;
+
+					//uint8_t i;
 					if((tmp_connection.tls)->parsing_state == parsing_data){
 						rc4_crypt(&tmp_char,MODE_DECRYPT);
 						hmac_update(tmp_char);
-						/* updating remaining bytes to parse from payload of the current record*/
-						(tmp_connection.tls)->record_size--;
+
 						/* entering MAC portion */
-						if((tmp_connection.tls)->record_size == MAC_KEYSIZE)
-							(tmp_connection.tls)->parsing_state == parsing_mac;
+						if((tmp_connection.tls)->record_size == MAC_KEYSIZE){
+							(tmp_connection.tls)->parsing_state = parsing_mac;
+							hmac_finish(SHA1);
+						}
 
-					} else
 
-					if((tmp_connection.tls)->parsing_state == parsing_mac){
-						hmac_finish(SHA1);
-						//if(tmp_char==)
+					} else if((tmp_connection.tls)->parsing_state == parsing_mac){
+
+						if(sha1.buffer[MAC_KEYSIZE - (tmp_connection.tls)->record_size - 1] != tmp_char){
+							tmp_connection.output_handler = NULL;
+							break;
+						} else {
+							/* finished MAC parsing and checking */
+							if((tmp_connection.tls)->record_size == 0){
+								/* prepare header parsing for next record */
+								(tmp_connection.tls)->parsing_state = parsing_hdr;
+							}
+						}
+
+						continue;
+
 					}
 				}
 #endif

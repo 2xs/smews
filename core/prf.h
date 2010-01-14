@@ -8,9 +8,6 @@
 #ifndef PRF_H_
 #define PRF_H_
 
-//#include "target.h"
-#include "md5.h"
-#include "sha1.h"
 #include "hmac.h"
 
 /* SEED for key exchange phase */

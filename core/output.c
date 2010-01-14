@@ -486,7 +486,7 @@ void smews_send_packet(struct http_connection *connection) {
 
 				case ccs_fin_send:
 					tls_send_change_cipher(connection->tls);
-					/* send de before calculated finished message */
+
 					tls_send_finished(record_buffer + START_BUFFER);
 					connection->tls->tls_state = established;
 					mem_free(record_buffer,TLS_FINISHED_MSG_LEN + START_BUFFER);

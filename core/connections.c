@@ -65,7 +65,7 @@ struct http_rst_connection rst_connection;
 /*-----------------------------------------------------------------------------------*/
 char something_to_send(const struct http_connection *connection) {
 
-	if(!connection->output_handler)
+	if(!connection->output_handler || connection->tls->parsing_state == parsing_mac)
 		return 0;
 		
 

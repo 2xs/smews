@@ -5,12 +5,16 @@
 #include "rand.h"
 
 
+
 extern uint8_t tls_get_client_hello();
 extern uint8_t tls_send_hello_cert_done();
 extern uint8_t tls_get_client_keyexch();
 extern uint8_t tls_get_change_cipher();
 extern uint8_t tls_send_change_cipher();
 extern uint8_t tls_send_finished();
+extern uint8_t tls_get_finished();
+
+
 
 /* partially precomputed server hello, certificate and done message together with TLS record header */
 extern uint8_t s_hello_cert_done[];
@@ -29,6 +33,8 @@ extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 
 #define CIPHER_KEYSIZE 	RC4_KEYSIZE 
 #define MAC_KEYSIZE 	SHA1_KEYSIZE 
+
+
 
 #endif
 
