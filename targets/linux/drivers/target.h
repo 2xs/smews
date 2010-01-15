@@ -99,6 +99,7 @@ extern fd_set fdset;
 #define CONST_READ_UI16(x) (*((uint16_t*)(x)))
 #define CONST_READ_UI32(x) (*((uint32_t*)(x)))
 #define CONST_READ_ADDR(x) (*((void**)(x)))
+#define CONST_READ_NBYTES(dst,src,len) memcpy(dst,src,len)
 
 #define CONST_UI8(x) ((uint8_t)(x))
 #define CONST_UI16(x) ((uint16_t)(x))

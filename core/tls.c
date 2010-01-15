@@ -250,15 +250,31 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 	uint16_t i;
 
 	/*write_header(TLS_CONTENT_TYPE_HANDSHAKE,TLS_HELLO_CERT_DONE_LEN);*/
+	uint8_t *tls_record = mem_alloc(TLS_HELLO_CERT_DONE_LEN - 32);
 
 
-	/* updating digest with this message (the whole message skipping record header) */
-	md5_update(tls->client_md5, s_hello_cert_done + 5, TLS_HELLO_CERT_DONE_LEN - TLS_RECORD_HEADER_LEN);
-	sha1_update(tls->client_sha1, s_hello_cert_done + 5, TLS_HELLO_CERT_DONE_LEN - TLS_RECORD_HEADER_LEN);
+	CONST_READ_NBYTES(tls_record,s_hello_cert_done,TLS_HELLO_CERT_DONE_LEN - 32);
 
-	for(i = 0; i < TLS_HELLO_CERT_DONE_LEN; i++){
-		DEV_PUT(s_hello_cert_done[i]);
-	}
+	/* updating digest with the handshake messages (skipping record header) */
+	md5_update(tls->client_md5, tls_record + 5, 6);
+	sha1_update(tls->client_sha1, tls_record + 5, 6);
+
+	/* putting server generated random */
+	md5_update(tls->client_md5, tls->server_random.lfsr_char, 32);
+	sha1_update(tls->client_sha1, tls->server_random.lfsr_char, 32);
+
+	md5_update(tls->client_md5, tls_record + 11, TLS_HELLO_CERT_DONE_LEN - 11 - 32);
+	sha1_update(tls->client_sha1, tls_record + 11, TLS_HELLO_CERT_DONE_LEN - 11 - 32);
+
+
+	for(i = 0; i < 11; i++)
+		DEV_PUT(tls_record[i]);
+
+	for(i = 0; i < 32 ; i++)
+		DEV_PUT(tls->server_random.lfsr_char[i]);
+
+	for(i = 11; i < TLS_HELLO_CERT_DONE_LEN - 32; i++)
+		DEV_PUT(tls_record[i]);
 
 #ifdef DEBUG
 	DEBUG_MSG("\nINFO:tls_send_server_hello: Server Hello, Certificate, Done sent\n");

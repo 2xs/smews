@@ -10,10 +10,10 @@
 
 /* Server Hello, Cert, Done with Record Header - just ready to send */
 /* Length of this array is TLS_HELLO_CERT_DONE_LEN + TLS_RECORD_HEADER_LEN */
-uint8_t s_hello_cert_done[] = {
+CONST_VAR(uint8_t,s_hello_cert_done[]) = {
 		0x16, 0x03, 0x01, 0x02, 0x18, /* record header */
 		0x02, 0x00, 0x00, 0x2e, 0x03, 0x01, /* handshake type(1), handhshake len(3), tls version(2)*/
-		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* server random injected at runtime */
+		/*0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* server random injected at runtime */
 		0x00, 0xc0, 0x07, 0x00, /* session id (1-32), Cipher Suite(2), Compression(1)	*/
 		0x00, 0x06, 0x00, 0x0b, 0x00, 0x02, 0x01, 0x00, /* Extensions length(2), TLS point format extension*/
 		/* END of SERVER HELLO HANDSHAKE RECORD */

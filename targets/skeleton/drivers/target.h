@@ -111,6 +111,8 @@ typedef char int8_t;
 /* Gets an address from address x */
 #define CONST_READ_ADDR(x) ((void*)*((void**)(x)))
 
+#define CONST_READ_NBYTES(dst,src,len)
+
 /* Get the value of x, where x is declared as a one byte const */
 #define CONST_UI8(x) ((uint8_t)(x))
 /* Get the value of x, where x is declared as a two bytes const */
@@ -121,6 +123,8 @@ typedef char int8_t;
 #define CONST_ADDR(x) ((void*)(x))
 /* Writes len bytes from src to dst, where dst targets a persistent variable */
 #define CONST_WRITE_NBYTES(dst,src,len)
+
+
 
 /* Endianness: define ENDIANNESS as LITTLE_ENDIAN or BIG_ENDIAN */
 #ifndef ENDIANNESS

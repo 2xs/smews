@@ -374,7 +374,7 @@ char smews_receive(void) {
 	x = 0;
 
 	/* TLS Handshake Layer processing*/
-	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1 /*&& (tmp_connection.tls)->tls_state != established*/ ) {
+	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1 && (tmp_connection.tls)->tls_state != established ) {
 		
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
@@ -430,6 +430,7 @@ char smews_receive(void) {
 
 	} else {
 
+		printf("TCP Segment Length: %d\n",segment_length);
 		/* End of TCP, starting HTTP*/
 		/* TLS record layer operation if TLS active */
 		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
@@ -496,6 +497,7 @@ char smews_receive(void) {
 #endif
 				DEV_GETC(tmp_char);
 				x++;
+				printf("E %02x",tmp_char);
 
 #ifndef DISABLE_TLS
 				if(tmp_connection.tls_active == 1){
@@ -506,6 +508,7 @@ char smews_receive(void) {
 					//uint8_t i;
 					if((tmp_connection.tls)->parsing_state == parsing_data){
 						rc4_crypt(&tmp_char,MODE_DECRYPT);
+						printf("D %02x",tmp_char);
 						hmac_update(tmp_char);
 
 						/* entering MAC portion */
@@ -519,6 +522,7 @@ char smews_receive(void) {
 
 						if(sha1.buffer[MAC_KEYSIZE - (tmp_connection.tls)->record_size - 1] != tmp_char){
 							tmp_connection.output_handler = NULL;
+							printf("MAC is not good\n");
 							break;
 						} else {
 							/* finished MAC parsing and checking */
@@ -687,6 +691,7 @@ char smews_receive(void) {
 		}
 	}
 
+	printf("\nFinished getting TCP Segment\n\n");
 	/* drop remaining TCP data */
 	//printf("I parsed %d TCP payload\n",x);
 	while(x++ < segment_length)

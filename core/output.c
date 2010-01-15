@@ -168,6 +168,10 @@ void smews_send_packet(struct http_connection *connection) {
 	/* shameless variable TODO revise */
 	uint8_t *record_buffer;
 
+#ifndef DISABLE_TLS
+	uint8_t *tls_record;
+#endif
+
 #ifdef SMEWS_SENDING
 	SMEWS_SENDING;
 #endif
@@ -222,6 +226,7 @@ void smews_send_packet(struct http_connection *connection) {
 
 			switch(connection->tls->tls_state) {
 				case server_hello:
+					/* todo limitation of mss discuss(fie las asa ceea ce nu ar putea fi o pb, fie il fac dynamic content) */
 					segment_length = TLS_HELLO_CERT_DONE_LEN;
 					break;
 
@@ -380,16 +385,30 @@ void smews_send_packet(struct http_connection *connection) {
 			}
 			break;
 		case type_file: {
-			uint16_t i;
-			uint32_t tmp_sum = 0;
-			uint16_t *tmpptr = (uint16_t *)CONST_ADDR(GET_FILE(output_handler).chk) + DIV_BY_CHUNCKS_SIZE(index_in_file);
+#ifndef DISABLE_TLS
+			if(connection->tls_active == 1){
+				const char *tmpptr = (const char*)(CONST_ADDR(GET_FILE(output_handler).data) + index_in_file);
+				tls_record = mem_alloc(segment_length);
+				tls_record = CONST_READ_NBYTES(tls_record,tmpptr,segment_length);
 
-			for(i = 0; i < GET_NB_BLOCKS(segment_length); i++) {
-				tmp_sum += CONST_READ_UI16(tmpptr++);
+				/* todo algoritmul lui peste */
+
+
+			} else
+#endif
+			{
+				uint16_t i;
+				uint32_t tmp_sum = 0;
+				uint16_t *tmpptr = (uint16_t *)CONST_ADDR(GET_FILE(output_handler).chk) + DIV_BY_CHUNCKS_SIZE(index_in_file);
+
+				for(i = 0; i < GET_NB_BLOCKS(segment_length); i++) {
+					tmp_sum += CONST_READ_UI16(tmpptr++);
+				}
+				checksum_add32((const unsigned char*)&tmp_sum);
+				break;
 			}
-			checksum_add32((const unsigned char*)&tmp_sum);
-			break;
 		}
+#ifndef DISABLE_TLS
 		case type_tls_handshake:
 
 			switch(connection->tls->tls_state) {
@@ -399,14 +418,17 @@ void smews_send_packet(struct http_connection *connection) {
 					init_rand(0xABCDEF12); /* TODO move random init somewhere else */
 					rand_next(connection->tls->server_random.lfsr_int);
 
-					/* writing the generated random in the message */
-					for(i = 0; i < 32 ; i++){
-						s_hello_cert_done[11+i] = connection->tls->server_random.lfsr_char[i];
-					}
-
-					for(i = 0; i < TLS_HELLO_CERT_DONE_LEN; i++) {
+					/* checksumming handshake records */
+					for(i = 0; i < TLS_HELLO_CERT_DONE_LEN - 32; i++) {
 						checksum_add(s_hello_cert_done[i]);
 					}
+
+					/* checksumming random value */
+					for(i = 0; i < 32 ; i++){
+						checksum_add(connection->tls->server_random.lfsr_char[i]);
+					}
+
+
 					break;
 
 				case ccs_fin_send:
@@ -431,6 +453,8 @@ void smews_send_packet(struct http_connection *connection) {
 
 			}
 			break;
+#endif
+
 	}
 	
 	checksum_end();
@@ -756,7 +780,7 @@ char smews_send(void) {
 			
 			/* send the segment */
 #ifndef DISABLE_COMET
-			/* if this is a comet handler, send the segment to all listenning clients */
+			/* if this is a comet handler, send the segment to all listening clients */
 			if(CONST_UI8(connection->output_handler->handler_comet)) {
 				const struct output_handler_t *current_handler = connection->output_handler;
 				FOR_EACH_CONN(conn, {
