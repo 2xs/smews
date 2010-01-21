@@ -68,11 +68,12 @@ char something_to_send(const struct http_connection *connection) {
 	if(!connection->output_handler)
 		return 0;
 
+#ifndef DISABLE_TLS
 	/* don't serve the handler until mac is checked */
 	if(connection->tls_active == 1)
 		if(connection->tls->parsing_state == parsing_mac)
 			return 0;
-
+#endif
 
 
 	if(CONST_UI8(connection->output_handler->handler_type) == type_control || CONST_UI8(connection->output_handler->handler_type) == type_tls_handshake

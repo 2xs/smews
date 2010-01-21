@@ -1,5 +1,5 @@
 
-#include "prf.h"
+#include "hmac.h"
 
 static uint8_t ipad[HMAC_BLOCKSIZE];
 static uint8_t opad[HMAC_BLOCKSIZE];
@@ -40,7 +40,21 @@ void hmac_finish(uint8_t alg){
 
 }
 
+void hmac_preamble(struct tls_connection* tls){
 
+	/* HMAC first 13 bytes necessary for later record MAC calculation
+	 * 6.2.3.1 RFC 2246 */
+	uint8_t i;
+	for( i = 0 ; i < 8 ; i++)
+		hmac_update(tls->decode_seq_no.bytes[7-i]);
+
+	hmac_update(TLS_CONTENT_TYPE_APPLICATION_DATA);
+	hmac_update(TLS_SUPPORTED_MAJOR);
+	hmac_update(TLS_SUPPORTED_MINOR);
+	hmac_update(tls->record_size >> 8);
+	hmac_update((uint8_t)(tls->record_size));
+
+}
 
 void hmac_init(uint8_t alg,uint8_t *key, uint8_t key_len){
 
@@ -64,8 +78,9 @@ void hmac_init(uint8_t alg,uint8_t *key, uint8_t key_len){
 		sha1_update(&sha1,ipad,HMAC_BLOCKSIZE);
 	}
 
-
 }
+
+
 
 /* wrapper function used by prf */
 void hmac(uint8_t alg,uint8_t *key, uint8_t key_len,uint8_t *data, uint8_t data_len,uint8_t *result){
