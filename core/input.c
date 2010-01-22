@@ -486,16 +486,17 @@ char smews_receive(void) {
 					}
 				}
 #endif
+				/* todo resolve incrementation of decode_seq no and mac check the damn thing */
 				DEV_GETC(tmp_char);
 				x++;
-				printf("E %02x",tmp_char);
+				printf("%02x:",tmp_char);
 
 #ifndef DISABLE_TLS
 				if(tmp_connection.tls_active == 1){
 
 					/* decrypt current character */
 					rc4_crypt(&tmp_char,MODE_DECRYPT);
-					printf("D %02x",tmp_char);
+					printf("%02x|",tmp_char);
 
 					/* updating remaining bytes to parse from payload of the current record */
 					(tmp_connection.tls)->record_size--;
@@ -519,6 +520,7 @@ char smews_receive(void) {
 							break;
 						} else {
 							/* finished MAC parsing and checking */
+							printf("MAC is good for the received record\n");
 							if((tmp_connection.tls)->record_size == 0){
 								/* prepare header parsing for next record */
 								(tmp_connection.tls)->parsing_state = parsing_hdr;

@@ -150,5 +150,6 @@ void dev_prepare_output() {
 /*-----------------------------------------------------------------------------------*/
 void dev_output_done(void) {
 	ret = write(tun_fd, out_buffer, out_curr);
+	//printf("I'm sending %d octets on the network \n",out_curr);
 	check(ret != -1,"write() error");
 }

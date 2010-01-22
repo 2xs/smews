@@ -18,7 +18,7 @@ uint16_t read_header(const uint8_t type){
 	if(tmp[0] != type) {
 
 #ifdef DEBUG
-		DEBUG_MSG("\nFATAL:read_header: Unexpected record type");
+		DEBUG_MSG("\nFATAL:read_header: Unexpected record type or not TLS v1.0 compatible browser");
 #endif
 		return HNDSK_ERR;
 	}

@@ -216,9 +216,11 @@ void smews_send_packet(struct http_connection *connection) {
 			if(connection->tls_active == 1){
 				record_length = segment_length;
 				segment_length += TLS_RECORD_HEADER_LEN + MAC_KEYSIZE;
+
 			}
 #endif
 			index_in_file = CONST_UI32(GET_FILE(output_handler).length) - file_remaining_bytes;
+			printf("I'm going to send %d octets as data (type file):\n",segment_length);
 			break;
 		}
 		case type_generator:
@@ -400,14 +402,14 @@ void smews_send_packet(struct http_connection *connection) {
 		case type_file: {
 #ifndef DISABLE_TLS
 			if(connection->tls_active == 1){
-				uint8_t i;
+				uint16_t i;
 
 				const char *tmpptr = (const char*)(CONST_ADDR(GET_FILE(output_handler).data) + index_in_file);
 				tls_record = mem_alloc(record_length);
 				tls_record = CONST_READ_NBYTES(tls_record,tmpptr,record_length);
 
 				/* preparing the HMAC hash for calculation */
-				hmac_init(SHA1,connection->tls->server_mac,SHA1_KEYSIZE);
+				hmac_init(SHA1,connection->tls->client_mac,SHA1_KEYSIZE);
 				hmac_preamble(connection->tls);
 
 				/* checksuming TLS Record header */
@@ -424,6 +426,7 @@ void smews_send_packet(struct http_connection *connection) {
 					checksum_add(tls_record[i]);
 
 				}
+				hmac_finish(SHA1);
 				/* checksuming MAC */
 				for(i = 0; i < MAC_KEYSIZE; i++){
 					checksum_add(sha1.buffer[i]);
@@ -534,7 +537,7 @@ void smews_send_packet(struct http_connection *connection) {
 #ifndef DISABLE_TLS
 			if(connection->tls_active == 1){
 
-				uint8_t i;
+				uint16_t i;
 				/* sending TLS Record Header */
 				DEV_PUT(TLS_CONTENT_TYPE_APPLICATION_DATA);
 				DEV_PUT(TLS_SUPPORTED_MAJOR);
@@ -550,6 +553,7 @@ void smews_send_packet(struct http_connection *connection) {
 				for(i = 0; i < MAC_KEYSIZE; i++)
 					DEV_PUT(sha1.buffer[i]);
 
+				//printf("I outputed %d bytes on tls connection\n",record_length + 5 + MAC_KEYSIZE);
 				mem_free(tls_record, record_length);
 
 			} else
