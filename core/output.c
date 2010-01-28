@@ -409,8 +409,8 @@ void smews_send_packet(struct http_connection *connection) {
 				tls_record = CONST_READ_NBYTES(tls_record,tmpptr,record_length);
 
 				/* preparing the HMAC hash for calculation */
-				hmac_init(SHA1,connection->tls->client_mac,SHA1_KEYSIZE);
-				hmac_preamble(connection->tls);
+				hmac_init(SHA1,connection->tls->server_mac,SHA1_KEYSIZE);
+				hmac_preamble(connection->tls,ENCODE);
 
 				/* checksuming TLS Record header */
 				checksum_add(TLS_CONTENT_TYPE_APPLICATION_DATA);
@@ -555,6 +555,9 @@ void smews_send_packet(struct http_connection *connection) {
 
 				//printf("I outputed %d bytes on tls connection\n",record_length + 5 + MAC_KEYSIZE);
 				mem_free(tls_record, record_length);
+
+				/* update number of record sent */
+				connection->tls->encode_seq_no.long_int++;
 
 			} else
 

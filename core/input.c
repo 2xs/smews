@@ -478,20 +478,21 @@ char smews_receive(void) {
 							break;
 						}
 						/* preparing the HMAC hash for calculation */
-						hmac_init(SHA1,(tmp_connection.tls)->server_mac,SHA1_KEYSIZE);
-						hmac_preamble(tmp_connection.tls);
+						hmac_init(SHA1,(tmp_connection.tls)->client_mac,SHA1_KEYSIZE);
+						hmac_preamble(tmp_connection.tls, DECODE);
 
 						(tmp_connection.tls)->parsing_state = parsing_data;
 						continue;
 					}
 				}
 #endif
-				/* todo resolve incrementation of decode_seq no and mac check the damn thing */
+
 				DEV_GETC(tmp_char);
 				x++;
 				printf("%02x:",tmp_char);
 
 #ifndef DISABLE_TLS
+				/* record data parsing */
 				if(tmp_connection.tls_active == 1){
 
 					/* decrypt current character */
@@ -510,24 +511,6 @@ char smews_receive(void) {
 							(tmp_connection.tls)->parsing_state = parsing_mac;
 							hmac_finish(SHA1);
 						}
-
-
-					} else if((tmp_connection.tls)->parsing_state == parsing_mac){
-
-						if(sha1.buffer[MAC_KEYSIZE - (tmp_connection.tls)->record_size - 1] != tmp_char){
-							tmp_connection.output_handler = NULL;
-							printf("MAC is not good\n");
-							break;
-						} else {
-							/* finished MAC parsing and checking */
-							printf("MAC is good for the received record\n");
-							if((tmp_connection.tls)->record_size == 0){
-								/* prepare header parsing for next record */
-								(tmp_connection.tls)->parsing_state = parsing_hdr;
-							}
-						}
-
-						continue;
 
 					}
 				}
@@ -689,8 +672,54 @@ char smews_receive(void) {
 	printf("\nFinished getting TCP Segment\n\n");
 	/* drop remaining TCP data */
 	//printf("I parsed %d TCP payload\n",x);
-	while(x++ < segment_length)
+	while(x++ < segment_length){
 		DEV_GETC(tmp_char);
+
+		/* entering MAC portion */
+		if(tmp_connection.tls_active == 1){
+
+			rc4_crypt(&tmp_char,MODE_DECRYPT);
+			printf("%02x|",tmp_char);
+
+			(tmp_connection.tls)->record_size--;
+
+
+			if((tmp_connection.tls)->parsing_state == parsing_mac){
+
+				/* decrypt current character */
+				printf("MAC received :");
+
+				if(sha1.buffer[MAC_KEYSIZE - (tmp_connection.tls)->record_size - 1] != tmp_char){
+					tmp_connection.output_handler = NULL;
+					printf("MAC is not good\n");
+					//todo here must just do dev_get till the end
+				} else {
+					/* finished MAC parsing and checking */
+
+					if((tmp_connection.tls)->record_size == 0){
+
+						/* prepare header parsing for next record */
+						printf("MAC is good for the received record\n");
+						(tmp_connection.tls)->parsing_state = parsing_hdr;
+
+						/* Increment decode sequence number because we have finished parsing a record */
+						(tmp_connection.tls)->decode_seq_no.long_int++;
+					}
+
+				}
+
+			} else {
+				hmac_update(tmp_char);
+
+				if((tmp_connection.tls)->record_size == MAC_KEYSIZE){
+					(tmp_connection.tls)->parsing_state = parsing_mac;
+					hmac_finish(SHA1);
+
+				}
+			}
+		}
+	}
+
 	//printf("%p %d %d %d\n",tmp_connection.output_handler,tmp_connection.tcp_state, segment_length,tcp_established);
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
