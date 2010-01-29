@@ -40,7 +40,7 @@ void hmac_finish(uint8_t alg){
 
 }
 
-void hmac_preamble(struct tls_connection* tls, uint8_t operation){
+void hmac_preamble(struct tls_connection* tls, uint16_t record_size, uint8_t operation){
 
 	/* HMAC first 13 bytes necessary for later record MAC calculation
 	 * 6.2.3.1 RFC 2246 */
@@ -52,8 +52,8 @@ void hmac_preamble(struct tls_connection* tls, uint8_t operation){
 	hmac_update(TLS_CONTENT_TYPE_APPLICATION_DATA);
 	hmac_update(TLS_SUPPORTED_MAJOR);
 	hmac_update(TLS_SUPPORTED_MINOR);
-	hmac_update(tls->record_size >> 8);
-	hmac_update((uint8_t)(tls->record_size));
+	hmac_update( (record_size ) >> 8);
+	hmac_update( (uint8_t)(record_size));
 
 }
 

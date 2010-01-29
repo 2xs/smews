@@ -471,7 +471,6 @@ char smews_receive(void) {
 
 					if((tmp_connection.tls)->parsing_state == parsing_hdr){
 
-						uint8_t i;
 						x+=5;
 						/* TODO parse ALERT TYPE */
 						if( ((tmp_connection.tls)->record_size = read_header(TLS_CONTENT_TYPE_APPLICATION_DATA)) == HNDSK_ERR){
@@ -479,7 +478,7 @@ char smews_receive(void) {
 						}
 						/* preparing the HMAC hash for calculation */
 						hmac_init(SHA1,(tmp_connection.tls)->client_mac,SHA1_KEYSIZE);
-						hmac_preamble(tmp_connection.tls, DECODE);
+						hmac_preamble(tmp_connection.tls, (tmp_connection.tls)->record_size - MAC_KEYSIZE, DECODE);
 
 						(tmp_connection.tls)->parsing_state = parsing_data;
 						continue;
@@ -489,7 +488,7 @@ char smews_receive(void) {
 
 				DEV_GETC(tmp_char);
 				x++;
-				printf("%02x:",tmp_char);
+				//printf("%02x:",tmp_char);
 
 #ifndef DISABLE_TLS
 				/* record data parsing */
@@ -651,6 +650,10 @@ char smews_receive(void) {
 					UI32(tmp_connection.next_outseqno) = UI32(current_inack);
 					if(output_handler->handler_type == type_file) {
 						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) + CONST_UI32(GET_FILE(output_handler).length);
+						if(tmp_connection.tls_active == 1){
+							/* add the overhead of TLS (MAC + record header) */
+							UI32(tmp_connection.final_outseqno) += ((CONST_UI32(GET_FILE(output_handler).length) +  MAX_OUT_SIZE((uint16_t)connection->tcp_mss) - 1) / MAX_OUT_SIZE((uint16_t)connection->tcp_mss)) * (MAC_KEYSIZE + TLS_RECORD_HEADER_LEN);
+						}
 					} else {
 						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) - 1;
 					}
@@ -687,7 +690,6 @@ char smews_receive(void) {
 			if((tmp_connection.tls)->parsing_state == parsing_mac){
 
 				/* decrypt current character */
-				printf("MAC received :");
 
 				if(sha1.buffer[MAC_KEYSIZE - (tmp_connection.tls)->record_size - 1] != tmp_char){
 					tmp_connection.output_handler = NULL;

@@ -18,7 +18,7 @@
 extern struct sha1_context sha1;
 
 void hmac_init(uint8_t,uint8_t*,uint8_t);
-void hmac_preamble(struct tls_connection*,uint8_t);
+void hmac_preamble(struct tls_connection*,uint16_t,uint8_t);
 void hmac_update(uint8_t);
 void hmac_finish(uint8_t);
 void hmac(uint8_t,uint8_t*,uint8_t, uint8_t *, uint8_t, uint8_t *);

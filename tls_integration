@@ -158,4 +158,9 @@ CONST_VAR(struct output_handler_t, ref_tlshandshake) = {
 
 TODO
 remove VLA\s from prf & p_hash or hmac replace with mem_alloc
+
+adaptarea hmac-ului si rc_crypt-ului
+adaptarea sequence-numberelor in legatura cu overhead-ul adus de TLS
+procedeul pentru send/receive e interesant din output.c case file
+folosesc un buffer pentru a aduce fila in memorie si a face operatiile tls-ului pe ea
 	

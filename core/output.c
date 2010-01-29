@@ -66,9 +66,6 @@
 /* Constant parts are : Window + IP_PROTO_TCP(6) */
 #define BASIC_TCP_CHK 0x1006
 
-/* Maximum output size depending on the MSS */
-#define MAX_OUT_SIZE(mss) ((mss) & (~0 << (CHUNCKS_NBITS)))
-
 /* Macros for static contents partial checksum blocks */
 #define CHUNCKS_SIZE (1 << CHUNCKS_NBITS)
 #define DIV_BY_CHUNCKS_SIZE(l) ((l) >> CHUNCKS_NBITS)
@@ -211,10 +208,13 @@ void smews_send_packet(struct http_connection *connection) {
 			uint32_t file_remaining_bytes;
 			max_out_size = MAX_OUT_SIZE((uint16_t)connection->tcp_mss);
 			file_remaining_bytes = UI32(connection->final_outseqno) - UI32(next_outseqno);
+			//aici e buba, pentru ca in file_remaining_bytes am si overhead-ul TLS-ului iar eu cred ca e doar fisierul
 			segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
+			printf("max out size %d, file rem bytes %d, seg len %d", max_out_size, file_remaining_bytes, segment_length);
 #ifndef DISABLE_TLS
 			if(connection->tls_active == 1){
 				record_length = segment_length;
+				//connection->tls->record_size = record_length;
 				segment_length += TLS_RECORD_HEADER_LEN + MAC_KEYSIZE;
 
 			}
@@ -407,10 +407,15 @@ void smews_send_packet(struct http_connection *connection) {
 				const char *tmpptr = (const char*)(CONST_ADDR(GET_FILE(output_handler).data) + index_in_file);
 				tls_record = mem_alloc(record_length);
 				tls_record = CONST_READ_NBYTES(tls_record,tmpptr,record_length);
+				printf("TLS record before sending:");
+				for (i = 0 ; i < record_length; i++){
+					printf("%c", tls_record[i]);
+				}
+				printf("\n");
 
 				/* preparing the HMAC hash for calculation */
 				hmac_init(SHA1,connection->tls->server_mac,SHA1_KEYSIZE);
-				hmac_preamble(connection->tls,ENCODE);
+				hmac_preamble(connection->tls, record_length, ENCODE);
 
 				/* checksuming TLS Record header */
 				checksum_add(TLS_CONTENT_TYPE_APPLICATION_DATA);
@@ -546,13 +551,18 @@ void smews_send_packet(struct http_connection *connection) {
 				DEV_PUT((uint8_t)(record_length + MAC_KEYSIZE));
 
 				/* sending TLS Payload */
-				for(i = 0; i < record_length; i++)
+				printf("Sending TLS data to network : ");
+				for(i = 0; i < record_length; i++){
 					DEV_PUT(tls_record[i]);
+					printf("%02x",tls_record[i]);
+				}
 
 				/* sending MAC */
-				for(i = 0; i < MAC_KEYSIZE; i++)
+				for(i = 0; i < MAC_KEYSIZE; i++){
 					DEV_PUT(sha1.buffer[i]);
-
+					printf("%02x",sha1.buffer[i]);
+				}
+				printf("\n");
 				//printf("I outputed %d bytes on tls connection\n",record_length + 5 + MAC_KEYSIZE);
 				mem_free(tls_record, record_length);
 
@@ -592,8 +602,17 @@ void smews_send_packet(struct http_connection *connection) {
 	if(GET_FLAGS(output_handler) & TCP_SYN) {
 		UI32(connection->next_outseqno)++;
 	} else if(connection) {
+
 		UI32(connection->next_outseqno) += segment_length;
+#ifndef DISABLE_TLS
+		if(connection->tls_active == 1) UI32(connection->next_outseqno)+= MAC_KEYSIZE + TLS_RECORD_HEADER_LEN;
+#endif
+
 		UI16(connection->inflight) += segment_length;
+#ifndef DISABLE_TLS
+		if(connection->tls_active == 1) UI16(connection->inflight) += MAC_KEYSIZE + TLS_RECORD_HEADER_LEN;
+#endif
+
 		if(handler_type == type_generator) {
 			if(curr_output.service_header == header_standard || curr_output.content_length == 0) {
 				/* set final_outseqno as soon as it is known */
@@ -601,6 +620,9 @@ void smews_send_packet(struct http_connection *connection) {
 			}
 		}
 	}
+
+	if(UI32(connection->final_outseqno) == UI32(connection->next_outseqno))
+		printf("am terminat \n");
 
 if(handler_type==type_generator){
 	static int cpt=0;
@@ -685,6 +707,7 @@ char smews_send(void) {
 			break;
 		case type_file:
 			smews_send_packet(connection);
+			//connection->output_handler = NULL;
 			break;
 		case type_tls_handshake:
 			smews_send_packet(connection);

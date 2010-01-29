@@ -55,6 +55,7 @@ extern void dev_put16_val(uint16_t word);
 #define DEV_PUT32(dw) dev_put32(dw)
 #endif
 
-
+/* Maximum output size depending on the MSS */
+#define MAX_OUT_SIZE(mss) ((mss) & (~0 << (CHUNCKS_NBITS)))
 
 #endif /* __SEND_H__ */

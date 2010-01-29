@@ -69,19 +69,36 @@ static void compute_mac(struct tls_connection *tls, uint8_t type, uint8_t *buff,
 	uint8_t *seqno = (operation == DECODE ? tls->decode_seq_no.bytes : tls->encode_seq_no.bytes );
 	uint8_t *mac_key = (operation == DECODE ? tls->client_mac : tls->server_mac );
 
+
 	/* fill in the first 12 positions of buffer for MAC computation, up to START_BUFFER */
-	for( i = 0 ; i < 8 ; i++)
-		buff[i] = seqno[7-i];
+/*	for( i = 0 ; i < 8 ; i++)
+		buff[i] = (seqno[7-i]);
 
 	buff[8] = type;
 	buff[9] = TLS_SUPPORTED_MAJOR;
 	buff[10] = TLS_SUPPORTED_MINOR;
 	buff[11] = len >> 8;
-	buff[12] = (uint8_t)len;
+	buff[12] = (uint8_t)len;*/
+	//todo refactoring here
 
-	/* put the fragment */
+	hmac_init(SHA1,mac_key,SHA1_KEYSIZE);
+	/* fill in the first 12 positions of buffer for MAC computation, up to START_BUFFER */
+	for( i = 0 ; i < 8 ; i++)
+		hmac_update(seqno[7-i]);
 
-	hmac(SHA1,mac_key,MAC_KEYSIZE,buff,len + 13,r);
+	hmac_update(type);
+	hmac_update(TLS_SUPPORTED_MAJOR);
+	hmac_update(TLS_SUPPORTED_MINOR);
+	hmac_update(len >> 8);
+	hmac_update((uint8_t)len);
+	//tls->record_size = len;
+	//hmac_preamble(tls, operation);
+
+	for (i = 13 ; i < len + 13; i++)
+		hmac_update(buff[i]);
+	hmac_finish(SHA1);
+	copy_bytes(sha1.buffer,r,0,20);
+	//hmac(SHA1,mac_key,MAC_KEYSIZE,buff,len + 13,r);
 
 #ifdef DEBUG_DEEP
 	PRINT_ARRAY(r,MAC_KEYSIZE,"Computed MAC of fragment :");

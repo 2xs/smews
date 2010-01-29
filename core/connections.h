@@ -54,8 +54,11 @@
 
 /* Connection structure */
 struct http_connection {
+	/* sequence number of the next segment to send */
 	unsigned char next_outseqno[4];
+	/* sequence number after sending all content */
 	unsigned char final_outseqno[4];
+	/* sequence number from the currently received packet */
 	unsigned char current_inseqno[4];
 	unsigned char ip_addr[4];
 	const struct output_handler_t * /*CONST_VAR*/ output_handler;
