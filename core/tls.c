@@ -397,8 +397,8 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	PRINT_ARRAY(tls->master_secret,MS_LEN,"Master Secret :");
 	PRINT_ARRAY(tls->client_mac,MAC_KEYSIZE,"Client MAC Secret :");
 	PRINT_ARRAY(tls->server_mac,MAC_KEYSIZE,"Server MAC Secret :");
-	//PRINT_ARRAY(tls->client_key,CIPHER_KEYSIZE,"Client Key Secret :");
-	//PRINT_ARRAY(tls->server_key,CIPHER_KEYSIZE,"Server Key Secret :");
+	PRINT_ARRAY( (key_block + 2*MAC_KEYSIZE),CIPHER_KEYSIZE,"Client Key Secret :");
+	PRINT_ARRAY( (key_block + 2*MAC_KEYSIZE + CIPHER_KEYSIZE),CIPHER_KEYSIZE,"Server Key Secret :");
 	DEBUG_MSG("************************** SESSION KEYS END *******************************************\n");
 #endif
 

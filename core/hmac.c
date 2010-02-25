@@ -44,6 +44,7 @@ void hmac_preamble(struct tls_connection* tls, uint16_t record_size, uint8_t ope
 
 	/* HMAC first 13 bytes necessary for later record MAC calculation
 	 * 6.2.3.1 RFC 2246 */
+	/* record_size is payload data (no MAC) */
 	uint8_t i;
 	uint8_t *seqno = (operation == DECODE ? tls->decode_seq_no.bytes : tls->encode_seq_no.bytes );
 	for( i = 0 ; i < 8 ; i++)

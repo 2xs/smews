@@ -387,7 +387,7 @@ char smews_receive(void) {
 				}
 				x+= segment_length;
 				if(segment_length == x )
-					break;;
+					break;
 
 
 			case key_exchange:
@@ -648,11 +648,14 @@ char smews_receive(void) {
 				if(tmp_connection.parsing_state != parsing_cmd) {
 					tmp_connection.output_handler = output_handler;
 					UI32(tmp_connection.next_outseqno) = UI32(current_inack);
+					/* calculate the final seqno for the stream we have to send on this output handler */
 					if(output_handler->handler_type == type_file) {
 						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) + CONST_UI32(GET_FILE(output_handler).length);
 						if(tmp_connection.tls_active == 1){
 							/* add the overhead of TLS (MAC + record header) */
+							printf("\nfinal out seq no before adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
 							UI32(tmp_connection.final_outseqno) += ((CONST_UI32(GET_FILE(output_handler).length) +  MAX_OUT_SIZE((uint16_t)connection->tcp_mss) - 1) / MAX_OUT_SIZE((uint16_t)connection->tcp_mss)) * (MAC_KEYSIZE + TLS_RECORD_HEADER_LEN);
+							printf("final out seq no after adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
 						}
 					} else {
 						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) - 1;

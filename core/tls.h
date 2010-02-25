@@ -38,6 +38,9 @@ extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 
 #endif
 
+
+
+
 /* TLS version */
 #define TLS_SUPPORTED_MAJOR 0x03
 #define TLS_SUPPORTED_MINOR 0x01
@@ -75,6 +78,8 @@ extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 #define TLS_HELLO_CERT_DONE_LEN (TLS_RECORD_HEADER_LEN + TLS_HELLO_RECORD_LEN + TLS_CERT_RECORD_LEN + TLS_HDONE_RECORD_LEN)
 #define TLS_FINISHED_MSG_LEN (16 + MAC_KEYSIZE)
 #define TLS_CHANGE_CIPHER_SPEC_LEN (TLS_RECORD_HEADER_LEN + 1)
+
+#define TLS_OVERHEAD (TLS_RECORD_HEADER_LEN + MAC_KEYSIZE)
 
 #define PRF_LABEL_SIZE 13 		/* label size for MS and Session Keys computation */
 #define MS_LEN 48 	  	  		/* master secret len */
