@@ -1,6 +1,6 @@
 
 
-#include "rand.h"
+#include "random.h"
 
 /* taps: 32 31 29 1; characteristic polynomial: x^32 + x^31 + x^29 + x + 1 */
 #define MASK 0xd0000001u

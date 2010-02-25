@@ -4,7 +4,7 @@
 #include "input.h"
 #include "checksum.h"
 #include "record.h"
-#include "rand.h"
+#include "random.h"
 #include "prf.h"
 #include "ecc.h"
 
@@ -250,6 +250,7 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 	uint16_t i;
 
 	/*write_header(TLS_CONTENT_TYPE_HANDSHAKE,TLS_HELLO_CERT_DONE_LEN);*/
+	/* TODO ? */
 	uint8_t *tls_record = mem_alloc(TLS_HELLO_CERT_DONE_LEN - 32);
 
 

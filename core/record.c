@@ -17,8 +17,8 @@ uint16_t read_header(const uint8_t type){
 
 	if(tmp[0] != type) {
 
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:read_header: Unexpected record type or not TLS v1.0 compatible browser");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:read_header: Unexpected record type or not TLS v1.0 compatible browser");
 #endif
 		return HNDSK_ERR;
 	}
@@ -29,8 +29,8 @@ uint16_t read_header(const uint8_t type){
 
 	if(tmp[1] != TLS_SUPPORTED_MAJOR && tmp[0] != TLS_SUPPORTED_MINOR){
 
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:read_header: Unsupported or damaged TLS Version");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:read_header: Unsupported or damaged TLS Version");
 #endif
 		return HNDSK_ERR;
 	}
@@ -39,7 +39,9 @@ uint16_t read_header(const uint8_t type){
 	DEV_GETC(tmp[S0]);
 	DEV_GETC(tmp[S1]);
 
-	printf("Received a record of %d bytes\n",UI16(tmp));
+#ifdef DEBUG_TLS_DEEP
+	DEBUG_VAR(UI16(tmp),"%d","Received a TLS record with size (not containing TLS record header): ");
+#endif
 
 	return UI16(tmp);
 

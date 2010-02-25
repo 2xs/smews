@@ -2,8 +2,7 @@
 #define __TLS_H__
 
 #include "types.h"
-#include "rand.h"
-
+#include "random.h"
 
 
 extern uint8_t tls_get_client_hello();
@@ -15,15 +14,17 @@ extern uint8_t tls_send_finished();
 extern uint8_t tls_get_finished();
 
 
-
 /* partially precomputed server hello, certificate and done message together with TLS record header */
-extern uint8_t s_hello_cert_done[];
+extern CONST_VAR(uint8_t,s_hello_cert_done[]);
 extern CONST_VAR(uint8_t, tls_ccs_msg[]);
 extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 
-#define DEBUG  /* TODO this should be a build option */
-#define DEBUG_DEEP
-#define ECDH_ECDSA_RC4_128_SHA1 /* TODO this should be a build option */
+/* TODO this should be a build option */
+#define DEBUG_TLS
+#define DEBUG_TLS_DEEP
+
+/* TODO this should be a build option */
+#define ECDH_ECDSA_RC4_128_SHA1
 
 #ifdef ECDH_ECDSA_RC4_128_SHA1
 
@@ -37,9 +38,6 @@ extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 
 
 #endif
-
-
-
 
 /* TLS version */
 #define TLS_SUPPORTED_MAJOR 0x03
@@ -184,19 +182,27 @@ enum {
 
 
 /* Macros for printing DEBUG information */
-#ifdef DEBUG
+#ifdef DEBUG_TLS
 
-#define PRINT_ARRAY(x,len,msg) { \
-		uint16_t i; \
-		printf("%s",msg); \
-		for(i = 0 ; i < len ; i++){ \
-			printf("%02x",x[i]); \
-			if((i+1) % 50 == 0) printf("\n"); \
-		}\
-		printf("\n");\
-	}
-#define DEBUG_MSG(x) printf("%s",x)
-#define DEBUG_VAR(x,format) printf(format,x)
+	#define PRINT_ARRAY(x,len,msg) { \
+			uint16_t i; \
+			printf("%s",msg); \
+			for(i = 0 ; i < len ; i++){ \
+				printf("%02x",x[i]); \
+				if((i+1) % 50 == 0) printf("\n"); \
+			}\
+			printf("\n");\
+		}
+
+	/* debug message */
+	#define DEBUG_MSG(x) printf("%s\n",x)
+	/* debug message with variable */
+	#define DEBUG_VAR(x,format,msg) { \
+			printf("%s",msg); \
+			printf(format,x); \
+			printf("\n"); \
+			}
+
 
 #endif
 

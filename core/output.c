@@ -41,7 +41,7 @@
 #include "smews.h"
 #include "connections.h"
 #include "memory.h"
-#include "rand.h"
+#include "random.h"
 
 #ifndef DISABLE_TLS
 	#include "tls.h"

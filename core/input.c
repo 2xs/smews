@@ -41,8 +41,12 @@
 #include "memory.h"
 #include "coroutines.h"
 
-#include "tls.h"
-#include "hmac.h"
+#ifndef DISABLE_TLS
+	#include "tls.h"
+	#include "hmac.h"
+
+	#define HTTPS_PORT 443
+#endif
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
@@ -63,7 +67,7 @@ extern CONST_VAR(struct output_handler_t, webContents_httpCodes_404_html_handler
 
 /* IP and TCP constants */
 #define HTTP_PORT 80
-#define HTTPS_PORT 443
+
 #define IP_PROTO_TCP 6
 #define IP_HEADER_SIZE 20
 #define TCP_HEADER_SIZE 20
@@ -232,25 +236,35 @@ char smews_receive(void) {
 
 
 	if(tmp_ui16[S1] != HTTP_PORT) {
+
+#ifndef DISABLE_TLS
 		/* check to see if it's TLS */
 		if(UI16(tmp_ui16) == HTTPS_PORT){
 			
+			/* a TLS connection will always(?) be established on a new TCP connection */
 			if(tmp_connection.tcp_state == tcp_listen) {
 
-				/* if we expect a TLS connection allocate memory now */
+				/* allocate memory for new TLS connection */
 				tmp_connection.tls = mem_alloc(sizeof(struct tls_connection));
 
 				if(tmp_connection.tls != NULL){
-					(tmp_connection.tls)->tls_state = client_hello; /* waiting for client hello */
+					/* first message should be client hello */
+					(tmp_connection.tls)->tls_state = client_hello;
 					(tmp_connection.tls)->parsing_state = parsing_hdr;
 					tmp_connection.tls_active = 1;
 
 				} else {
+#ifdef DEBUG_TLS
+					DEBUG_MSG("Error allocating memory for new TLS connection");
+#endif
 					return 1;
 				}
 			}
 
-		} else {
+		} else
+#endif
+		{
+
 			/* neither 80 nor 443 */
 #ifdef STACK_DUMP
 			DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
@@ -373,8 +387,13 @@ char smews_receive(void) {
 
 	x = 0;
 
+
 	/* TLS Handshake Layer processing*/
-	if(segment_length && tmp_connection.tcp_state == tcp_established && tmp_connection.output_handler == NULL && tmp_connection.tls_active == 1 && (tmp_connection.tls)->tls_state != established ) {
+	if(segment_length &&
+			tmp_connection.tcp_state == tcp_established &&
+			tmp_connection.output_handler == NULL &&
+			tmp_connection.tls_active == 1 &&
+			(tmp_connection.tls)->tls_state != established ) {
 		
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
@@ -384,19 +403,20 @@ char smews_receive(void) {
 				if(tls_get_client_hello(tmp_connection.tls) == HNDSK_OK){
 					(tmp_connection.tls)->tls_state = server_hello;
 					tmp_connection.output_handler = &ref_tlshandshake;
+					x+= segment_length;
 				}
-				x+= segment_length;
-				if(segment_length == x )
+
+				if(segment_length == x)
 					break;
 
 
 			case key_exchange:
-				//printf("Waiting for key exchange \n");
+
 				if(tls_get_client_keyexch(tmp_connection.tls) == HNDSK_OK){
 					(tmp_connection.tls)->tls_state = ccs_recv;
-
+					x+= TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN + TLS_RECORD_HEADER_LEN;
 				}
-				x+= TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN + TLS_RECORD_HEADER_LEN;
+
 				if(segment_length == x )
 					break;
 
