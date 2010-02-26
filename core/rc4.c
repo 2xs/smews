@@ -44,6 +44,9 @@ void rc4_init(const uint8_t* key, uint8_t mode) {
 		S[j] = tmp;
 	}
 
+	ctx->i = 0;
+	ctx->j = 0;
+
 
 }
 

@@ -121,7 +121,7 @@ void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buff
 	compute_mac(tls, type, record_buffer, len, ENCODE, (startbuffer + len) );
 
 
-#ifdef DEBUG_DEEP
+#ifdef DEBUG_TLS_DEEP
 	PRINT_ARRAY( (startbuffer),len + 20,"Record data padded with MAC ready to be encrypted :");
 #endif
 
@@ -130,22 +130,17 @@ void write_record(struct tls_connection *tls, uint8_t type, uint8_t* record_buff
 		rc4_crypt(&startbuffer[i],MODE_ENCRYPT);
 	//rc4_crypt(startbuffer, 0, len + 20, MODE_ENCRYPT);
 
-#ifdef DEBUG_DEEP
+#ifdef DEBUG_TLS_DEEP
 	PRINT_ARRAY( (startbuffer) ,len + 20,"Record Data after encryption :");
 #endif
 
 
-#ifdef DEBUG_DEEP
+#ifdef DEBUG_TLS_DEEP
 	PRINT_ARRAY( (startbuffer) ,len + 20,"Record Ready to be Send :");
 #endif
 
 	/* we encoded one more record, increment seq number */
 	tls->encode_seq_no.long_int++;
-
-
-	/* send to TCP */
-	//for( i = 0 ; i < len + 20; i++)
-		//DEV_PUT(startbuffer[i]);
 
 
 }
@@ -160,12 +155,16 @@ uint8_t decode_record(struct tls_connection *tls,uint8_t type,uint8_t *record_da
 	/* expected MAC after recalculation */
 	uint8_t exp_mac[MAC_KEYSIZE];
 
+#ifdef DEBUG_TLS_DEEP
+	PRINT_ARRAY(startbuffer, len, "Record data before decryption :");
+#endif
+
 	/* decrypt record_data in place obtaining [payload + MAC] */
 	for(i = 0; i < len ; i++)
 			rc4_crypt(&startbuffer[i],MODE_DECRYPT);
 	//rc4_crypt(startbuffer,0,len,MODE_DECRYPT);
 
-#ifdef DEBUG_DEEP
+#ifdef DEBUG_TLS_DEEP
 	PRINT_ARRAY(startbuffer, len, "Record data after decryption :");
 #endif
 
@@ -177,11 +176,11 @@ uint8_t decode_record(struct tls_connection *tls,uint8_t type,uint8_t *record_da
 
 		if(exp_mac[i] != startbuffer[i+16]){
 
-#ifdef DEBUG
+#ifdef DEBUG_TLS
 			DEBUG_MSG("\nBad Record MAC when reading record!");
 #endif
 
-#ifdef DEBUG_DEEP
+#ifdef DEBUG_TLS_DEEP
 
 			PRINT_ARRAY(exp_mac,MAC_KEYSIZE,"Expected :");
 			PRINT_ARRAY( (startbuffer + 16 ),MAC_KEYSIZE,"Found :");

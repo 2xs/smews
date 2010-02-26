@@ -388,6 +388,7 @@ char smews_receive(void) {
 	x = 0;
 
 
+#ifndef DISABLE_TLS
 	/* TLS Handshake Layer processing*/
 	if(segment_length &&
 			tmp_connection.tcp_state == tcp_established &&
@@ -395,6 +396,7 @@ char smews_receive(void) {
 			tmp_connection.tls_active == 1 &&
 			(tmp_connection.tls)->tls_state != established ) {
 		
+
 		/* TLS state machine management*/
 		switch(  (tmp_connection.tls)->tls_state ){
 
@@ -421,7 +423,7 @@ char smews_receive(void) {
 					break;
 
 			case ccs_recv:
-				//printf("Waiting for Change Cipher Spec\n");
+
 				if(tls_get_change_cipher(tmp_connection.tls) == HNDSK_OK){
 					(tmp_connection.tls)->tls_state = fin_recv;
 				}
@@ -430,27 +432,30 @@ char smews_receive(void) {
 					break;
 
 			case fin_recv:
-				printf("Waiting for Finished Message\n");
+
+
 				if(tls_get_finished(tmp_connection.tls) == HNDSK_OK){
 					(tmp_connection.tls)->tls_state = ccs_fin_send;
 					tmp_connection.output_handler = &ref_tlshandshake;
 				}
+
 				x+= TLS_FINISHED_MSG_LEN + TLS_RECORD_HEADER_LEN;
 				if(segment_length == x )
 					break;
 
-
-			default:
-				  printf("Record not implemented\n");
-			      break;	 	
-    
 
 		}
 
 
 	} else {
 
-		printf("TCP Segment Length: %d\n",segment_length);
+#endif
+
+
+#ifdef DEBUG_TLS
+		DEBUG_VAR(segment_length,"%d bytes \n", "Received TCP Segment: ")
+#endif
+
 		/* End of TCP, starting HTTP*/
 		/* TLS record layer operation if TLS active */
 		if(segment_length && tmp_connection.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
@@ -508,15 +513,14 @@ char smews_receive(void) {
 
 				DEV_GETC(tmp_char);
 				x++;
-				//printf("%02x:",tmp_char);
+
 
 #ifndef DISABLE_TLS
 				/* record data parsing */
 				if(tmp_connection.tls_active == 1){
 
-					/* decrypt current character */
+					/* decrypt current byte */
 					rc4_crypt(&tmp_char,MODE_DECRYPT);
-					printf("%02x|",tmp_char);
 
 					/* updating remaining bytes to parse from payload of the current record */
 					(tmp_connection.tls)->record_size--;
@@ -671,12 +675,14 @@ char smews_receive(void) {
 					/* calculate the final seqno for the stream we have to send on this output handler */
 					if(output_handler->handler_type == type_file) {
 						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) + CONST_UI32(GET_FILE(output_handler).length);
+#ifndef DISABLE_TLS
 						if(tmp_connection.tls_active == 1){
 							/* add the overhead of TLS (MAC + record header) */
-							printf("\nfinal out seq no before adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
+							//printf("\nfinal out seq no before adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
 							UI32(tmp_connection.final_outseqno) += ((CONST_UI32(GET_FILE(output_handler).length) +  MAX_OUT_SIZE((uint16_t)connection->tcp_mss) - 1) / MAX_OUT_SIZE((uint16_t)connection->tcp_mss)) * (MAC_KEYSIZE + TLS_RECORD_HEADER_LEN);
-							printf("final out seq no after adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
+							//printf("final out seq no after adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
 						}
+#endif
 					} else {
 						UI32(tmp_connection.final_outseqno) = UI32(tmp_connection.next_outseqno) - 1;
 					}
@@ -693,38 +699,43 @@ char smews_receive(void) {
 	#endif
 			}
 		}
-	}
+#ifndef DISABLE_TLS
+	} /* else */
+#endif
 
-	printf("\nFinished getting TCP Segment\n\n");
-	/* drop remaining TCP data */
-	//printf("I parsed %d TCP payload\n",x);
+	/* drop remaining TCP data or process the remaining part of record */
+
 	while(x++ < segment_length){
 		DEV_GETC(tmp_char);
 
+#ifndef DISABLE_TLS
 		/* entering MAC portion */
 		if(tmp_connection.tls_active == 1){
 
 			rc4_crypt(&tmp_char,MODE_DECRYPT);
-			printf("%02x|",tmp_char);
 
+			/* updating remaining bytes to parse from the current record */
 			(tmp_connection.tls)->record_size--;
-
 
 			if((tmp_connection.tls)->parsing_state == parsing_mac){
 
-				/* decrypt current character */
-
 				if(sha1.buffer[MAC_KEYSIZE - (tmp_connection.tls)->record_size - 1] != tmp_char){
 					tmp_connection.output_handler = NULL;
-					printf("MAC is not good\n");
-					//todo here must just do dev_get till the end
+#ifdef DEBUG_TLS
+					//TODO here must just do dev_get till the end or maybe return, it's fatal, alert ?
+					DEBUG_MSG("Bad MAC for record");
+					return 1;
+#endif
+
 				} else {
 					/* finished MAC parsing and checking */
 
 					if((tmp_connection.tls)->record_size == 0){
 
 						/* prepare header parsing for next record */
-						printf("MAC is good for the received record\n");
+#ifdef DEBUG_TLS
+						DEBUG_MSG("MAC is good for the received record");
+#endif
 						(tmp_connection.tls)->parsing_state = parsing_hdr;
 
 						/* Increment decode sequence number because we have finished parsing a record */
@@ -743,18 +754,21 @@ char smews_receive(void) {
 				}
 			}
 		}
-	}
+#endif
+	} //while
 
 	//printf("%p %d %d %d\n",tmp_connection.output_handler,tmp_connection.tcp_state, segment_length,tcp_established);
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
-		printf("Sending VOID ACK\n");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("Sending VOID ACKNOWLEDGEMENT\n");
+#endif
 		tmp_connection.output_handler = &ref_ack;
 	}
 
 	/* check TCP checksum using the partially precalculated pseudo header checksum */
 	checksum_end();
-	//printf("Current calculated checksum is %04x\n",UI16(current_checksum));
+
 	if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
 		
 		if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
@@ -802,10 +816,13 @@ char smews_receive(void) {
 				*connection = tmp_connection;
 			}
 		}
-	} else {
-		//todo erase this else
-		printf("TCP Checksum not good\n");
 	}
+#ifdef DEBUG_TLS
+	else {
+		//TODO erase this else
+		DEBUG_MSG("TCP Checksum not good");
+	}
+#endif
 
 	return 1;
 }

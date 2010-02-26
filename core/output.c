@@ -210,33 +210,25 @@ void smews_send_packet(struct http_connection *connection) {
 			max_out_size = MAX_OUT_SIZE((uint16_t)connection->tcp_mss);
 			remaining_bytes = UI32(connection->final_outseqno) - UI32(next_outseqno);
 
-			//aici e buba, pentru ca in file_remaining_bytes am si overhead-ul TLS-ului iar eu cred ca e doar fisierul
-
 			/* segment length contains TLS OVERHEAD! */
 			segment_length = remaining_bytes > max_out_size ? max_out_size : remaining_bytes;
 
-
-
-
 #ifndef DISABLE_TLS
 			if(connection->tls_active == 1){
+
 				/* we reposition hence remaining_bytes contained TLS OVERHEAD */
 				index_in_file = CONST_UI32(GET_FILE(output_handler).length) - (remaining_bytes - TLS_OVERHEAD);
 
-				//record_length = segment_length;
-				//connection->tls->record_size = record_length;
-				//segment_length += TLS_RECORD_HEADER_LEN + MAC_KEYSIZE;
 
 			} else
 #endif
 			{
 
-
 				index_in_file = CONST_UI32(GET_FILE(output_handler).length) - remaining_bytes;
 
 			}
 
-			printf("file rem bytes %d, seg len %d",remaining_bytes, segment_length);
+			//printf("file rem bytes %d, seg len %d",remaining_bytes, segment_length);
 			//printf("I'm going to send %d octets as data (type file):\n",segment_length);
 			break;
 		}
@@ -253,7 +245,7 @@ void smews_send_packet(struct http_connection *connection) {
 					break;
 			}
 			break;
-
+#ifndef DISABLE_TLS
 		case type_tls_handshake:
 
 			switch(connection->tls->tls_state) {
@@ -268,7 +260,9 @@ void smews_send_packet(struct http_connection *connection) {
 					break;
 
 			}
+
 			break;
+#endif
 	}
 
 	DEV_PREPARE_OUTPUT(segment_length + 40);
@@ -307,13 +301,20 @@ void smews_send_packet(struct http_connection *connection) {
 	/* start to send TCP header */
 
 	/* send TCP source port */
+
+	/*connection could be null if it is a RST packet */
+#ifndef DISABLE_TLS
 	if(connection != NULL){
 		if(connection->tls_active == 1){
 			DEV_PUT16_VAL(TCP_HTTPS_PORT);
 		} else {
+
 			DEV_PUT16_VAL(TCP_HTTP_PORT);
 		}
-	} else {
+	} else
+#endif
+	{
+
 		DEV_PUT16_VAL(TCP_HTTP_PORT);
 	}
 
@@ -350,13 +351,16 @@ void smews_send_packet(struct http_connection *connection) {
 	checksum_add32(ip_addr);
 
 	/* checksum source port */
+#ifndef DISABLE_TLS
 	if(connection != NULL){
 		if(connection->tls_active == 1){
 			checksum_add16(TCP_HTTPS_PORT);
 		} else {
 			checksum_add16(TCP_HTTP_PORT);
 		}
-	} else {
+	} else
+#endif
+	{
 		checksum_add16(TCP_HTTP_PORT);
 	}
 
@@ -483,7 +487,8 @@ void smews_send_packet(struct http_connection *connection) {
 					init_rand(0xABCDEF12); /* TODO move random init somewhere else */
 					rand_next(connection->tls->server_random.lfsr_int);
 
-					/* checksumming handshake records */
+					/* checksumming handshake records
+					 * TODO this should be precalculated */
 					for(i = 0; i < TLS_HELLO_CERT_DONE_LEN - 32; i++) {
 						checksum_add(s_hello_cert_done[i]);
 					}
@@ -602,6 +607,7 @@ void smews_send_packet(struct http_connection *connection) {
 			}
 		}
 
+#ifndef DISABLE_TLS
 		case type_tls_handshake:
 
 			switch(connection->tls->tls_state) {
@@ -611,13 +617,15 @@ void smews_send_packet(struct http_connection *connection) {
 					break;
 
 				case ccs_fin_send:
-					tls_send_change_cipher(connection->tls);
 
+					tls_send_change_cipher(connection->tls);
 					tls_send_finished(record_buffer + START_BUFFER);
+
 					connection->tls->tls_state = established;
 					mem_free(record_buffer,TLS_FINISHED_MSG_LEN + START_BUFFER);
 					break;
 			}
+#endif
 
 	}
 	
@@ -647,12 +655,12 @@ void smews_send_packet(struct http_connection *connection) {
 	//if(UI32(connection->final_outseqno) == UI32(connection->next_outseqno))
 		//printf("am terminat \n");
 
-if(handler_type==type_generator){
-	static int cpt=0;
-	if(++cpt==2)return;
-}
+	if(handler_type==type_generator){
+		static int cpt=0;
+		if(++cpt==2)return;
+	}
 
-	DEV_OUTPUT_DONE;
+		DEV_OUTPUT_DONE;
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -729,13 +737,16 @@ char smews_send(void) {
 #endif
 			break;
 		case type_file:
+
 			smews_send_packet(connection);
 			//connection->output_handler = NULL;
 			break;
+#ifndef DISABLE_TLS
 		case type_tls_handshake:
 			smews_send_packet(connection);
 			connection->output_handler = NULL;
 			break;
+#endif
 		case type_generator: {
 			char is_persistent;
 			char is_retransmitting;
@@ -916,7 +927,7 @@ char smews_send(void) {
 #endif
 			{
 			/* simply send the segment */
-				smews_send_packet(connection);
+			   smews_send_packet(connection);
 			}
 
 			/* free the tmp buffer used for non persistent data generation */

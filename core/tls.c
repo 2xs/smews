@@ -43,29 +43,26 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	uint8_t *record_buffer = mem_alloc(length);
 
 
-	/* -------- Handshake Record Parsing ------- */
+	/* Handshake Record Parsing */
 
-	/* get handshake type , handshake length , TLS Max Version and client random*/
+	/* handshake type, handshake length, TLS Max Version and client random */
 	DEV_GETN( record_buffer, 38 );
 	if(record_buffer[0] != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
-#ifdef DEBUG
-		DEBUG_MSG("FATAL:tls_get_client_hello: Bad Handshake Type. Expected Client Hello (0x01) \n");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:tls_get_client_hello: Bad Handshake Type. Expected Client Hello (0x01)");
 #endif
 		return HNDSK_ERR;
 	}
 
-	/* save the client random to in the tls connection */
+	/* save the client random to in the TLS connection */
 	tls->client_random = mem_alloc(32);
 	copy_bytes((record_buffer + 6),tls->client_random, 0, 32 );
 
 
 	x+=38;
 
-#ifdef DEBUG_DEEP
-	DEBUG_MSG("INFO:tls_get_client_hello: Client Random Bytes : ");
-	for( i = 0; i < 32 ; i++)
-		DEBUG_VAR( tls->client_random[i],"%02x");
-	DEBUG_MSG("\n");
+#ifdef DEBUG_TLS_DEEP
+	PRINT_ARRAY(tls->client_random,32,"INFO:tls_get_client_hello: Client Random: ");
 #endif	
 	
 	/* get session id length */
@@ -77,24 +74,15 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	DEV_GETC(record_buffer[x]);  x++; /* cipher len never more than 255 */
 	
 	
-#ifdef DEBUG
-	DEBUG_MSG("INFO:tls_get_client_hello: Number of cipher suites proposed is ");
-	DEBUG_VAR(record_buffer[x - 1]/2,"%d \n");
+#ifdef DEBUG_TLS_DEEP
+	DEBUG_VAR(record_buffer[x - 1]/2,"%d","INFO:tls_get_client_hello: Number of cipher suites proposed is: ");
 #endif
 
 	/* get cipher suite bytes */
 	DEV_GETN( (record_buffer + x), record_buffer[x - 1]);
 
-#ifdef DEBUG_DEEP
-	{
-
-		DEBUG_MSG("INFO:tls_get_client_hello: Cipher suites : \n");
-		for( i = x, j= 0 ; j < record_buffer[x - 1] ; j+=2, i+=2){
-			DEBUG_VAR(record_buffer[i],"0x%02x");
-			DEBUG_VAR(record_buffer[i + 1],"%02x | ");
-		}
-		DEBUG_MSG("\n");
-	}
+#ifdef DEBUG_TLS_DEEP
+	PRINT_ARRAY((record_buffer + x),record_buffer[x - 1],"INFO:tls_get_client_hello: Cipher suites: ");
 #endif
 
 	/* check if client supports our only cipher suite */
@@ -104,8 +92,8 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 	if(j == record_buffer[x - 1]){
 
-#ifdef DEBUG
-		DEBUG_MSG("FATAL:tls_get_client_hello: Compatible cipher suite not found! \n");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:tls_get_client_hello: Compatible cipher suite not found!");
 #endif
 		return HNDSK_ERR;
 	}
@@ -123,16 +111,16 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 	if(j == record_buffer [x - 1]){
 		 /* this is almost impossible to reach because every TLS SHOULD support null */
-#ifdef DEBUG
+#ifdef DEBUG_TLS
 		DEBUG_MSG("FATAL:tls_get_client_hello: Client does not support compression method null\n");
 #endif
 		return HNDSK_ERR;
 	}
 	x+= record_buffer[x - 1];
 
-	/* get extensions lenght */
+	/* get extensions length */
 	DEV_GETC(record_buffer[x]);  x++;
-	DEV_GETC(record_buffer[x]);  x++; /* assume ext len never more than 255 */
+	DEV_GETC(record_buffer[x]);  x++; /* assumming ext len never more than 255 */
 	tmp = record_buffer[x - 1];
 
 	/* parse extensions */
@@ -162,8 +150,8 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 
 
 			if(j == record_buffer[x - 1]) {
-#ifdef DEBUG
-				DEBUG_MSG("FATAL:tls_get_client_hello: Unsupported elliptic curve extensions \n");
+#ifdef DEBUG_TLS
+				DEBUG_MSG("FATAL:tls_get_client_hello: Unsupported elliptic curve extensions");
 #endif
 				return HNDSK_ERR;
 			}
@@ -190,8 +178,8 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 				if(record_buffer[ x + j ] == TLS_COMPRESSION_NULL) break;
 
 			if(j == record_buffer[x - 1]) {
-#ifdef DEBUG
-				DEBUG_MSG("FATAL:tls_get_client_hello: Unsupported point formats\n");
+#ifdef DEBUG_TLS
+				DEBUG_MSG("FATAL:tls_get_client_hello: Unsupported point formats");
 #endif
 				return HNDSK_ERR;
 			}
@@ -225,9 +213,6 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	md5_update(tls->client_md5, record_buffer, x);
 	sha1_update(tls->client_sha1, record_buffer, x);
 
-#ifdef DEBUG
-	PRINT_ARRAY(record_buffer,length,"=========== Client Hello Data ============\n")
-#endif
 	/* free the buffer used in this phase */
 	mem_free(record_buffer,length);
 
@@ -238,6 +223,9 @@ uint8_t tls_get_client_hello(struct tls_connection *tls){
 	tls->encode_seq_no.long_int = 0;
 	tls->decode_seq_no.long_int = 0;
 
+#ifdef DEBUG_TLS
+	DEBUG_MSG("\n >>>>>>>>>>> CLIENT HELLO END >>>>>>>>>>>\n");
+#endif
 
 	return HNDSK_OK;
 
@@ -249,10 +237,8 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 
 	uint16_t i;
 
-	/*write_header(TLS_CONTENT_TYPE_HANDSHAKE,TLS_HELLO_CERT_DONE_LEN);*/
 	/* TODO ? */
 	uint8_t *tls_record = mem_alloc(TLS_HELLO_CERT_DONE_LEN - 32);
-
 
 	CONST_READ_NBYTES(tls_record,s_hello_cert_done,TLS_HELLO_CERT_DONE_LEN - 32);
 
@@ -277,9 +263,6 @@ uint8_t tls_send_hello_cert_done(struct tls_connection *tls){
 	for(i = 11; i < TLS_HELLO_CERT_DONE_LEN - 32; i++)
 		DEV_PUT(tls_record[i]);
 
-#ifdef DEBUG
-	DEBUG_MSG("\nINFO:tls_send_server_hello: Server Hello, Certificate, Done sent\n");
-#endif
 
 	/* change TLS state to the next valid state */
 	tls->tls_state = key_exchange;
@@ -303,7 +286,6 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	uint8_t key_block[KEY_MATERIAL_LEN];
 
 
-
 	if( read_header(TLS_CONTENT_TYPE_HANDSHAKE) != TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN){
 		return HNDSK_ERR;
 	}
@@ -313,16 +295,16 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	DEV_GETN( record_buffer, TLS1_ECDH_ECDSA_WITH_RC4_128_SHA_KEXCH_LEN); /* fetch full message */
 
 	if(record_buffer[0] != 16) {
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:tls_get_client_keyexch: Bad Handshake Type. Expected Client Key Exchange(0x10)\n");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:tls_get_client_keyexch: Bad Handshake Type. Expected Client Key Exchange(0x10)");
 #endif
 		return HNDSK_ERR;
 	}
 
 	/* this message is always 66 bytes long for ECC-256 ECDH */
 	if(record_buffer[3] != 66){
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:tls_get_client_keyexch: Unsupported Point format or point of unusual size");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:tls_get_client_keyexch: Unsupported Point format or point of unusual size");
 #endif
 		return HNDSK_ERR;
 	}
@@ -331,17 +313,9 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	sha1_update(tls->client_sha1, record_buffer,70);
 
 
-#ifdef DEBUG
-	{
-	uint8_t j;
-	DEBUG_MSG("\nINFO:tls_get_client_keyexch: Client Public Key (X Coordinate) :");
-	for(j = 0; j < 32; j++)
-		DEBUG_VAR(record_buffer[6 + j],"%02x");
-	DEBUG_MSG("\nINFO:tls_get_client_keyexch: Client Public Key (Y Coordinate) :");
-	for(j = 0; j < 32; j++)
-		DEBUG_VAR(record_buffer[6 + 32 + j],"%02x");
-	DEBUG_MSG("\n");
-	}
+#ifdef DEBUG_TLS_DEEP
+	PRINT_ARRAY((record_buffer + 6),32,"INFO:tls_get_client_keyexch: Client Public Key (X Coordinate): ");
+	PRINT_ARRAY((record_buffer + 6 + 32),32,"INFO:tls_get_client_keyexch: Client Public Key (Y Coordinate): ");
 #endif
 
 	/* converting to little endian in place */
@@ -374,7 +348,7 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	/* call PRF to generate master secret */
 	prf(record_buffer,SEED_LEN,pms_secret,PMS_LEN,tls->master_secret,MS_LEN);
 
-	/* change same byte_seed with new label and inverting randomness :) */
+	/* reconstruct byte seed */
 	copy_bytes(ke_label,record_buffer,0,PRF_LABEL_SIZE);
 	copy_bytes(tls->server_random.lfsr_char,record_buffer,13,32); 		 	 /* copy the server random */
 	copy_bytes(tls->client_random,record_buffer,45,32); 		 			 /* copy the client random */
@@ -386,6 +360,8 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	/* save session keys in tls connection */
 	copy_bytes(key_block,tls->client_mac,0,MAC_KEYSIZE);
 	copy_bytes(key_block + MAC_KEYSIZE,tls->server_mac,0,MAC_KEYSIZE);
+
+	/* symmetric ciper keys are not saved for RC4 TODO (?)*/
 	//copy_bytes(key_block + (MAC_KEYSIZE<<1),tls->client_key,0,CIPHER_KEYSIZE);
 	//copy_bytes(key_block + (MAC_KEYSIZE<<1) + (CIPHER_KEYSIZE),tls->server_key,0,CIPHER_KEYSIZE);
 
@@ -393,8 +369,8 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 	rc4_init(key_block + 2*MAC_KEYSIZE, MODE_DECRYPT);
 	rc4_init(key_block + 2*MAC_KEYSIZE + CIPHER_KEYSIZE, MODE_ENCRYPT);
 
-#ifdef DEBUG
-	DEBUG_MSG("\n************************ SESSION KEYS BEGIN *****************************************\n");
+#ifdef DEBUG_TLS_DEEP
+	DEBUG_MSG("************************ SESSION KEYS BEGIN *****************************************");
 	PRINT_ARRAY(tls->master_secret,MS_LEN,"Master Secret :");
 	PRINT_ARRAY(tls->client_mac,MAC_KEYSIZE,"Client MAC Secret :");
 	PRINT_ARRAY(tls->server_mac,MAC_KEYSIZE,"Server MAC Secret :");
@@ -404,6 +380,11 @@ uint8_t tls_get_client_keyexch(struct tls_connection *tls){
 #endif
 
 	//TODO free client_random and server_random memory; don't need them anymore
+	//mem_free(tls->client_random, 32);
+
+#ifdef DEBUG_TLS
+	DEBUG_MSG("\n >>>>>>>>>>> CLIENT KEY EXCHANGE END >>>>>>>>>>>\n");
+#endif
 
 	return HNDSK_OK;
 
@@ -422,17 +403,13 @@ uint8_t tls_get_change_cipher(struct tls_connection *tls){
 
 	if(tmp_char != 1){
 
-#ifdef DEBUG
-		DEBUG_MSG("\nINFO:tls_get_change_cipher: Damaged Change Cipher Spec message\n");
+#ifdef DEBUG_TLS
+		DEBUG_MSG("INFO:tls_get_change_cipher: Damaged Change Cipher Spec message");
 #endif
 		return HNDSK_ERR;
 	}
 
 	tls->ccs_recv = 1;
-
-#ifdef DEBUG
-		DEBUG_MSG("\nINFO:tls_get_change_cipher: Change Cipher Spec Message received\n");
-#endif
 
 	return HNDSK_OK;
 
@@ -441,8 +418,6 @@ uint8_t tls_get_change_cipher(struct tls_connection *tls){
 uint8_t tls_send_change_cipher(struct tls_connection *tls){
 
 
-
-	//write_header(TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC,1);
 	uint8_t i;
 
 	for(i = 0; i < TLS_CHANGE_CIPHER_SPEC_LEN; i++){
@@ -452,12 +427,7 @@ uint8_t tls_send_change_cipher(struct tls_connection *tls){
 
 	tls->ccs_sent = 1;
 
-#ifdef DEBUG
-		DEBUG_MSG("\nINFO:tls_send_change_cipher: Change Cipher Spec Message Sent \n");
-#endif
-
 	return HNDSK_OK;
-
 
 }
 
@@ -494,10 +464,6 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 	struct sha1_context temp_sha1;
 
 
-#ifdef DEBUG_DEEP
-	DEBUG_MSG("\n******************** FINISHED CLIENT MESSAGE BEGIN *****************************\n");
-#endif
-
 	if( read_header(TLS_CONTENT_TYPE_HANDSHAKE) != TLS_FINISHED_MSG_LEN ){
 		return HNDSK_ERR;
 	}
@@ -506,24 +472,24 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 	DEV_GETN( start_buffer, TLS_FINISHED_MSG_LEN);
 
 	/* if CCS was received that means the read state changed */
-	/* this is the first message encoded with the csuite just negotiated */
+	/* this is the first message encoded with the cipher suite just negotiated */
 	if(tls->ccs_recv == 1){
 
-		if(!decode_record(tls,TLS_CONTENT_TYPE_HANDSHAKE,record_buffer,TLS_FINISHED_MSG_LEN)){
+		if(!decode_record(tls, TLS_CONTENT_TYPE_HANDSHAKE, record_buffer, TLS_FINISHED_MSG_LEN)){
 			return HNDSK_ERR;
 		}
 
 		if( start_buffer[0] != TLS_HANDSHAKE_TYPE_FINISHED){
-#ifdef DEBUG
-			DEBUG_MSG("\nFATAL:tls_get_finished: Bad Record Data Type");
+#ifdef DEBUG_TLS
+			DEBUG_MSG("FATAL:tls_get_finished: Bad Record Data Type");
 #endif
 			return HNDSK_ERR;
 		}
 
 	} else {
-		/* if we didn't received CCS it's fatal */
-#ifdef DEBUG
-		DEBUG_MSG("\nFATAL:tls_get_finished: Finished Message Received before Change Cipher Spec Message");
+		/* if we didn't received CCS  */
+#ifdef DEBUG_TLS
+		DEBUG_MSG("FATAL:tls_get_finished: Finished Message Received before Change Cipher Spec Message");
 		return HNDSK_ERR;
 #endif
 
@@ -534,7 +500,7 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 	sha1_clone(tls->client_sha1,&temp_sha1);
 
 	/* compute finished message for the client */
-	compute_finished(tls, tls->client_md5,tls->client_sha1,CLIENT,expected_finished);
+	compute_finished(tls, tls->client_md5, tls->client_sha1, CLIENT, expected_finished);
 
 	/* restore contexts */
 	md5_clone(&temp_md5,tls->client_md5);
@@ -544,10 +510,10 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 		uint8_t i;
 		for(i = 0 ; i < 12 ; i++)
 			if(expected_finished[i] != start_buffer[4 + i]) {
-#ifdef DEBUG
-			DEBUG_MSG("\nFATAL:tls_get_finished: Client Finished Message does not match local calculated\n");
-			PRINT_ARRAY(expected_finished,12,"\t\t Local Calculated Finish Message:");
-			PRINT_ARRAY( (start_buffer + 4) ,12,"\t\t Client Calculated Finish Message:");
+#ifdef DEBUG_TLS_DEEP
+			DEBUG_MSG("FATAL:tls_get_finished: Client Finished Message does not match local computation: ");
+			PRINT_ARRAY(expected_finished, 12, "Local Calculated Finish Message: ");
+			PRINT_ARRAY( (start_buffer + 4), 12, "Client Calculated Finish Message: ");
 #endif
 			return HNDSK_ERR;
 			}
@@ -558,8 +524,8 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 	md5_update(tls->client_md5,start_buffer,16);
 	sha1_update(tls->client_sha1,start_buffer,16);
 
-#ifdef DEBUG_DEEP
-	DEBUG_MSG("******************** FINISHED CLIENT MESSAGE END *****************************");
+#ifdef DEBUG_TLS
+	DEBUG_MSG("\n >>>>>>>>>>> CLIENT FINISHED MESSAGE END >>>>>>>>>>>\n");
 #endif
 
 	return HNDSK_OK;
@@ -570,10 +536,10 @@ uint8_t tls_get_finished(struct tls_connection *tls){
 
 uint8_t build_finished(struct tls_connection *tls, uint8_t *record_buffer){
 
-	//uint8_t record_buffer[TLS_FINISHED_MSG_LEN + START_BUFFER];
+
 	uint8_t *startbuffer = (record_buffer + START_BUFFER);
 
-	//fill in handshake header
+	/* fill in handshake header */
 	startbuffer[0] = TLS_HANDSHAKE_TYPE_FINISHED;
 	startbuffer[1] = 0;
 	startbuffer[2] = 0;
@@ -583,25 +549,11 @@ uint8_t build_finished(struct tls_connection *tls, uint8_t *record_buffer){
 	compute_finished(tls, tls->client_md5, tls->client_sha1, SERVER, startbuffer + 4);
 
 
-#ifdef DEBUG_DEEP
-	DEBUG_MSG("\n******************** FINISHED SERVER MESSAGE BEGIN *****************************\n");
+#ifdef DEBUG_TLS_DEEP
+	PRINT_ARRAY( (startbuffer + 4), 12,"INFO: Calculated SERVER Finished Message : ");
 #endif
 
-#ifdef DEBUG_DEEP
-	PRINT_ARRAY( (startbuffer + 4), 12,"INFO:tls_send_finished: Calculated SERVER Finished Message :");
-#endif
-
-	//DEV_PREPARE_OUTPUT;
 	write_record(tls, TLS_CONTENT_TYPE_HANDSHAKE, record_buffer, 16);
-	//DEV_OUTPUT_DONE;
-
-#ifdef DEBUG
-	DEBUG_MSG("INFO:tls_send_finished: Finished message sent");
-#endif
-
-#ifdef DEBUG_DEEP
-	DEBUG_MSG("\n******************** FINISHED SERVER MESSAGE END *****************************\n");
-#endif
 
 	return HNDSK_OK;
 
@@ -615,14 +567,30 @@ uint8_t tls_send_finished(uint8_t *record_buffer){
 	for(i = 0; i < TLS_FINISHED_MSG_LEN ; i++)
 		DEV_PUT(record_buffer[i]);
 
-#ifdef DEBUG_DEEP
-	PRINT_ARRAY( record_buffer, 41,"INFO:tls_send_finished: Sent SERVER Finished Message :");
+#ifdef DEBUG_TLS
+	DEBUG_MSG("\n >>>>>>>>>>> SERVER FINISHED MESSAGE END >>>>>>>>>>>\n");
 #endif
-
 	return HNDSK_OK;
 
 }
 
 
+void dump_tls_conn(struct tls_connection *tls){
 
+	printf("================= DUMPING TLS CONNECTION =================");
+	PRINT_ARRAY(tls->client_mac,20,"Client MAC ");
+	PRINT_ARRAY(tls->server_mac,20,"Server MAC ");
+	//PRINT_ARRAY(tls->client_md5->buffer,64,"client md5 buffer ");
+	//PRINT_ARRAY(tls->client_sha1->buffer,64,"client sha1 buffer ");
+	PRINT_ARRAY(tls->decode_seq_no.bytes,8,"decode seq ");
+	PRINT_ARRAY(tls->encode_seq_no.bytes,8,"encode seq ");
+	DEBUG_VAR(tls->record_size,"%d","record size ");
+	printf("ccs sent %c\n", tls->ccs_sent ? '1' : '0');
+	printf("ccs recv %c\n", tls->ccs_recv ? '1' : '0');
+	PRINT_ARRAY(tls->client_random,32,"client random ");
+	PRINT_ARRAY(tls->server_random.lfsr_char,32,"server random ");
+	printf("================= DUMPING TLS CONNECTION =================");
+
+
+}
 

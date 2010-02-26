@@ -22,6 +22,7 @@ extern CONST_VAR(uint8_t,ec_priv_key_256[]);
 /* TODO this should be a build option */
 #define DEBUG_TLS
 #define DEBUG_TLS_DEEP
+//#define DISABLE_TLS
 
 /* TODO this should be a build option */
 #define ECDH_ECDSA_RC4_128_SHA1
@@ -108,8 +109,7 @@ struct tls_connection {
 
 	/* size of the record currently being parsed with MAC*/
 	uint16_t record_size;
-	/* current parsed size of record_size */
-	uint16_t current_size;
+
 	/* TLS connection */
 	enum tls_state_e { 
 
@@ -153,7 +153,7 @@ struct tls_connection {
 	struct md5_context *client_md5;
 	struct sha1_context *client_sha1;
 	      
-}; /* ~ (min) 128 + 88 + 92 */
+}; /* ~ 348 bytes (maximum) */
 
 
 

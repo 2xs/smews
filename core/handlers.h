@@ -99,7 +99,11 @@ struct arg_ref_t {
 
 /* handler structure to be served */
 struct output_handler_t {
-	enum handler_type_e {type_control, type_file, type_generator, type_tls_handshake} handler_type;
+	enum handler_type_e {type_control, type_file, type_generator
+#ifndef DISABLE_TLS
+		, type_tls_handshake
+#endif
+		} handler_type;
 	unsigned char handler_comet;
 	unsigned char handler_stream;
 	union handler_contents_u {
