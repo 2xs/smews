@@ -419,7 +419,7 @@ void smews_send_packet(struct http_connection *connection) {
 				tls_record = mem_alloc(data_length);
 				tls_record = CONST_READ_NBYTES(tls_record,tmpptr,data_length);
 
-				printf("Sending %d from a total of %d static file\n",data_length,(output_handler->handler_contents).file.length);
+				//printf("Sending %d from a total of %d static file\n",data_length,(output_handler->handler_contents).file.length);
 				/*printf("\n\nTCP data before sending (part of file contents) (%d bytes) :",data_length);
 				for (i = 0 ; i < data_length; i++){
 					printf("%02x", tls_record[i]);
