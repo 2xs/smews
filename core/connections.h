@@ -114,6 +114,7 @@ struct http_rst_connection {
 	unsigned char current_inseqno[4];
 	unsigned char next_outseqno[4];
 	unsigned char port[2];
+	unsigned char tls_active:1;
 };
 
 /* Shared global connections structures */

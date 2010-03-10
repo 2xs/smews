@@ -679,7 +679,7 @@ char smews_receive(void) {
 						if(tmp_connection.tls_active == 1){
 							/* add the overhead of TLS (MAC + record header) */
 							//printf("\nfinal out seq no before adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
-							UI32(tmp_connection.final_outseqno) += ((CONST_UI32(GET_FILE(output_handler).length) +  MAX_OUT_SIZE((uint16_t)connection->tcp_mss) - 1) / MAX_OUT_SIZE((uint16_t)connection->tcp_mss)) * (MAC_KEYSIZE + TLS_RECORD_HEADER_LEN);
+							UI32(tmp_connection.final_outseqno) += ((CONST_UI32(GET_FILE(output_handler).length) +  MAX_OUT_SIZE((uint16_t)connection->tcp_mss) - 1) / MAX_OUT_SIZE((uint16_t)connection->tcp_mss)) * (TLS_OVERHEAD);
 							//printf("final out seq no after adding TLS overhead: %d \n",UI32(tmp_connection.final_outseqno));
 						}
 #endif
@@ -757,7 +757,7 @@ char smews_receive(void) {
 #endif
 	} //while
 
-	//printf("%p %d %d %d\n",tmp_connection.output_handler,tmp_connection.tcp_state, segment_length,tcp_established);
+
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
 #ifdef DEBUG_TLS
@@ -808,6 +808,7 @@ char smews_receive(void) {
 			UI16(rst_connection.port) = UI16(tmp_connection.port);
 			UI32(rst_connection.current_inseqno) = UI32(tmp_connection.current_inseqno);
 			UI32(rst_connection.next_outseqno) = UI32(tmp_connection.next_outseqno);
+			rst_connection.tls_active = 1;
 		} else {
 			if(tmp_connection.tcp_state == tcp_listen) {
 				free_connection(connection);

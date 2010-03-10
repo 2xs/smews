@@ -165,6 +165,7 @@ void smews_send_packet(struct http_connection *connection) {
 	#define CONTENT_LENGTH_SIZE 6
 	#define CHUNK_LENGTH_SIZE 4
 	char content_length_buffer[CONTENT_LENGTH_SIZE];
+	unsigned char source_port[2];
 
 
 #ifndef DISABLE_TLS
@@ -189,12 +190,22 @@ void smews_send_packet(struct http_connection *connection) {
 		next_outseqno = connection->next_outseqno;
 		current_inseqno = connection->current_inseqno;
 		output_handler = connection->output_handler;
+		if(connection->tls_active == 1){
+			UI16(source_port) = TCP_HTTPS_PORT;
+		} else {
+			UI16(source_port) = TCP_HTTP_PORT;
+		}
 	} else {
 		ip_addr = rst_connection.ip_addr;
 		port = rst_connection.port;
 		next_outseqno = rst_connection.next_outseqno;
 		current_inseqno = rst_connection.current_inseqno;
 		output_handler = &ref_rst;
+		if(rst_connection.tls_active == 1){
+			UI16(source_port) = TCP_HTTPS_PORT;
+		} else {
+			UI16(source_port) = TCP_HTTP_PORT;
+		}
 	}
 	handler_type = CONST_UI8(output_handler->handler_type);
 
@@ -205,20 +216,24 @@ void smews_send_packet(struct http_connection *connection) {
 			break;
 		case type_file: {
 			uint16_t max_out_size;
-			/* bytes remaining to be sent on this connection (file size, TCP and TLS headers) */
+
+			/* bytes remaining to be sent on this connection for the output handler currently active (file size, TCP and TLS headers) */
 			uint32_t remaining_bytes;
 			max_out_size = MAX_OUT_SIZE((uint16_t)connection->tcp_mss);
+
 			remaining_bytes = UI32(connection->final_outseqno) - UI32(next_outseqno);
 
 			/* segment length contains TLS OVERHEAD! */
 			segment_length = remaining_bytes > max_out_size ? max_out_size : remaining_bytes;
 
+
 #ifndef DISABLE_TLS
 			if(connection->tls_active == 1){
 
-				/* we reposition hence remaining_bytes contained TLS OVERHEAD */
-				index_in_file = CONST_UI32(GET_FILE(output_handler).length) - (remaining_bytes - TLS_OVERHEAD);
-
+				/* we reposition taking in account that remaining_bytes contains all TLS OVERHEAD */
+				index_in_file = CONST_UI32(GET_FILE(output_handler).length) -
+						(remaining_bytes - TLS_OVERHEAD*((remaining_bytes +  MAX_OUT_SIZE((uint16_t)connection->tcp_mss) - 1) / MAX_OUT_SIZE((uint16_t)connection->tcp_mss)));
+				//printf("index in file %d\n",index_in_file);
 
 			} else
 #endif
@@ -228,7 +243,7 @@ void smews_send_packet(struct http_connection *connection) {
 
 			}
 
-			//printf("file rem bytes %d, seg len %d",remaining_bytes, segment_length);
+			//printf("file rem bytes %d, seg len %d\n",remaining_bytes, segment_length);
 			//printf("I'm going to send %d octets as data (type file):\n",segment_length);
 			break;
 		}
@@ -302,21 +317,7 @@ void smews_send_packet(struct http_connection *connection) {
 
 	/* send TCP source port */
 
-	/*connection could be null if it is a RST packet */
-#ifndef DISABLE_TLS
-	if(connection != NULL){
-		if(connection->tls_active == 1){
-			DEV_PUT16_VAL(TCP_HTTPS_PORT);
-		} else {
-
-			DEV_PUT16_VAL(TCP_HTTP_PORT);
-		}
-	} else
-#endif
-	{
-
-		DEV_PUT16_VAL(TCP_HTTP_PORT);
-	}
+	DEV_PUT16(source_port);
 
 	/* send TCP destination port */
 	DEV_PUT16(port);
@@ -351,20 +352,9 @@ void smews_send_packet(struct http_connection *connection) {
 	checksum_add32(ip_addr);
 
 	/* checksum source port */
-#ifndef DISABLE_TLS
-	if(connection != NULL){
-		if(connection->tls_active == 1){
-			checksum_add16(TCP_HTTPS_PORT);
-		} else {
-			checksum_add16(TCP_HTTP_PORT);
-		}
-	} else
-#endif
-	{
-		checksum_add16(TCP_HTTP_PORT);
-	}
-
+	checksum_add16(UI16(source_port));
 	
+	/* checksum destination port */
 	checksum_add16(UI16(port));
 
 	checksum_add32(current_inseqno);
@@ -429,11 +419,12 @@ void smews_send_packet(struct http_connection *connection) {
 				tls_record = mem_alloc(data_length);
 				tls_record = CONST_READ_NBYTES(tls_record,tmpptr,data_length);
 
-				printf("\n\nTCP data before sending (part of file contents) (%d bytes) :",data_length);
+				printf("Sending %d from a total of %d static file\n",data_length,(output_handler->handler_contents).file.length);
+				/*printf("\n\nTCP data before sending (part of file contents) (%d bytes) :",data_length);
 				for (i = 0 ; i < data_length; i++){
 					printf("%02x", tls_record[i]);
 				}
-				printf("\n");
+				printf("\n");*/
 
 				/* preparing the HMAC hash for calculation */
 				hmac_init(SHA1,connection->tls->server_mac,SHA1_KEYSIZE);
@@ -578,18 +569,18 @@ void smews_send_packet(struct http_connection *connection) {
 				DEV_PUT((uint8_t)(record_len));
 
 				/* sending TLS Payload */
-				printf("Sending TLS data to network (%d bytes): ",record_len);
+				//printf("Sending TLS data to network (%d bytes)\n ",record_len);
 				for(i = 0; i < (record_len - MAC_KEYSIZE); i++){
 					DEV_PUT(tls_record[i]);
-					printf("%02x",tls_record[i]);
+					//printf("%02x",tls_record[i]);
 				}
 
 				/* sending MAC */
 				for(i = 0; i < MAC_KEYSIZE; i++){
 					DEV_PUT(sha1.buffer[i]);
-					printf("%02x",sha1.buffer[i]);
+					//printf("%02x",sha1.buffer[i]);
 				}
-				printf("\n");
+				//printf("\n");
 
 				/* free payload allocated for bringing data from external memory */
 				mem_free(tls_record, record_len - MAC_KEYSIZE);
@@ -679,6 +670,7 @@ char smews_send(void) {
 
 	/* sending reset has the highest priority */
 	if(UI16(rst_connection.port)) {
+
 		smews_send_packet(NULL);
 		UI16(rst_connection.port) = 0;
 		return 1;
