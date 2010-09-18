@@ -1,0 +1,22 @@
+env       = Environment()
+bookname = 'userguide'
+source    = bookname + '.tex'
+dviTarget = bookname + '.dvi'
+psTarget  = bookname + '.ps'
+pdfTarget  = bookname + '.pdf'
+htmlToc = [bookname + '.htoc', bookname + '.haux']
+htmlTarget = bookname + '.html'
+htmlIndex = 'index.html'
+
+#uncomment de below to lines to generate html
+#heveaCommand = 'hevea -exec xxdate.exe -fix %s'
+#hachaCommand = 'hacha -o %s %s'
+
+env.DVI(dviTarget, source)
+env.PostScript(psTarget, dviTarget)
+env.PDF(pdfTarget, psTarget)
+
+#uncomment de below to lines to generate html
+#env.Command(htmlToc, dviTarget,  heveaCommand % (source))
+#env.Command(htmlTarget, htmlToc, heveaCommand % (source))
+#env.Command(htmlIndex, htmlTarget, hachaCommand % (htmlIndex, htmlTarget))

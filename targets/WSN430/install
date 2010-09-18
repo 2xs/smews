@@ -1,0 +1,1 @@
+msp430-jtag -e ./bin/WSN430/smews.elf

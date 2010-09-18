@@ -1,0 +1,22 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html>
+	<head>
+		<script language="Javascript" src="funcs.js"></script>
+		<link rel="stylesheet" type="text/css" href="style.css" />
+	</head>
+
+<body onload="init();">
+	<div id="main">
+		<a id="smewsLogo" href="http://www2.lifl.fr/~duquenno/Research/Smews/"><img src="/ressources/smews.jpg" alt="smews" title="" /></a>
+		<h1>CPU usage alert</h1>
+		<div id="infos">
+			Threshold: <input id="htmlThres" value="50"></input> % <br />
+			<input id="launch" type="button" value="Launch !" onclick="run()">
+			<img id="loader" src="ajaxLoader.gif" />
+			<div id="alert"></div>
+		</div>
+	</div>
+</body>
+</html>

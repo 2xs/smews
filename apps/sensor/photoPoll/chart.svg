@@ -1,0 +1,120 @@
+<?xml-stylesheet href="style.css" type="text/css"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="800" height="260" onload="init(evt)">
+<script><![CDATA[
+
+var svgns="http://www.w3.org/2000/svg";
+var ownDoc;
+var node;
+var circles = new Array();
+
+var width=800;
+var height=260;
+var chartWidth = width - 80 - 20;
+var chartHeight = height - 80;
+var chartDuration = 60;
+
+function nodeSet(a,b) {
+	node.setAttributeNS(null,a,b);
+}
+
+function init(evt) {
+        ownDoc=evt.target.ownerDocument;
+}
+
+function drawCircle(x,y,r,class) {
+	node=ownDoc.createElementNS(svgns,"circle");
+	nodeSet("cx",x);
+	nodeSet("cy",y);
+	nodeSet("r",r);
+	nodeSet("class",class);
+	ownDoc.documentElement.appendChild(node);
+}
+
+function drawRect(x,y,w,h,class) {
+	node=ownDoc.createElementNS(svgns,"rect");
+	nodeSet("x",x);
+	nodeSet("y",y);
+	nodeSet("width",w);
+	nodeSet("height",h);
+	nodeSet("class",class);
+	ownDoc.documentElement.appendChild(node);
+}
+
+function drawLine(x,y,x2,y2,class) {
+	node=ownDoc.createElementNS(svgns ,"path");
+	nodeSet("d","M" + x + " " + y + " L" + x2 + " " + y2);
+	nodeSet("class",class);
+	ownDoc.documentElement.appendChild(node);
+}
+
+function drawText(root,x,y,text,anchor,class) {
+	tmpText=ownDoc.createTextNode(text);
+	node=ownDoc.createElementNS(svgns ,"text");
+	nodeSet("x",x);
+	nodeSet("y",y);
+	nodeSet("text-anchor",anchor);
+	nodeSet("class",class);
+	node.appendChild(tmpText);
+	root.appendChild(node);
+}
+
+function drawTextD(x,y,text,anchor,class) {
+	drawText(ownDoc.documentElement,x,y,text,anchor,class);
+}
+
+function draw(yAxisName) {
+	drawRect(20 + 40,40,chartWidth,chartHeight,"back");
+	drawTextD(-(height/2 + 40),20,yAxisName,"left","yAxisName");
+ 	nodeSet("transform","rotate(-90)");
+	drawTextD(20 + 20 + (chartWidth / 2),height,"time (s)","left","xAxisName");
+	for(y=0;y<=100;y+=20){
+		drawLine(20+40,height-40-y*(chartHeight/100),20 + chartWidth + 40,height-40-y*(chartHeight/100),"line");
+		drawTextD(20+40-10,height-40-y*(chartHeight/100),y,"end","yTick");
+	}
+	xAxis=ownDoc.createElementNS(svgns ,"g");
+	ownDoc.documentElement.appendChild(xAxis);
+	for(x=0;x<=chartDuration;x+=10){
+		drawLine(20+40 + x/chartDuration*(chartWidth),height-40,20+40 + x/chartDuration*(chartWidth),40,"line");
+		drawText(xAxis,20+40 + x/chartDuration*(chartWidth),height-40+20,x,"middle","xTick");
+	}
+	drawLine(20+40,40-1,20+40,height-40,"axis");
+	drawLine(20+40+chartWidth,40-1,20+40+chartWidth,height-40,"axis");
+	drawLine(20 + 40,height-40,20 + chartWidth + 40,height-40,"axis");
+	drawLine(20 + 40,40,20 + chartWidth + 40,40,"axis");
+
+	node=ownDoc.createElementNS(svgns ,"path");
+	nodeSet("id","samplesPath");
+	nodeSet("d","");
+	nodeSet("class","plot");
+	nodeSet("fill","none");
+	ownDoc.documentElement.appendChild(node);
+}
+
+function drawSamples(firstPlutIsTrunked,samples) {
+	while(circles.length > 0)
+		ownDoc.documentElement.removeChild(circles.pop());
+	circles = new Array();
+	var tmpPath = "";
+	var x = 0;
+	for(i=0;i<samples.length;i++){
+		if(i > 0)
+			x += samples[i][0]/1000;
+		px = 20 + 40 + x * (chartWidth/chartDuration);
+		py = height-40-(samples[i][1]*(chartHeight/100));
+		if(i==0)
+			tmpPath += "M";
+		else
+			tmpPath += " L";
+		tmpPath += px + " " + py;
+		if(firstPlutIsTrunked == 0 || i > 0) {
+			drawCircle(px,py,0.1,"plotCircle");
+			circles.push(node);
+		}
+	}
+	nodeSet("class","lastPlotCircle");
+	ownDoc.getElementById("samplesPath").setAttributeNS(null, "d", tmpPath);
+}
+
+]]></script>
+	
+</svg>

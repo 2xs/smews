@@ -1,0 +1,6 @@
+BuildDir('bin', 'src',duplicate=0)
+env = Environment()
+env.Append(LIBS =  'm')
+env.Append(CCFLAGS =  '-g -O0')
+env.Program('bin/simu.c')
+Clean('.',['bin','.sconsign.dblite'])

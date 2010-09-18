@@ -1,0 +1,19 @@
+body {fill: #333333; color: #333333; font-family: sans-serif; font-size: 12pt; } 
+h1 {text-align: center; font-weight: normal; font-size: 2em; }
+
+img { border: 0px; }
+a { color: #000000; text-decoration: none; }
+a:hover { color: #444466; text-decoration: underline; }
+
+#smewsLogo { display: block; text-align: center; }
+#contactsTable { position: relative; margin: 0 auto; border: 3px solid #444466; border-collapse: collapse; } 
+#contactsTable td, #contactsTable th { padding: 5px; text-align: center; font-size: 0.9em; }
+#contactsTable th { border: 3px solid #444466; }
+#contactsTable td { border: 1px solid #666688; width: 10em; }
+#contactsTable tr { height: 2.4em; }
+#googleFrame { width: 450px; height: 250px; }
+#googleLink { font-size: 0.8em; float: right; }
+#smewsContact { position: absolute; background-color: #dddddd; padding: 6px; border: 2px solid black; }
+.fieldInput { width: 97%; }
+.busyCell { background-color: #bbffbb; }
+#adddel { color: #444466; font-weight: bold; font-size: 18px; text-align: center; }

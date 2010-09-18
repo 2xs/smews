@@ -1,0 +1,12 @@
+<UserScriptConfig>
+	<Script filename="contactsBook.user.js" name="contactsBook" namespace="smews" description="" enabled="true" basedir=".">
+		<Include>*</Include>
+		<Exclude>http://www2.lifl.fr/~duquenno/gmap.php*</Exclude>
+		<Exclude>http://192.168.1.6/*</Exclude>
+		<Exclude>http://www.google.com/calendar/*</Exclude>
+		<Exclude>http://maps.google.fr</Exclude>
+	</Script>
+	<Script filename="calendar.user.js" name="calendar" namespace="smews" description="" enabled="true" basedir=".">
+		<Include>http://www.google.com/calendar/*</Include>
+	</Script>
+</UserScriptConfig>

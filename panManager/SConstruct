@@ -1,0 +1,12 @@
+import os
+
+BuildDir('bin', 'src',duplicate=0)
+env = Environment()
+env.Append(CCFLAGS =  '-g -O0 -Wall')
+env.Append(LINKFLAGS =  '-rdynamic')
+env.Append(LIBS = 'dl')
+env.Program('bin/panManager', Glob('bin/*.c'))
+
+for plugin in os.listdir('plugins'):
+        if not plugin.startswith('.'):
+	      SConscript('plugins/%s/SConscript' %plugin)

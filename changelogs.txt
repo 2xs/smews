@@ -1,0 +1,125 @@
+1.5.0:
+	- added generic panManager with slip and apduip plugins
+	- added IPv6 support
+	- IP addresses are now configured via a SCons arguments
+	- changes in aplications XML data
+	- other minor changes in SConstruct arguments
+1.4.0f:
+	- minor bug for targets using non-addressable memory to store persistent data
+	- minor SConsscripts modifications
+1.4.0e:
+	- update doc
+	- debug in the smews example Web app sconscript
+	- clean .s compilation in bin directory
+1.4.0d:
+	- cleaning TCP checksum calculation on inputs (pseudo-header)
+1.4.0c:
+	- added -fno-strict-aliasing option in compilation
+1.4.0b:
+	- minor correction in outpuc.c
+1.4.0:
+	- added dynamic memory allocator (memory.c/.h)
+	- number of connections and timers, url arguments size are no more statically defined
+	- added coroutines for dynamic content generation
+		- all coroutines are executed in a single shared stack
+		- contexts are backuped using exactly the par of stack used by the coroutine (top -> sp)
+	- the event-driven engine is now never reenters
+	- added the implementation of Web contents taxonomy support
+		- in-flight segments are chained in memory
+		- we store either the data buffer or a coroutine context for each in-flight segment
+		- coroutines can have multiple states and be reran
+	- coroutines are ported to linux and msp430, but not yet to ARM and AVR
+1.3.4b:
+	- Improved and more consistent implementation of dev_get16/32 and dev_put16/32 functions
+1.3.4:
+	- Bug fix in the Funcard target (access of some CONST fields in output_handler_t)
+	- Change the way IP addresses are configured in targets
+1.3.3b:
+	- Add documentation source in the doc directory
+	- Remove display bug in the svg javascript in the linux and sensor polling applications
+1.3.3:
+	- Suppression of current_inack in the connection structure (the inflight field is sufficient)
+	- Demo Web applications improvements (linux, sensor, contactsBook)
+1.3.2:
+	- Improvements in retransmissions management
+1.3.1:
+	- Comet generators can now be streamed (using chunk encoding)
+	- Long generated contents are now served via chunked transfer, thus keeping the connection open
+1.3.0:
+	- Source code has been massively refactored
+	- Receive/send scheduling improvements for better scallability (tested on hundreads of connections)
+	- Suppression of the "ENABLE_CHAINED" option
+	- HTTP/TCP automaton has been cleaned
+	- The SCons "install" option has been replaced by a "install" file in target directories if needed
+	- WSN430, MicaZ and GBA slip drivers have been redisigned
+	- Code size reduction
+1.2.4b:
+	- Minor modifications in library generation
+	- Static contents compression (gzip) is an option in SCons
+1.2.4:
+	- Smews can now be embedded in other software, by using smews.h and linking with libsmews.a
+1.2.3c:
+	- check python version in SConstruct (version >= 2.5.0)
+1.2.3b:
+	- minor improvement in the main loop step
+1.2.3:
+	- SLEEP macros added for the targets
+	- better erros management in devices drivers
+	- improve SLIP drivers
+1.2.2:
+	- SCons python files refactoring
+	- Changes on intermediate generated files
+	- It is now possible to use non-generators c/h files in Web apps
+1.2.1:
+	- Web applications refactoring
+	- New application samples
+	- Smews sample web app. has been improved with automated sub-folders management
+1.2.0:
+	- Generators typing management (persistent/idempotent/volatile)
+1.1.1e:
+	- Minor changes
+1.1.1d:
+	- The server IP address is now stored in volatile memory
+	- New Smews logo
+1.1.1c:
+	- Final demos shown at Smart University 2008
+1.1.1b:
+	- Funcard7 demo applications
+1.1.1:
+	- Mashup applications demo (contactsBook, google calendar)
+	- Static Web pages are now gzipped
+	- CONST_VAR and PERSISTENT_VAR qualifiers modifications
+	- EEPROM write for Funcard7
+	- Funcard7 with fast IOs (115200 bauds)
+	- Funcard7: no MSS limitation
+	- Code and RAM size reductions
+1.1.0b:
+	- Blob management improvements for Funcard7
+1.1.0:
+	- Arguments handling in URLs for generators
+	- Funcard7 port optimizations
+	- Code size reduction
+	- New organization for Web contents:
+		- common webContents folder
+		- SConscript are possible in webContents
+1.0.0:
+	- Add commonContents dir and defaultContents option to SCons
+	- Add disable=comet and enable=chained
+	- Correct errorenous IP packets dropping (thanks to a local tmp_connection)
+	- TCP stack reorganization
+0.9.9d:
+	- Debug: change to LISTEN state after FIN/ACK, FIN/ACK, ACK
+0.9.9c:
+	- Debug: SYN flood correction
+0.9.9b:
+	- Connections management: the oldest inactive connection is dropped if needed
+0.9.9:
+	- Rename from DynaWeb to Smews
+0.9.8c:
+	- Code size reduction for blob processing
+0.9.8b:
+	- Debug of fast successive GET request on a same connection
+0.9.8:
+	- Add Funcard 7 port
+	- Compact and efficient tree used to store URLs and references instead of an associative table
+	- RST packets sent in response to SYN packets if no more connections are available

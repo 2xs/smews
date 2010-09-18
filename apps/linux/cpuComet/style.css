@@ -1,0 +1,14 @@
+#main {position: relative; margin: 0 auto;}
+
+body, svg, input {fill: #333333; color: #333333; font-family: sans-serif; } 
+body {font-size: 12pt;}
+
+h1 {text-align: center; font-weight: normal; font-size: 2em; }
+img { border: 0px; }
+#smewsLogo { display: block; text-align: center; }
+
+#main {width: 800px;}
+#infos{text-align: center;}
+#loader{position: relative; left: -2.7em;}
+#htmlThres {text-align: center; width: 2em; padding: 0px; margin: 0px; font-size: 0.9em;}
+#launch {text-align: center; width: 5em; padding: 0em; margin: 0.5em; font-size: 0.9em;}

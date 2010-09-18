@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="scard">
+</Property><Property Name="Fichier solution" Value="C:\Documents and Settings\pegomas\smews\hostAdapters\Funcard7\win32\scard.sln">
+</Property><Property Name="Date" Value="lundi 15 septembre 2008">
+</Property><Property Name="Time" Value="14:01">
+</Property></Properties><Event ErrorLevel="0" Project="scard" Source="scard.vcproj" Description="Le déploiement Web sur le serveur IIS local IIS n'est plus pris en charge. L'outil de génération Déploiement Web a été supprimé des paramètres de votre projet.">
+</Event><Event ErrorLevel="1" Project="scard" Source="scard.vcproj" Description="Cette application a été mise à jour pour inclure les paramètres liés à la fonctionnalité Contrôle de compte d'utilisateur de Windows Vista. Par défaut, lorsqu'elle est exécutée sur Windows Vista avec le Contrôle de compte d'utilisateur activé, cette application est marquée pour s'exécuter avec les mêmes privilèges que le processus qui l'a lancée. Ce marquage empêche l'application de s'exécuter avec la virtualisation. Vous pouvez changer les paramètres du Contrôle de compte d'utilisateur dans les pages de propriétés du projet.">
+</Event><Event ErrorLevel="0" Project="scard" Source="scard.vcproj" Description="Mise à niveau du projet terminée.">
+</Event><Event ErrorLevel="3" Project="scard" Source="scard.vcproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="scard.sln" Description="Solution correctement convertie">
+</Event><Event ErrorLevel="3" Project="" Source="scard.sln" Description="Converted">
+</Event></UpgradeLog>

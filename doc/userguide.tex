@@ -1,0 +1,703 @@
+\documentclass{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[babel=true,final]{microtype}
+\usepackage{listings}
+\usepackage{url}
+\usepackage{geometry}
+\usepackage{tikz}
+\usetikzlibrary{shapes,snakes,arrows,calc,decorations,shadows}
+
+% listings
+\lstset{
+	%framerule=1pt,
+	frame=lines,
+	basicstyle=\small,
+%	commentstyle=\rm\color{color1!50!black},
+}
+
+% margins
+\geometry{hmargin=3.4cm,vmargin=3.2cm}
+
+\newcommand{\ie}{{\it i.e.}~}
+\newcommand{\eg}{{\it e.g.}~}
+\newcommand{\cf}{{\it c.f.}~}
+\newcommand{\etal}{~{\it et al.}}
+\newcommand{\etc}{{\it etc.}}
+
+\newcommand{\rchap}[1]{Chapter~\ref{ch:#1}}
+\newcommand{\rsec}[1]{Section~\ref{sec:#1}}
+\newcommand{\rssec}[1]{Sub-section~\ref{ssec:#1}}
+\newcommand{\rfig}[1]{Figure~\ref{fig:#1}}
+\newcommand{\rtab}[1]{Table~\ref{tab:#1}}
+
+\newenvironment{example}{
+\begin{minipage}{0.7\textwidth}
+{\em Example:}
+}{
+\end{minipage}
+\newline
+}
+
+\sloppy
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+\large
+Alex Negrea \hspace{2cm} Simon Duquennoy
+\end{center}
+
+\vspace{6cm}
+
+\begin{center}
+\includegraphics{smewsLogo}
+\end{center}
+
+\begin{center}
+\LARGE
+{\em Smart \& Mobile Embedded Web Server}
+
+User Guide
+\end{center}
+
+\vfill
+
+\begin{center}
+\em
+Last revised: \today
+\end{center}
+
+\end{titlepage}
+
+\tableofcontents
+ 
+\chapter{Introduction}
+
+\section{What is Smews?}
+
+Smews stands for \emph{Smart \& Mobile Embedded Web Server}. This research prototype is designed for hardware-constrained devices like smart cards, sensor boards and other small devices. It is a stand-alone software, working without any underlaying OS. It acts as the OS by itself, dedicated to the support of Web applications. Its kernel includes device drivers, TCP/IP stack, Web server and Web applications container. It is based on a event-driven architecture and its implementation is full of cross-layer optimizations.
+
+Web applications are pre-processed, compiled, linked with Smews then embedded in a device. Web applications are made of static and dynamic contents. Static contents are simple files; dynamic contents are linked to server-side code. During the pre-processing phase, plenty of optimizations are made on Web contents (pre-calculation of protocol headers, checksums, parsing. automatons). Smews supports Comet (server-pushed data) and provides an advanced typing of dynamic Web contents (persistent, idempotent and volatile contents).
+
+\section{About this guide}
+
+This document contains the necessary information to get started with Smews, understand its philosophy and master its usage. It should be read by both users willing to use Smews and developers wanting to be introduced to Smews functionalities.
+
+\rchap{gettingstarted} contains information about Smews compilation, installation and execution, giving detailed features descriptions and concrete examples. \rchap{creatingapp} explains how to build your own Web application for Smews.
+
+\chapter{Getting Started}
+\label{ch:gettingstarted}
+
+\section{Preparing your environment}
+
+You can download the latest Smews release from its Web site: \url{http://smews.gforge.inria.fr/}
+
+In order to work with Smews, you will need:
+\begin{itemize}
+  \item a valid C compilation environment, depending on your platform the target:
+	\begin{itemize}
+	  \item \emph{for target MicaZ and Funcard7} you will need: \verb+gcc-avr+  (4.3 or above) and \verb+avr-libc+ packages;
+	  \item \emph{for target MSP430} you will need the following packages: \verb+binutils-msp430+, \verb+msp430-libc+, \verb+gcc-msp430+. These packages can be found in \verb+deb+ \url{http://wyper.ca/debian/} \verb+i686+ repository;
+	  \item \emph{for target GBA} you will need: DevKitAdvance (\url{http://devkitadv.sourceforge.net/});
+	\end{itemize}
+  \item Python version 2.5 or above;
+  \item SCons version 0.96 or above.
+\end{itemize}
+
+The Smews compilation process is based on SCons and Python. It has been tested on Linux, Windows (using MinGW) and Mac OS.
+
+\section{What's in the package?}
+
+In the Smews package you can find the following directories and files:
+\begin{itemize}
+\item \verb+SConstruct, SConscript+
+-- Smews general SCons files;
+\item \verb+apps/+
+-- examples of Web applications to be served by Smews;
+\item \verb+core/+
+-- Smews kernel C source code (portable files);
+\item \verb+panManager/+
+-- Personal Area Network manager (setting device-computer link);
+\item \verb+tools/+
+-- Python preprocessing tools (used by the SCons compilation chain);
+\item \verb+targets/+
+-- Smews ports to different devices.
+\end{itemize}
+
+Every port is made of a directory in \verb+targets/+. Target-dependent code is located in \verb+targets/$target/drivers+. The \verb+targets/$target/SConscript+ file defines target-specific compilation instructions. The \verb+targets/$target/install+ script is in charge of installing Smews on the target device. The following lines describe all existing Smews ports.
+%$
+
+\paragraph{WSN430}
+
+The WSN430 sensor board is based on a 16-bits msp430 processor at 8 MHz. Communications are done over a serial line by using the SLIP protocol.
+
+\paragraph{MicaZ}
+
+The MicaZ sensor board is based on a 8-bits AVR processor at 8 MHz. Communications are done over a serial line by using the SLIP protocol.
+
+\paragraph{Funcard7}
+
+The Funcard7 smart card is based on a 8-bits AVR processor at 4 MHz. Communications are done over a serial line using a custom "IP over APDU" protocol.
+
+\paragraph{GBA}
+
+The Game Boy Advance is based on a 32-bits Arm7 processor at 16 Mhz. Communications are done over a serial line by using the SLIP protocol.
+
+\paragraph{Linux}
+
+This target has been written for debug and development purposes. It allows to execute Smews as a linux process, communicating {\it via} the TUN virtual interface.
+
+\paragraph{Skeleton}
+
+This target is an empty one. It is a starting point for someone wanting to port Smews to a new device.
+
+\section{Compiling Smews}
+\label{sec:compile}
+
+Smews uses SCons for building which allows to design complex build mechanism and dependencies. The multiple pre-processing steps help Smews to be more efficient in terms of memory consumption and processing speed.
+
+\subsection{Short description}
+
+When building Smews you can specify multiple targets and Web applications to be embedded with it. For example to build Smews for a destination target A and B (directories in \verb+targets/+) and embed in it Web Applications X and Y (directories in \verb+apps/+) you can type:
+
+\begin{verbatim}
+$ scons target=A,B apps=X,Y
+\end{verbatim}
+
+Files are compiled in the \verb+bin/$target+ directory. This contains the Smews executable file. It also contains a \verb+libsmews.a+ file, allowing to embed Smews in other software (see \verb+core/main.c+ provided as a sample main C code linked with the library \verb+libsmews.a+).
+
+To clean built files type:
+\begin{verbatim}
+$ scons -c
+\end{verbatim}
+
+For a complete description of available arguments, type:
+\begin{verbatim}
+$ scons -h
+\end{verbatim}
+
+\subsection{Exhaustive description}
+
+The Smews compilation chain has many arguments enabling different options. The only necessary argument for a build is \verb+target+. All other arguments are optional and have a default value. \rtab{sconsargs} synthesizes the list of available arguments. We give here a precise description of every argument.
+
+\begin{table}
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt target=targetA,targetB,...}
+\par\hspace{0.1\textwidth} targets on which to compile Smews
+
+{\tt apps=[urlA:]appA,[urlB:]appB,...}
+\par\hspace{0.1\textwidth} applications to be embedded with Smews
+
+{\tt ipaddr=ip}
+\par\hspace{0.1\textwidth} set the Smews IP address
+
+{\tt debug=true|false}
+\par\hspace{0.1\textwidth} enable or disable debug mode
+
+{\tt gzip=true|false}
+\par\hspace{0.1\textwidth} enable or disable static Web contents compression
+
+{\tt chuncksNbits=number}
+\par\hspace{0.1\textwidth} size of the chuncks used for pre-calculated checksums
+
+{\tt endian=little|big}
+\par\hspace{0.1\textwidth} data endianness
+
+{\tt disable=[arguments|comet|retransmit]+}
+\par\hspace{0.1\textwidth} disable internal functionalities
+
+		\end{minipage}
+      }
+   } 
+\caption{Smews compilation options}
+\label{tab:sconsargs}
+\end{table}
+
+\subsubsection{Option {\tt target=targetA,targetB,...}}
+
+Set the target(s) on which Smews is going to be compiled. Example:
+\begin{verbatim}
+$ scons target=linux,WSN430
+\end{verbatim}
+
+\subsubsection{Option {\tt apps=[urlA:]appA,[urlB:]appB,...}}
+
+Specifies the set of Web applications that will be linked and embedded with Smews. An application is a directory or sub-directory in the \verb+apps+ directory. Every application is made of simple files (static Web contents) and/or C files (dynamic Web contents). Contents are separated by comma and the name of the content can be preceded by a replacement URL. Default value: \verb+apps=:welcome+. Example:
+\begin{verbatim}
+$ scons target=linux apps=contactsBook,mycalendar:calendar,:welcome
+\end{verbatim}
+
+Resources extracted from directories \verb+contactsBook+, \verb+calendar+ and \verb+smews+ will be respectively accessible at the following URLs:
+
+\url{http://$smewsip/contactsBook}
+
+\url{http://$smewsip/mycalendar}
+
+\url{http://$smewsip/}
+%$
+
+\subsubsection{Option {\tt ipaddr=ip}}
+
+Set the Smews IP address. Can be either a IPv4 or IPv6 address. Examples:
+\begin{verbatim}
+$ scons target=linux apps=:welcome ipaddr=192.168.1.2
+$ scons target=linux apps=:welcome ipaddr=2001::2
+\end{verbatim}
+
+\subsubsection{Option {\tt debug=true|false}}
+
+Allows to compile Smews in debug mode, without any optimization (\verb+gcc -g -O0+ options). Default value: \verb+debug=false+. Example:
+\begin{verbatim}
+$ scons target=linux apps=:welcome debug=true
+\end{verbatim}
+
+\subsubsection{Option {\tt gzip=true|false}}
+
+Allows to compress static files at compile time. This reduces the target footprint, but the client browser must be able to unpack the content. Default value: \verb+gzip=true+. Example:
+\begin{verbatim}
+$ scons target=linux apps=:welcome gzip=false
+\end{verbatim}
+
+\subsubsection{Option {\tt chuncksNbits=number}}
+
+In Smews, the checksums of static files are pre-calculated on chunks of data at compile time. The size of the chunks is computed as \verb+1<<chuncksNbits+. The size of outgoing segments is limitated by this size since it has to be multiple of it. Default value: \verb+chuncksNbits=5+.
+\begin{verbatim}
+$ scons target=linux apps=:welcome chunckNbits=5
+\end{verbatim}
+
+\subsubsection{Option {\tt endian=little|big}}
+
+Forces data little or big endianness. Default value depends on the target (\verb+ENDIANNESS+ C macro defined in the \verb+target/$target/target.h+ file). Example:
+\begin{verbatim}
+$ scons target=linux apps=:welcome endian=little
+\end{verbatim}
+
+\subsubsection{Option {\tt disable=[arguments|comet|retransmit]+}}
+
+Allows to disable some internal functionalities, making the binary smaller and the execution faster:
+\begin{itemize}
+\item \texttt{arguments} -- URL arguments parsing will be removed from the source code;
+\item \texttt{comet} -- removes comet support in the binary, which disallows the server to push data to the client;
+\item \texttt{retransmit} -- disable TCP packets retransmission in case of lost segments. The generated web server will not be fully compliant with the TCP RFC.
+\end{itemize}
+
+Example:
+\begin{verbatim}
+$ scons target=linux apps=:welcome disable=comet,arguments
+\end{verbatim}
+
+\section{Installing Smews}
+\label{sec:install}
+
+Once Smews has been compiled, it can be embedded in the target device. This step can be done by executing the \verb+target/$target/install+ script.
+%$
+
+Then, the panManager has to be launched. It enables the communication between a computer and a device, managing the link-layer protocol. When launching the panManager, two arguments are mandatory:
+
+\begin{description}
+\item[Plugin] The first argument is the plugin, implementing the desired link-layer protocol. Currently, the two existing plugins are SLIP (Serial Line IP) and APDUIP (APDU supporting IP);
+\item[IP configuration] The second argument is used to configure the computer routing table. It describes an IP address and a mask size by using the "slash" notation. The panManager supports either IPv4 and IPv6 addresses.
+\end{description}
+
+Example: configuring a SLIP link with local address 192.168.1.1 and a 24-bits mask:
+\begin{verbatim}
+$ panManager slip 192.168.1.1/24
+\end{verbatim}
+
+Example: configuring a APDUIP link with local address 2001::1 and a 126-bits mask:
+\begin{verbatim}
+$ panManager apduip 2001::1/126
+\end{verbatim}
+
+After this step, you can reach Smews at its IP address by using any HTTP/1.1 compliant Web client.
+
+\section{Simple example, step by step}
+
+We synthesize the previous sections by giving a complete example where we compile, install and access Smews on a WSN430 sensor board. All commands are given from the main Smews directory.
+
+Compilation, embedding the welcome page and sensor application, with IPv4 address 192.168.1.2:
+\begin{verbatim}
+$ scons target=WSN430 apps=:welcome,sensor ipaddr=192.168.1.2
+\end{verbatim}
+
+Installation, \ie{} copy of the code in the EEPROM of the WSN430 board (as root):
+\begin{verbatim}
+$ ./targets/WSN430/install
+\end{verbatim}
+
+PanManager configuration (as root):
+\begin{verbatim}
+$ panManager/bin/panManager slip 192.168.1.1/24
+\end{verbatim}
+
+\chapter{Creating your own Web Application}
+\label{ch:creatingapp}
+
+Web applications are made of static (files) and dynamic (generated by the server at runtime) contents. Applications are identified by subdirectories of the \texttt{apps/} directory. The \texttt{apps/examples} contains application examples using various features of Smews. A folder identifies a particular Web Application or a set of Web applications which will be embedded in the web server (see \rsec{compile} for more details). Every application is made of a set of files, of various types :
+\begin{description}
+\item[.c and .h files] C and H files are used to embed server-side code, compiled and linked with Smews;
+\item[.c files with XML] C files containing specific XML meta-data (as c comment) are associated to Web resources, \ie{} they are in charge of generating dynamic Web contents in response to client requests;
+\item[other files] Other files are considered as static. They will be embedded and served by Smews "as is";
+\item[.c.embed files] The .embed extension is automatically removed. This allows to serve a C file as a static content.
+\end{description}
+
+\section{Static Content}
+
+When embedding static file in Smews, the HTTP content-type field is automatically inferred from the file extension (the mappings list is contained in the file \texttt{toos/mimeList}). Furthermore, many optimizations occur off-line, including HTTP header and TCP checksums pre-calculation. As an example, create a new file containing the following code and save it in \texttt{apps/helloWorld/hello.html}:
+
+\lstset{language=html}
+\begin{lstlisting}
+<html>
+    <head>
+        <title>Hello World!</title>
+    </head>
+    <body>
+        Hello World!
+    </body>
+</html>
+\end{lstlisting}
+
+Compile Smews setting the target to \verb+linux+ and the content to be embedded \verb+helloWorld+ as below:
+\begin{verbatim}
+$ scons target=linux apps=helloWorld ipaddr=192.168.1.2
+\end{verbatim}
+
+Then run the ELF file from the \texttt{/bin/linux} directory. You can now access the server at \verb+http://192.168.1.2/helloWorld/hello.html+. Keep in mind that the linux target is a particular case where Smews binary file is a process, that is why it can be launched directly. If tested on different target, refer to the instructions in \rsec{install}.
+
+\section{Dynamic Content}
+
+Smews can serve content generated by native code, which we will refer to as \textit{Dynamic Content}. Any C file containing XML specific code (as C comment) will considered as a Web resource and associated to an URL. The XML meta-data are interpreted in the pre-processing phase, thus generating some C code. We describe here the role of the XML markers available (a detailed list is given in \rtab{appsxml}, page \pageref{tab:appsxml}).
+
+\subsection{Defining handlers}
+
+Web applications are scheduled by Smews {\it via} a pre-defined set of handler functions (a detailed list is given in \rtab{appscallbacks}, page \pageref{tab:appscallbacks}):
+\begin{itemize}
+\item \verb+init+ -- function executed during Smews initialization;
+\item \verb+initGet+ -- function executed when a Get request is received ;
+\item \verb+doGet+ -- function used to generate the HTTP response.
+\end{itemize}
+
+The XML meta-data allows to associate C functions to these handlers. As an example, create a new file containing the following code and save it in \texttt{apps/helloWorld2/hello.c}:
+\lstset{language=C}
+\begin{lstlisting}
+/*
+<generator>
+	<handlers doGet="do_hello"/>
+</generator>
+*/
+
+/* simple contents generator */
+static char do_hello(struct args_t *args) {
+    out_str("Generated Hello World!");
+    return 1;
+}
+\end{lstlisting}
+
+You can now access the server at \verb+http://192.168.1.2/helloWorld2/hello+. On the server side, the \verb+doHello+ function will be called by Smews when a the response to the client request has to be generated. The \verb+out_str+ function outputs a string as the HTTP response (a detailed list of the functions provided by Smews to Web applications is given in \rtab{appssyscalls}, page \pageref{tab:appssyscalls}).
+
+\subsection{Parsing URL arguments}
+
+Smews allows to parse URL arguments before calling the \verb+doGet+ handler. This parsing is processed in the kernel, so it is quite efficient and requires few memory. The format of the arguments are defined statically. At compile-time, a parsing automaton is generated for every dynamic Web resources, allowing an efficient arguments parsing. Here is an example where URL arguments are parsed then sent as an HTTP response:
+
+\lstset{language=C}
+\begin{lstlisting}
+/*
+<generator>
+    <handlers doGet="output_args"/>
+    <args>
+        <arg name="i1" type="uint8" />
+        <arg name="s" type="str" size="6" />
+        <arg name="i2" type="uint16" />
+    </args>
+</generator>
+*/
+
+static char output_args(struct args_t *args) {
+    if(args) {
+        out_str("first int : ");
+        out_uint(args->i1);
+        out_str("\nstr : ");
+        out_str(args->s);
+        out_str("\nsecond int : ");
+        out_uint(args->i2);
+    } else {
+        out_str("no args");
+    }
+    return 1;
+}
+\end{lstlisting}
+
+The \verb+args+ parameter points to the values of the arguments that have been parsed by Smews. Every URL argument is directly accessible as a field of the \verb+struct args_t+ structure, with the name that has been described in the XML meta-data. The \verb+out_uint+ function is used to output an integer.
+
+\subsection{Persistence of the generated data}
+
+Smews provides an advanced typing of dynamic contents. The internal behavior of the Smews TCP/IP stack automatically adapts to this typing, allowing to output many simultaneous segments while keeping memory consumption as low as possible. Three types of persistence have been defined:
+\begin{description}
+\item[volatile] -- means that the content generated will not be stored in memory and will be regenerated in case of TCP NACK;
+\item[idempotent] -- means that the function will return the same value no matter when you might call it (it is deterministic and has no side-effect). In the current implementation, idempotent data are managed is the same manner than volatile data;
+\item[persistent] (default option) -- means that the output will be kept in memory and will be delivered from there in case of NACK.
+\end{description}
+
+Here is an example of a volatile Hello World. In case of TCP loss, the HTTP response may generated several times by multiple calls of the \verb+doGet+ function:
+\lstset{language=C}
+\begin{lstlisting}
+/*
+<generator>
+    <handlers doGet="do_hello_v"/>
+    <properties persistence="volatile"/>
+</generator>
+*/
+
+/* possible persitence are persistent (by default), idempotent and volatile */
+static char do_hello_v(struct args_t *args) {
+    out_str("Volatile Hello World!");
+    return 1;
+}
+\end{lstlisting}
+
+\subsection{Interaction mode}
+
+Smews also supports Web push, often called \emph{Comet}. In Smews, Comet is implemented {\it via} channels. A channel is a way of sending data asynchronously by pushing it from server to a set of registered clients. To see how can you accomplish this take a look at the next example:
+\lstset{language=C}
+\begin{lstlisting}
+/*
+<generator>
+    <handlers doGet="waitknock"/>
+    <properties interaction="alert" channel="knockknock"/>
+</generator>
+*/
+
+/* launched when knockknock is triggered */
+static char waitknock(struct args_t *args) {
+    out_str("somebody knocked");
+    return 1;
+}
+\end{lstlisting}
+
+The above example set the interaction tag to \verb+alert+, and defines a channel named \verb+knockknock+. In alert mode, HTTP client requests are not answered as soon as they are received. Instead, they are simply registered as listening to the \verb+knockknock+ channel. The request is pending until an event occurs.
+
+Let's create a second Web resource as follows: 
+\lstset{language=C}
+\begin{lstlisting}
+/*
+<generator>
+    <handlers doGet="triggerknock"/>
+</generator>
+*/
+
+/* triggers the knockknock comet channel */
+static char triggerknock(struct args_t *args) {
+    server_push(&knockknock);
+    return 1;
+}
+
+\end{lstlisting}
+
+When a request targets this second resource, the \verb+triggerknock+ function is called. It triggers the \verb+knockknock+ channel. At this time, the \verb+waitknock+ is called, thus generating a HTTP response containing the string "somebody knocked". This response will be sent to all registered clients.
+
+Three interaction mode are supported by Smews:
+\begin{description}
+\item[rest] This is the default mode, corresponding to the classical HTTP request/response scheme;
+\item[alert] Incoming requests are pending, they will be answered when the associated channel is triggered;
+\item[stream] Incoming requests are pending. Every time the associated channel is triggered, a chunk of HTTP response is generated and sent to all listening clients. The HTTP response is possibly never-ending.
+\end{description}
+
+\subsection{Timers}
+
+Any Web application in Smews can use timers in order to execute a function at a given interval. As an example, this feature may be used in a sensor board to periodically check the current temperature. When the sampled value reaches a threshold, a HTTP chunck containing the data is sent to all registered clients {\it via} the stream interaction modes:
+\lstset{language=C}
+\begin{lstlisting}
+/*
+<generator>
+        <handlers init="init_adc_timer"
+	      initGet="set_threshold" doGet="send_temperature"/>
+        <properties persistence="volatile"
+                interaction="stream" channel="tempAlert" />
+        <args> <arg name="threshold" type="uint16" /> </args>
+</generator>
+*/
+
+static uint16_t threshold = 512;
+static uint16_t curr_sample;
+
+/* timer callback, checking the temperature */
+static void check_temp() {
+        uint16_t tmp_result = get_adc_val(ADC_TEMP);
+        if(tmp_result >= threshold) {
+	      curr_sample = tmp_result;
+	      trigger_channel(&tempAlert);
+        }
+}
+
+/* initializes ADC and timer */
+static char init_adc_timer(void) {
+        return init_adc(ADC_TEMP) && set_timer(&check_temp, 200);
+}
+
+/* called when a get request is received. initializes the threshold */
+static char set_thresholds(struct args_t *args) {
+        if(args != NULL) {
+	      threshold = args->threshold;
+	      return 1;
+        } else return 0;
+}
+
+/* called to generate the HTTP response */
+static char send_temperature(struct args_t *args) {
+        out_uint(curr_sample);
+        return 1;
+}
+\end{lstlisting}
+
+The \verb+init_adc_timer+ function is called during Smews initialization. It associates the \verb+check_temp+ function to a timer, asking Smews to execute it every 200~ms. It also initializes the ADC (allowing to sample the temperature). When a client request is received, the \verb+set_thresholds+ function is called, thus setting the current threshold. The periodic timer executed every 200~ms compares the current temperature to this threshold. If needed, it triggers the channel, thus sending the current time to every registered clients. This produces an infinite HTTP response: the Web browser receives new data whenever the threshold is reached.
+
+\section{Web Application SConscript}
+
+Every Web application can provide a customized SConscript file, giving specific instruction for the pre-compilation phase. For a good example take a look in the \texttt{apps/welcome} folder, containing such a script. Here, we only detail the most interesting part of this file:
+\lstset{language=python}
+\begin{lstlisting}
+[...]
+appListName = 'appList.js'
+appListPath = os.path.join(genDir,tmpBase,appListName)
+appListAbsPath = os.path.join(sconsBasePath,appListPath)
+
+appList = open(appListAbsPath,'w')
+if len(dirsMap.keys()) > 2:
+    appList.write('var appList = new Array();\n')
+    appsCount = 0
+    for dir in dirsMap.keys():
+        if dir != 'welcome' and dir != httpCodesDir:
+                 [.. Code Missing ..] # Get Web Content Files
+                 [.. Code Missing ..] # Write line in .js
+    # write title or empty string
+    if appsCount > 0:
+        appList.write('var appTitle = \"' + target.capitalize() + '
+app examples:\";\n')
+    else:
+        appList.write('var appTitle = \"\";\n')
+else:
+    appList.write('var appTitle = \"\";\n')
+appList.close()
+
+ret = {appListPath: os.path.join(dirsMap['smews'],appListName)}
+Return('ret')
+\end{lstlisting}
+
+The above lines iterate over the dirsMap hash map which has been built by the main Smews SCons files. It contains the set of applications being compiled with Smews (to be more precise, a set of associations between application names and paths). This code creates a \verb+appList.js+ file with code for adding links to the main page of the \verb+welcome+ application, links which point to other applications that were also compiled along with it. The generated \verb+applist.js+ file is embedded in \verb+index.html+ of the \verb+welcome+ application and then referenced when needed to display link to applications:
+\lstset{language=html}
+\begin{lstlisting}
+[...]
+<script type="text/javascript" src="appList.js"> </script>
+[...]
+\end{lstlisting}
+
+
+\section{Synthesis of the features}
+
+We give here an synthetic and exhaustive list of the features available when writing a dynamic content generator for Smews:
+
+\begin{itemize}
+\item \rtab{appsxml} details the XML markers available for sue in comment of C the files that need to be considered as a Web resource and associated to an URL;
+\item \rtab{appscallbacks} gives the list of the callbacks a dynamic Web resource can implement;
+\item \rtab{appssyscalls} lists the functions provided by Smews that can be called in any Web applicative code.
+\end{itemize}
+
+\begin{table}[htb]
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt <generator />}
+\begin{quote} root of the applicative meta-data \end{quote}
+
+{\tt <handlers init="<funcName>" initGet="<funcName>" doGet="<funcName>" />}
+\begin{quote} callback functions definition \end{quote}
+
+{\tt <properties persistence="persistent|idempotent|volatile"\\
+interaction="rest|alert|stream" channel="<channelNem>" />}
+\begin{quote} defines the properties of the Web resource \end{quote}
+
+{\tt <args />}
+\begin{quote} defines the possible URL arguments (set of {\tt arg} markers) \end{quote}
+
+{\tt <arg name="<str>" type="uint8|uint16|uint32|str" size="<nBytes>" />}
+\begin{quote} defines one argument \end{quote}
+		\end{minipage}
+      }
+   } 
+\caption{XML markers for dynamic contents}
+\label{tab:appsxml}
+\end{table}
+
+\begin{table}[htb]
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt char (init\_app\_func\_t)(void)}
+\begin{quote} initialization of the applications, returning 1 if ok, 0 if ko. \end{quote}
+
+{\tt char (initget\_app\_func\_t)(struct args\_t *)}
+\begin{quote} called as soon as a get request is received, returning 1 if ok, 0 if ko. The parameter targets the parsed URL arguments. \end{quote}
+
+{\tt char (doget\_app\_func\_t)(struct args\_t *)}
+\begin{quote} called when the HTTP response is ready to be sent, returning 1 if ok, 0 if ko. The parameter targets the parsed URL arguments. This function is in charge of generating the HTTP response {\it via} {\tt out\_*} calls. \end{quote}
+		\end{minipage}
+      }
+   } 
+\caption{Functions handlers provided by Web applications}
+\label{tab:appscallbacks}
+\end{table}
+
+\begin{table}[htb]
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt out\_c(char c)}
+\begin{quote} to be used in the {\tt doGet} callback, thus adding the {\tt c} byte to the HTTP response that is currently generated \end{quote}
+
+{\tt out\_uint(uint16\_t i)}
+\begin{quote} to be used in the {\tt doGet} callback, thus adding the {\tt i} integer to the HTTP response that is currently generated \end{quote}
+
+{\tt out\_str(const char str[])}
+\begin{quote} to be used in the {\tt doGet} callback, thus adding the {\tt str} string to the HTTP response that is currently generated \end{quote}
+
+{\tt trigger\_channel(const struct output\_handler\_t *handler)}
+\begin{quote} usable in any function, it triggers a Comet channel, useful for alert or stream interaction modes \end{quote}
+
+{\tt set\_timer(timer\_func\_t callback, uint16\_t period\_millis)}
+\begin{quote} usable in any function, it allows to automatically call the {\tt callback} function every {\tt period\_millis} milliseconds \end{quote}
+		\end{minipage}
+      }
+   } 
+\caption{Functions provided by Smews}
+\label{tab:appssyscalls}
+\end{table}
+
+\chapter{Credits}
+
+\section{Contributors}
+
+\begin{description}
+ \item[Simon Duquennoy] is the main author of the Smews Software
+ \item[Thomas So\"{e}te] is the main contributor of the WSN430 port
+ \item[Geoffroy Cogniaux] is the main contributor of the FunCard7 port
+ \item[Alex Negrea] is the main author of this user guide and of the TLS support (not yet released)
+ \item[Geoffrey Chavepeyer \textnormal{and} Fabien Duchêne] are the main authors of the IPv6 support
+ \item[Jean-Fran\c{c}ois Hren] designed the Smew (bird) in the Smews logo
+\end{description}
+Thanks to \textbf{Gilles Grimaud} for his kind supervision.
+
+\section{License}
+
+Smews is under CeCILL license (\url{http://www.cecill.info/}) compliant with the GPL licence of SOSSE and TUN-TAP. It also includes part of the softwares listed below:
+\begin{itemize}
+ \item SOSSE: Matthias Br\"{u}stle -- http://www.mbsks.franken.de/sosse/
+ \item TUN-TAP: Maxim Krasnyansky -- http://vtun.sourceforge.net/tun/
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,25 @@
+[ Smews version 1.5.0 ]
+
+License: CeCILL license, http://www.cecill.info
+Date: 22-06-2010
+Contact: Simon Duquennoy -- simon.duquennoy@lifl.fr
+Web page: smews.gforge.inria.fr
+Contributors:
+  Simon Duquennoy -- is the main author of the Smews Software
+  Thomas So\"{e}te -- is the main contributor of the WSN430 port
+  Geoffroy Cogniaux -- is the main contributor of the FunCard7 port
+  Alex Negrea -- is the main author of this user guide and of the TLS support (not yet released)
+  Geoffrey Chavepeyer and Fabien Duchêne -- are the main authors of the IPv6 support
+  Jean-Fran\c{c}ois Hren -- designed the Smew (bird) in the Smews logo
+Thanks to Gilles Grimaud for his kind supervision.
+
+Smews is an efficient embedded Web server for tiny devices, with high
+resource constraints.
+
+This software includes parts of code from SOSSE (Simple Operating system for Smart cards)
+http://www.mbsks.franken.de/sosse/, under GPL license :
+targets/Funcard7/drivers/at_config.h
+targets/Funcard7/drivers/eepromi2c.s
+targets/Funcard7/drivers/io.s
+
+Please read the user guide to get started.

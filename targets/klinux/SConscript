@@ -1,0 +1,110 @@
+# Copyright or c or Copr. 2008, Simon Duquennoy
+# 
+# Author e-mail: simon.duquennoy@lifl.fr
+# 
+# This software is a computer program whose purpose is to design an
+# efficient Web server for very-constrained embedded system.
+# 
+# This software is governed by the CeCILL license under French law and
+# abiding by the rules of distribution of free software.  You can  use, 
+# modify and/ or redistribute the software under the terms of the CeCILL
+# license as circulated by CEA, CNRS and INRIA at the following URL
+# "http://www.cecill.info". 
+# 
+# As a counterpart to the access to the source code and  rights to copy,
+# modify and redistribute granted by the license, users are provided only
+# with a limited warranty  and the software's author,  the holder of the
+# economic rights,  and the successive licensors  have only  limited
+# liability. 
+# 
+# In this respect, the user's attention is drawn to the risks associated
+# with loading,  using,  modifying and/or developing or reproducing the
+# software by the user in light of its specific status of free software,
+# that may mean  that it is complicated to manipulate,  and  that  also
+# therefore means  that it is reserved for developers  and  experienced
+# professionals having in-depth computer knowledge. Users are therefore
+# encouraged to load and test the software's suitability as regards their
+# requirements in conditions enabling the security of their systems and/or 
+# data to be ensured and,  more generally, to use and operate it in the 
+# same conditions as regards security. 
+# 
+# The fact that you are presently reading this means that you have had
+# knowledge of the CeCILL license and that you accept its terms.
+
+import os
+import sys
+import glob
+import GenContents
+
+Import('env binDir genDir coreDir targetDir driversDir genDir wcBase projectName elfName sourcesMap chuncksNbits gzipped tmpBase')
+
+koName = 'ksmews.ko'
+objsListName = 'ksmews-objs-list'
+
+env.Replace(CC = 'gcc')
+env.Replace(AS = 'as')
+env.Replace(AR = 'ar')
+env.Replace(RANLIB = 'ranlib')
+
+# used by getCodeFiles
+def getCodeFilesRec(wcPath,path):
+	files=[]
+	for file in glob.glob(path + '/*'):
+		if os.path.basename(file) != 'SConscript':
+        		if os.path.isdir(file):
+					files = files + (getCodeFilesRec(wcPath,file))
+        		elif file.endswith('c') or file.endswith('h') or file.endswith('s'):
+					files.append(file[len(wcPath)+1:])
+	return files
+
+# returns all files contained in path (with recurssion)
+def getCodeFiles(path):
+	return getCodeFilesRec(path,path)
+
+# builder used to override the usual object file construction
+def dontGenerateObject(target, source, env):
+	return None
+	
+# builder used to override the usual library construction
+def dontGenerateLibrary(target, source, env):	
+	return None
+	
+# builder used generate the object list needed by the kernel module makefile
+def generatedObjectsList(target, source, env):
+	objsListFile = open(str(target[0]),'w')
+	sourceStr = map(lambda x: str(x),source)
+	allObjs = map(lambda x: x[len(genDir)+1:len(x)-1]+'o',filter(lambda x: x.endswith('.c') or x.endswith('.s'),sourceStr))
+	for obj in allObjs:
+		objsListFile.write('ksmews-objs += %s\n' %(obj))
+	objsListFile.close()
+	return None
+	
+# builder used to override the usual executable binary construction
+def dontGenerateProgram(target, source, env):
+	makefile = env.Command(os.path.join(genDir,"Makefile"), os.path.join(targetDir,"Makefile"), Copy("$TARGET", "$SOURCE"))
+	srcCore = getCodeFiles('core')
+	srcDrivers = getCodeFiles(driversDir)
+	tmpDir = os.path.join(genDir,tmpBase)
+	srcGen = getCodeFiles(tmpDir)
+	for src in srcCore:
+		env.Command(os.path.join(genDir,'core',src), os.path.join('core',src), Copy("$TARGET", "$SOURCE"))
+	for src in srcDrivers:
+		env.Command(os.path.join(genDir,'drivers',src), os.path.join(driversDir,src), Copy("$TARGET", "$SOURCE"))
+	for src in srcGen:
+		env.Command(os.path.join(genDir,tmpDir,src), os.path.join(tmpDir,src), Copy("$TARGET", "$SOURCE"))
+	allSrcs = map(lambda x: os.path.join('core',x),srcCore)
+	allSrcs += map(lambda x: os.path.join('drivers',x),srcDrivers)
+	allSrcs += map(lambda x: os.path.join(tmpDir,x),srcGen)
+	allSrcs += map(lambda x: GenContents.getFileName(x,chuncksNbits,gzipped) + '.c',sourcesMap.keys()) 
+	allSrcs.append('resources_index.c')
+	allSrcs.append('channels.h')
+	allSrcs = map(lambda x: os.path.join(genDir,x),allSrcs)
+	objsList = env.ObjectsList(os.path.join(genDir,objsListName), allSrcs)
+	env.Command(os.path.join(genDir,koName), allSrcs + makefile + objsList,  'make -C %s' %(genDir))
+	env.Command(os.path.join(binDir,koName), os.path.join(genDir,koName), Copy("$TARGET", "$SOURCE"))
+	return None
+
+env['BUILDERS']['Object'] = Builder(action = dontGenerateObject)
+env['BUILDERS']['Library'] = Builder(action = dontGenerateLibrary)
+env['BUILDERS']['Program'] = Builder(action = dontGenerateProgram)
+env['BUILDERS']['ObjectsList'] = Builder(action = generatedObjectsList)

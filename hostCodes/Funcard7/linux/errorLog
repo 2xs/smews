@@ -1,0 +1,25 @@
+Reader=Gemplus GemPC Twin 00 00
+Reading ATR : 3B BA 21 00 40 20 53 4D 45 57 53 08 09 04 01 05 
+SCARD host adapter is now ready to accept connections
+SRC = 192.168.0.1 DST = 192.168.0.2
+Dumping 60bytes
+0000: 4500003C4931400040067037C0A80001  E..<I1@.@.p7....
+0010: C0A80002C4FE00504074D10800000000  .......P@t......
+0020: A002040058400000020401000402080A  ....X@..........
+0030: 001C98390000000001030306          ...9........    
+
+Transmit_send2SC=Transaction failed., len=65[Ip=60] err=80100016
+State= 1B0034, Possible diagnostic :
+There is a card in the reader, but it has not been moved into position for use.
+Power is being provided to the card, but the reader driver is unaware of the mode of the card.
+The card has been reset and is awaiting PTS negotiation.
+Trying to reconnect in 3s...
+Trying to reconnect... 1/100
+Command successful.
+Card answered 90-00
+State= 1B0034, Possible diagnostic :
+There is a card in the reader, but it has not been moved into position for use.
+Power is being provided to the card, but the reader driver is unaware of the mode of the card.
+The card has been reset and is awaiting PTS negotiation.
+Trying to reconnect in 3s...
+...Exiting 
