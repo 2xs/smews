@@ -1,0 +1,8 @@
+To make all targets type make in the root folder.
+Otherwise type make in the specific target.
+Binaries can be found in the /bin folder.
+Linux is the TLS implementation on top of the socket transport layer to test.
+Linux-dummy runs only the tls handshake having as input a buffer in memmory (which contains Client Handshake data)
+
+Note:
+make size -> displays code size for target's module.
