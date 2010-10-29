@@ -1,0 +1,10 @@
+import os
+import os.path
+
+libname = os.path.basename(os.path.abspath(os.curdir))
+
+BuildDir('bin', 'src',duplicate=0)
+env = Environment()
+env.Append(CCFLAGS =  '-g -O0 -Wall')
+env.Append(CPPPATH = ['../../src/'])
+env.SharedLibrary(libname, Glob('*.c'))
