@@ -145,6 +145,9 @@ targetFiles = getAllSourceFiles(driversDir, os.path.join(binDir,'drivers'))
 # create a library from all sources
 lib = env.Library(libFileName, targetFiles + coreFiles + genObjects)
 # link the library into a elf file
-final = env.Program(elfFileName, targetFiles + coreFiles + genObjects)
+if env['BUILDERS']['Program'] is not None:
+	final = env.Program(elfFileName, targetFiles + coreFiles + genObjects)
+else:
+	final = None
 # clean
 Clean([lib,final],[binDir,genDir])
