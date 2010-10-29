@@ -214,7 +214,7 @@ for target in targets:
 	Export('env targetDir binDir projectName elfName')
 	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
 	# target dependent SConscript call
-	SConscript(os.path.join(targetDir,'SConscript'),build_dir = binDir,duplicate = 0)
+	SConscript(os.path.join(targetDir,'SConscript'),variant_dir = binDir,duplicate = 0)
 	# possible web applications SConscript calls
 	for appDir in dirsMap.keys():
 		appSconsFile = os.path.join(appBase,appDir,'SConscript')

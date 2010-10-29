@@ -80,8 +80,8 @@ env['BUILDERS']['GenChannelsH'] = Builder(action = generateChannelsH)
 env['BUILDERS']['GenResourceProps'] = Builder(action = generateResourceProps)
 
 # build directories settings, with no source duplication
-BuildDir(os.path.join(binDir,'core'), coreDir, duplicate=0)
-BuildDir(os.path.join(binDir,'drivers'), driversDir, duplicate=0)
+VariantDir(os.path.join(binDir,'core'), coreDir, duplicate=0)
+VariantDir(os.path.join(binDir,'drivers'), driversDir, duplicate=0)
 
 # applications files index and channel files settings
 resourcesIndexO = os.path.join(binDir,'gen','resources_index')

@@ -1,4 +1,4 @@
-BuildDir('bin', 'src',duplicate=0)
+VariantDir('bin', 'src',duplicate=0)
 env = Environment()
 env.Append(CCFLAGS =  '-g -O0')
 env.Program('bin/main.c')
