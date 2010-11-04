@@ -165,7 +165,7 @@ static int init_slip(unsigned char *tbuff, unsigned char *dbuff, unsigned dmtu, 
         check(slip_fd != -1,"serial cfsetospeed() error");
 
         port_settings.c_cflag |= CREAD;
-        port_settings.c_cflag |= CSTOPB;
+        //port_settings.c_cflag |= CSTOPB;
         port_settings.c_cflag |= CLOCAL;
         port_settings.c_cflag |= CS8;
         ret = tcsetattr(slip_fd, TCSANOW, &port_settings);
