@@ -40,11 +40,12 @@
 #include <string.h>
 #include <signal.h>
 #include "exports.h"
+#include "leds.h"
 
 /* Drivers interface */
 
-#define HARDWARE_INIT hardware_init()
-#define HARDWARE_STOP hardware_stop()
+#define HARDWARE_INIT LEDS_INIT;
+#define HARDWARE_STOP
 #define TIME_MILLIS global_timer
 #define DEV_GET(c) {(c) = dev_get();}
 #define DEV_PUT(c) dev_put(c)
@@ -54,10 +55,10 @@
 
 /* Smews states */
 
-#define SMEWS_WAITING { smews_waiting(); }
-#define SMEWS_RECEIVING { smews_receiving(); }
-#define SMEWS_SENDING { smews_sending(); }
-#define SMEWS_ENDING { smews_ending(); }
+#define SMEWS_WAITING { LEDS_SET(LED1); }
+#define SMEWS_RECEIVING { LEDS_SET(LED2); }
+#define SMEWS_SENDING { LEDS_SET(LED3); }
+#define SMEWS_ENDING { LEDS_SET(LED4); }
 
 /* Const and persistent access macros */
 
