@@ -301,7 +301,7 @@ Once Smews has been compiled, it can be embedded in the target device. This step
 Then, the panManager has to be launched. It enables the communication between a computer and a device, managing the link-layer protocol. When launching the panManager, two arguments are mandatory:
 
 \begin{description}
-\item[Plugin] The first argument is the plugin, implementing the desired link-layer protocol. Currently, the two existing plugins are SLIP (Serial Line IP) and APDUIP (APDU supporting IP);
+\item[Plugin] The first argument is the plugin, implementing the desired link-layer protocol. Currently, the two existing plugins are SLIP (Serial Line IP) and APDUIP (APDU supporting IP). For SLIP, you can specify the serial device using the -p option (/dev/ttyS0 by default). 
 \item[IP configuration] The second argument is used to configure the computer routing table. It describes an IP address and a mask size by using the "slash" notation. The panManager supports either IPv4 and IPv6 addresses.
 \end{description}
 
@@ -331,9 +331,9 @@ Installation, \ie{} copy of the code in the EEPROM of the WSN430 board (as root)
 $ ./targets/WSN430/install
 \end{verbatim}
 
-PanManager configuration (as root):
+PanManager configuration (as root, in panManager folder):
 \begin{verbatim}
-$ panManager/bin/panManager slip 192.168.1.1/24
+$ bin/panManager slip 192.168.1.1/24
 \end{verbatim}
 
 \chapter{Creating your own Web Application}
