@@ -70,6 +70,10 @@ DWORD WINAPI TunReceiveThread(LPVOID lpParam)
 		// Read a packet from TUN
 		nbBytesFromTun = utun_read(handles->pTun, packet, DEV_MTU);
 
+		#ifdef _DEBUG
+			printf("Received %d bytes from TUN\n", nbBytesFromTun);
+		#endif
+
 		// Format as a SLIP Packet
 		pPacket = packetSlip;
 		*pPacket++ = SLIP_END;
@@ -93,6 +97,10 @@ DWORD WINAPI TunReceiveThread(LPVOID lpParam)
 		// Write packet to serial
 		nbBytesToSerial = pPacket-packetSlip;
 		WriteFile(handles->serial, packetSlip, nbBytesToSerial, &nbBytesWrittenToSerial, NULL);
+
+		#ifdef _DEBUG
+				printf("Written %d bytes to serial\n", nbBytesToSerial);
+		#endif
 
 		if(nbBytesToSerial != nbBytesWrittenToSerial)
 		{
@@ -166,6 +174,9 @@ DWORD WINAPI SerialReceiveThread(LPVOID lpParam)
 			if(ended == 1)
 			{
 				utun_write(handles->pTun, packet, packetLength);
+				#ifdef _DEBUG
+						printf("Written %d bytes to TUN\n", packetLength);
+				#endif
 				ended = 0;
 				packetLength = 0;
 			}
