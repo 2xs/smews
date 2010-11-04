@@ -63,6 +63,7 @@ static void writeserial(unsigned char c) {
 /* callback: forward from tun to serial line using slip */
 static void forward_to_slip(int size) {
         int i;
+        message("Packet to slip: %d bytes\n", size);
         writeserial(SLIP_END);
         for(i=0; i<size; i++) {
 	      if(tbuffer[i]==SLIP_END){
@@ -133,6 +134,7 @@ static void read_from_slip() {
 		    }
 		    /* if the packet is ended, forward it to the tun interface */
 		    if(ended == 1) {
+			  message("Packet from slip: %d bytes\n", scurr-dbuffer);
 			  forward_to_tun(scurr-dbuffer);
 			  /* reinitializations for a new packet */
 			  ended = 0;
