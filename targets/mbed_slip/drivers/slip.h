@@ -1,7 +1,7 @@
 /*
-* Copyright or © or Copr. 2010, Thomas SOETE
+* Copyright or © or Copr. 2008, Simon Duquennoy, Thomas SOETE
 * 
-* Author e-mail: thomas@soete.org
+* Author e-mail: simon.duquennoy@lifl.fr
 * 
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
@@ -33,23 +33,29 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __EXPORTS_H__
-#define __EXPORTS_H__
+#ifndef __SLIP_DEV_H__
+#define __SLIP_DEV_H__
 
-// Global variable
-extern volatile int32_t global_timer;
+/* Extern functions */
+extern void slip_init(void);
+extern int16_t dev_get(void);
+extern void dev_put(unsigned char byte);
+extern void dev_init(void);
 
-#ifdef __cplusplus
-extern "C" {
+/* SLIP */
+#define SLIP_END             0xC0    /* indicates end of packet */
+#define SLIP_ESC             0xDB    /* indicates byte stuffing */
+#define SLIP_ESC_END         0xDC    /* ESC ESC_END means END data byte */
+#define SLIP_ESC_ESC         0xDD    /* ESC ESC_ESC means ESC data byte */
+
+#define INBUF_SIZE 2048
+/* Serial line */
+typedef struct {
+	volatile unsigned char buffer[INBUF_SIZE];
+	volatile unsigned char *volatile writePtr;
+	volatile unsigned char *volatile readPtr;
+} serial_line_t;
+
+extern volatile serial_line_t serial_line;
+
 #endif
-
-	void smews_first();
-	void smews_loop();
-
-#ifdef __cplusplus
-	}
-#endif
-
-#endif
-
-

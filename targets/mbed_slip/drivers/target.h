@@ -1,7 +1,7 @@
 /*
-* Copyright or © or Copr. 2008, Simon Duquennoy
+* Copyright or © or Copr. 2010, Thomas SOETE
 * 
-* Author e-mail: simon.duquennoy@lifl.fr
+* Author e-mail: thomas@soete.org
 * 
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
@@ -40,18 +40,22 @@
 #include <string.h>
 #include <signal.h>
 #include "exports.h"
-#include "leds.h"
+#include "SimpleLib/leds.h"
+#include "SimpleLib/serial.h"
+#include "slip.h"
 
 /* Drivers interface */
 
-#define HARDWARE_INIT LEDS_INIT;
+#define HARDWARE_INIT	LEDS_INIT(); \
+			slip_init();
+
 #define HARDWARE_STOP
 #define TIME_MILLIS global_timer
 #define DEV_GET(c) {(c) = dev_get();}
 #define DEV_PUT(c) dev_put(c)
-#define DEV_PREPARE_OUTPUT(length) dev_prepare_output()
-#define DEV_OUTPUT_DONE dev_output_done()
-#define DEV_DATA_TO_READ dev_data_to_read()
+#define DEV_PREPARE_OUTPUT(length) SERIAL_PUTCHAR(SLIP_END);
+#define DEV_OUTPUT_DONE SERIAL_PUTCHAR(SLIP_END);
+#define DEV_DATA_TO_READ (serial_line.readPtr != NULL)
 
 /* Smews states */
 
