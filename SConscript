@@ -39,14 +39,15 @@ Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase too
 
 # returns the list of .c and .s files in dir, prefixed by dstDir
 def getAllSourceFiles(dir, dstDir):
-	cFiles = []
-	sFiles = []
+	sourceFiles = []
 	for file in os.listdir(dir):
-		if file.endswith('.c'):
-			cFiles.append(os.path.join(dstDir,file))
+		if os.path.isdir(os.path.join(dir,file)):
+			sourceFiles.extend(getAllSourceFiles(os.path.join(dir,file), os.path.join(dstDir,file)))
+		elif file.endswith('.c'):
+			sourceFiles.append(os.path.join(dstDir,file))
 		elif file.endswith('.s'):
-				sFiles.append(os.path.join(dstDir,file))
-	return sFiles + cFiles
+			sourceFiles.append(os.path.join(dstDir,file))
+	return sourceFiles
 
 # builders for web applicative resources creation
 # used to generate both static and dynamic resources
