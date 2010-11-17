@@ -42,15 +42,20 @@
 #include "exports.h"
 #include "SimpleLib/leds.h"
 #include "SimpleLib/serial.h"
+#include "SimpleLib/timers.h"
 #include "slip.h"
 
 /* Drivers interface */
 
-#define HARDWARE_INIT	LEDS_INIT(); \
+#define HARDWARE_INIT	LEDS_INIT();			\
+			TIMER0_INIT();			\
+			TIMER0_SETPCLK(CCLK);		\
+			TIMER0_SETPRESCALE(96000);	\
+			TIMER0_START();			\
 			slip_init();
 
 #define HARDWARE_STOP
-#define TIME_MILLIS global_timer
+#define TIME_MILLIS TIMER0_VALUE()
 #define DEV_GET(c) {(c) = dev_get();}
 #define DEV_PUT(c) dev_put(c)
 #define DEV_PREPARE_OUTPUT(length) SERIAL_PUTCHAR(SLIP_END);

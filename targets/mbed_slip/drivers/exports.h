@@ -36,9 +36,6 @@
 #ifndef __EXPORTS_H__
 #define __EXPORTS_H__
 
-// Global variable
-extern volatile int32_t global_timer;
-
 #ifdef __cplusplus
 extern "C" {
 #endif

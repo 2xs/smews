@@ -100,7 +100,7 @@ SERIAL_INTERRUPT_HANDLER(void) {
 /*-----------------------------------------------------------------------------------*/
 int16_t dev_get(void) {
 	uint32_t last_time = TIME_MILLIS;
-	while (serial_line.readPtr == NULL && (global_timer-last_time)<TIMEOUT);
+	while (serial_line.readPtr == NULL && (TIME_MILLIS-last_time)<TIMEOUT);
 	if (serial_line.readPtr == NULL) {
 		return -1;
 	} else {
