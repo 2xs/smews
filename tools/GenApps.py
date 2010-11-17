@@ -486,7 +486,7 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 		cOut.write('extern CONST_VAR(struct output_handler_t, ' + cName + '_handler);\n')
 	for fileName in generatorFilesNames:
 		cFuncName = getCName(fileName[:fileName.rfind('.c')])
-		cOut.write('extern const struct output_handler_t ' + cFuncName + ';\n')
+		cOut.write('extern CONST_VAR(struct output_handler_t, ' + cFuncName + ');\n')
 
 	# filesRef is a map used to associate URLs to output_handlers
 	filesRefs = {}
