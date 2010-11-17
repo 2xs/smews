@@ -54,7 +54,6 @@
 // Macro tools
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
-#define TOKENPASTE3(x, y, z) TOKENPASTE(TOKENPASTE(x, y), z)
 
 // Extern C
 #ifdef __cplusplus
@@ -63,5 +62,11 @@
     #define EXTERN_C
 #endif
 
+/** Constants **/
+// Peripheral Clock Selection register bit values (Table 42, p57)
+#define CCLK4   0U
+#define CCLK    1U
+#define CCLK2   2U
+#define CCLK8   3U
 
 #endif

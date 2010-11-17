@@ -34,6 +34,8 @@
 #ifndef __INTERRUPTS_H__
 #define __INTERRUPTS_H__
 
+#include "mbed_globals.h"
+
 /** Interrupt Managment **/
 #define ENABLE_INTERRUPT(intr)  NVIC_EnableIRQ(intr)
 #define DISABLE_INTERRUPT(intr) NVIC_DisableIRQ(intr)

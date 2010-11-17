@@ -37,6 +37,7 @@
 #include "mbed_globals.h"
 
 /** Bits **/
+#define LEDS_OFF 0
 #define LED1 (1 << 18)
 #define LED2 (1 << 20)
 #define LED3 (1 << 21)
@@ -46,9 +47,9 @@
 /** Macros **/
 #define LEDS_INIT()     LPC_GPIO1->FIODIR |= LEDS_MASK;
 
-#define LEDS_SET(value) {                                    \
+#define LEDS_SET(value) do {                                 \
                             LPC_GPIO1->FIOMASK = ~LEDS_MASK; \
                             LPC_GPIO1->FIOPIN = (value);     \
-                        }
+                        } while(0)
 
 #endif

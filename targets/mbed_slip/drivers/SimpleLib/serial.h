@@ -37,14 +37,18 @@
 #include "mbed_globals.h"
 #include "interrupts.h"
 
-/*    Simple Serial Managment     *
+/**********************************
+ *    Simple Serial Managment     *
+ **********************************
  * The interrupt handler is :     *
  * SERIAL_INTERRUPT_HANDLER(void) *
  * UART0 : Serial over USB        *
  * UART1 : TX p13, RX p14         *
  * UART2 : TX p28, RX p27         *
- * UART3 : TX p9,  RX p10         */
+ * UART3 : TX p9,  RX p10         *
+ **********************************/
  
+/** Registers **/
 // Serial port (Choose UARTn (0,1,2,3))
 #define UART_NUMBER UART0
 #define UART_BASE TOKENPASTE2(LPC_,UART_NUMBER)
@@ -93,13 +97,13 @@
 #define UART3TX_PINSEL_OFFSET   0
 #define UARTTX_PINSEL_OFFSET    TOKENPASTE2(UART_NUMBER,TX_PINSEL_OFFSET)
 
-#define UART0_PINSEL_VALUE    1UL
-#define UART1_PINSEL_VALUE    1UL
-#define UART2_PINSEL_VALUE    1UL
-#define UART3_PINSEL_VALUE    2UL
+#define UART0_PINSEL_VALUE    1U
+#define UART1_PINSEL_VALUE    1U
+#define UART2_PINSEL_VALUE    1U
+#define UART3_PINSEL_VALUE    2U
 #define UART_PINSEL_VALUE     TOKENPASTE2(UART_NUMBER,_PINSEL_VALUE)
 
-// Interrupt handlers
+/** Interrupt handlers **/
 #define SERIAL_INTERRUPT_HANDLER EXTERN_C void __IRQ TOKENPASTE2(UART_NUMBER,_IRQHandler)
 
 /** Bits **/
@@ -122,16 +126,20 @@
 #define UART3_PCONP_BIT 25
 
 /** Macros **/
-#define SERIAL_PUTCHAR(c)               while (GET_BIT_VALUE(UART_BASE->LSR, THRE_BIT) == 0); \
-                                        UART_BASE->THR = c;
+#define SERIAL_PUTCHAR(c)               do {                                                        \
+                                            while (GET_BIT_VALUE(UART_BASE->LSR, THRE_BIT) == 0);   \
+                                            UART_BASE->THR = c;                                     \
+                                        } while(0)
 
 #define SERIAL_DATA_TO_READ()           (GET_BIT_VALUE(UART_BASE->LSR, RDR_BIT) == 1)
 
 #define SERIAL_GETCHAR()                (UART_BASE->RBR)
 
 // Enable interrupt for RX or TX (SERIAL_INT_RX and SERIAL_INT_TX)
-#define SERIAL_ENABLE_INTERRUPT(value)  UART_BASE->IER = value; \
-                                        ENABLE_INTERRUPT(TOKENPASTE2(UART_NUMBER,_IRQn));
+#define SERIAL_ENABLE_INTERRUPT(value)  do {                                                    \
+                                            UART_BASE->IER = value;                             \
+                                            ENABLE_INTERRUPT(TOKENPASTE2(UART_NUMBER,_IRQn));   \
+                                        } while(0)
 
 extern __INLINE void SERIAL_INIT()
 {
@@ -142,10 +150,10 @@ extern __INLINE void SERIAL_INIT()
     // 8-bits, No Parity, 1 stop bit (See 14.4.7 p306)
     UART_BASE->LCR = 0x03;
     // Set CCLK as Peripheral Clock for UART (96MHz with mbed library)
-    UART_PCLK_REG = (UART_PCLK_REG & (~(3UL << UART_PCLK_OFFSET))) | (1UL << UART_PCLK_OFFSET);
+    UART_PCLK_REG = (UART_PCLK_REG & (~(3UL << UART_PCLK_OFFSET))) | (1U << UART_PCLK_OFFSET);
     // Define Pin's functions as UART
-    UARTRX_PINSEL_REG = (UARTRX_PINSEL_REG & (~(3UL << UARTRX_PINSEL_OFFSET))) | (UART_PINSEL_VALUE << UARTRX_PINSEL_OFFSET);
-    UARTTX_PINSEL_REG = (UARTTX_PINSEL_REG & (~(3UL << UARTTX_PINSEL_OFFSET))) | (UART_PINSEL_VALUE << UARTTX_PINSEL_OFFSET);
+    UARTRX_PINSEL_REG = (UARTRX_PINSEL_REG & (~(3U << UARTRX_PINSEL_OFFSET))) | (UART_PINSEL_VALUE << UARTRX_PINSEL_OFFSET);
+    UARTTX_PINSEL_REG = (UARTTX_PINSEL_REG & (~(3U << UARTTX_PINSEL_OFFSET))) | (UART_PINSEL_VALUE << UARTTX_PINSEL_OFFSET);
 }
 
 // See 14.4.5 p303
