@@ -150,10 +150,10 @@ SECTIONS
     _end = .;
     __end = .;
   } >ram AT>rom
-  .heap :
+/*  .heap :
   {
     *(.heap)
-  } >ram
+  } >ram */
   .stack (__cs3_stack - __cs3_stack_size) :
   {
     *(.stack)
