@@ -111,7 +111,7 @@
 #define TIMER1_SETPCLK(clk) TIMER_SETPCLK(TIMER1, clk)
 #define TIMER2_SETPCLK(clk) TIMER_SETPCLK(TIMER2, clk)
 #define TIMER3_SETPCLK(clk) TIMER_SETPCLK(TIMER3, clk)
-#define TIMER_SETPCLK(timer, clk)  TIMER_PCLK_REG(timer) = (TIMER_PCLK_REG(timer) & (~(3U << TIMER_PCLK_OFFSET(timer))) | (clk << TIMER_PCLK_OFFSET(timer)))
+#define TIMER_SETPCLK(timer, clk)  TIMER_PCLK_REG(timer) = ((TIMER_PCLK_REG(timer) & (~(3U << TIMER_PCLK_OFFSET(timer)))) | (clk << TIMER_PCLK_OFFSET(timer)))
 
 // Set Prescale Register
 #define TIMER0_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER0, value)
