@@ -31,8 +31,8 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __MBED_GLOBALS_H__
-#define __MBED_GLOBALS_H__
+#ifndef __SIMPLELIB_MBED_GLOBALS_H__
+#define __SIMPLELIB_MBED_GLOBALS_H__
 
 #include <LPC17xx.h>
 

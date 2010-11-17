@@ -31,8 +31,8 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __SERIAL_H__
-#define __SERIAL_H__
+#ifndef __SIMPLELIB_SERIAL_H__
+#define __SIMPLELIB_SERIAL_H__
 
 #include "mbed_globals.h"
 #include "interrupts.h"

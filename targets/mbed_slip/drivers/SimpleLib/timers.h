@@ -31,8 +31,8 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __TIMERS_H__
-#define __TIMERS_H__
+#ifndef __SIMPLELIB_TIMERS_H__
+#define __SIMPLELIB_TIMERS_H__
 
 #include "mbed_globals.h"
 #include "interrupts.h"
@@ -97,67 +97,69 @@
 
 /** Macros **/
 // Enable TIMERn
-#define TIMER0_INIT() TIMER_INIT(TIMER0);
-#define TIMER1_INIT() TIMER_INIT(TIMER1);
-#define TIMER2_INIT() TIMER_INIT(TIMER2);
-#define TIMER3_INIT() TIMER_INIT(TIMER3);
-#define TIMER_INIT(timer)   SET_BIT_VALUE(LPC_SC->PCONP, TOKENPASTE2(timer,_PCONP_BIT) , 1); /* Enable Timer                */ \
-                            TIMER_BASE(timer)->TCR = 0x2;                                    /* Reset Timer, Table 427 p493 */
+#define TIMER0_INIT() TIMER_INIT(TIMER0)
+#define TIMER1_INIT() TIMER_INIT(TIMER1)
+#define TIMER2_INIT() TIMER_INIT(TIMER2)
+#define TIMER3_INIT() TIMER_INIT(TIMER3)
+#define TIMER_INIT(timer)   do {                                                                                                   \
+                                SET_BIT_VALUE(LPC_SC->PCONP, TOKENPASTE2(timer,_PCONP_BIT) , 1); /* Enable Timer                */ \
+                                TIMER_BASE(timer)->TCR = 0x2;                                    /* Reset Timer, Table 427 p493 */ \
+                            } while(0)
 
 // Set Peripheral Clock
-#define TIMER0_SETPCLK(clk) TIMER_SETPCLK(TIMER0, clk);
-#define TIMER1_SETPCLK(clk) TIMER_SETPCLK(TIMER1, clk);
-#define TIMER2_SETPCLK(clk) TIMER_SETPCLK(TIMER2, clk);
-#define TIMER3_SETPCLK(clk) TIMER_SETPCLK(TIMER3, clk);
+#define TIMER0_SETPCLK(clk) TIMER_SETPCLK(TIMER0, clk)
+#define TIMER1_SETPCLK(clk) TIMER_SETPCLK(TIMER1, clk)
+#define TIMER2_SETPCLK(clk) TIMER_SETPCLK(TIMER2, clk)
+#define TIMER3_SETPCLK(clk) TIMER_SETPCLK(TIMER3, clk)
 #define TIMER_SETPCLK(timer, clk)  TIMER_PCLK_REG(timer) = (TIMER_PCLK_REG(timer) & (~(3U << TIMER_PCLK_OFFSET(timer))) | (clk << TIMER_PCLK_OFFSET(timer)))
 
 // Set Prescale Register
-#define TIMER0_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER0, value);
-#define TIMER1_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER1, value);
-#define TIMER2_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER2, value);
-#define TIMER3_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER3, value);
-#define TIMER_SETPRESCALE(timer, value)  TIMER_BASE(timer)->PR = (value);
+#define TIMER0_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER0, value)
+#define TIMER1_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER1, value)
+#define TIMER2_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER2, value)
+#define TIMER3_SETPRESCALE(value) TIMER_SETPRESCALE(TIMER3, value)
+#define TIMER_SETPRESCALE(timer, value)  TIMER_BASE(timer)->PR = (value)
 
 // Set Match Register (MR0-3, 21.6.7 p496)
-#define TIMER0_SETMATCH(id, value) TIMER_SETMATCH(TIMER0, id, value);
-#define TIMER1_SETMATCH(id, value) TIMER_SETMATCH(TIMER1, id, value);
-#define TIMER2_SETMATCH(id, value) TIMER_SETMATCH(TIMER2, id, value);
-#define TIMER3_SETMATCH(id, value) TIMER_SETMATCH(TIMER3, id, value);
-#define TIMER_SETMATCH(timer, id, value)  TIMER_BASE(timer)->TOKENPASTE2(MR,id) = (value);
+#define TIMER0_SETMATCH(id, value) TIMER_SETMATCH(TIMER0, id, value)
+#define TIMER1_SETMATCH(id, value) TIMER_SETMATCH(TIMER1, id, value)
+#define TIMER2_SETMATCH(id, value) TIMER_SETMATCH(TIMER2, id, value)
+#define TIMER3_SETMATCH(id, value) TIMER_SETMATCH(TIMER3, id, value)
+#define TIMER_SETMATCH(timer, id, value)  TIMER_BASE(timer)->TOKENPASTE2(MR,id) = (value)
 
 // Set Match Control Register (TnMCR, 21.6.8 p496)
-#define TIMER0_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER0, id, value);
-#define TIMER1_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER1, id, value);
-#define TIMER2_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER2, id, value);
-#define TIMER3_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER3, id, value);
-#define TIMER_SETMATCHCONTROL(timer, id, value)  TIMER_BASE(timer)->MCR = (value) << (MR ## id ## _OFFSET);
+#define TIMER0_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER0, id, value)
+#define TIMER1_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER1, id, value)
+#define TIMER2_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER2, id, value)
+#define TIMER3_SETMATCHCONTROL(id, value) TIMER_SETMATCHCONTROL(TIMER3, id, value)
+#define TIMER_SETMATCHCONTROL(timer, id, value)  TIMER_BASE(timer)->MCR = (value) << (MR ## id ## _OFFSET)
 
 // Enable interrupt for TIMERn
-#define TIMER0_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER0);
-#define TIMER1_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER1);
-#define TIMER2_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER2);
-#define TIMER3_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER3);
-#define TIMER_ENABLE_INTERRUPT(timer)  ENABLE_INTERRUPT(TOKENPASTE2(timer,_IRQn));
+#define TIMER0_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER0)
+#define TIMER1_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER1)
+#define TIMER2_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER2)
+#define TIMER3_ENABLE_INTERRUPT() TIMER_ENABLE_INTERRUPT(TIMER3)
+#define TIMER_ENABLE_INTERRUPT(timer)  ENABLE_INTERRUPT(TOKENPASTE2(timer,_IRQn))
 
 // Interrut Register (TnIR, 21.6.1, p493)
-#define TIMER0_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER0, value);
-#define TIMER1_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER1, value);
-#define TIMER2_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER2, value);
-#define TIMER3_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER3, value);
-#define TIMER_CLEAR_INTERRUPT(timer, value)  TIMER_BASE(timer)->IR = (value);
+#define TIMER0_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER0, value)
+#define TIMER1_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER1, value)
+#define TIMER2_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER2, value)
+#define TIMER3_CLEAR_INTERRUPT(value) TIMER_CLEAR_INTERRUPT(TIMER3, value)
+#define TIMER_CLEAR_INTERRUPT(timer, value)  TIMER_BASE(timer)->IR = (value)
 
 // Start Timer
-#define TIMER0_START() TIMER_START(TIMER0);
-#define TIMER1_START() TIMER_START(TIMER1);
-#define TIMER2_START() TIMER_START(TIMER2);
-#define TIMER3_START() TIMER_START(TIMER3);
-#define TIMER_START(timer)  TIMER_BASE(timer)->TCR = 0x1; /* Counter Enable, Table 427 p493*/
+#define TIMER0_START() TIMER_START(TIMER0)
+#define TIMER1_START() TIMER_START(TIMER1)
+#define TIMER2_START() TIMER_START(TIMER2)
+#define TIMER3_START() TIMER_START(TIMER3)
+#define TIMER_START(timer)  TIMER_BASE(timer)->TCR = 0x1 /* Counter Enable, Table 427 p493*/
 
 // Get Timer Value
-#define TIMER0_VALUE() TIMER_VALUE(TIMER0);
-#define TIMER1_VALUE() TIMER_VALUE(TIMER1);
-#define TIMER2_VALUE() TIMER_VALUE(TIMER2);
-#define TIMER3_VALUE() TIMER_VALUE(TIMER3);
+#define TIMER0_VALUE() TIMER_VALUE(TIMER0)
+#define TIMER1_VALUE() TIMER_VALUE(TIMER1)
+#define TIMER2_VALUE() TIMER_VALUE(TIMER2)
+#define TIMER3_VALUE() TIMER_VALUE(TIMER3)
 #define TIMER_VALUE(timer)  (TIMER_BASE(timer)->TC)
 
 #endif

@@ -31,8 +31,8 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __INTERRUPTS_H__
-#define __INTERRUPTS_H__
+#ifndef __SIMPLELIB_INTERRUPTS_H__
+#define __SIMPLELIB_INTERRUPTS_H__
 
 #include "mbed_globals.h"
 

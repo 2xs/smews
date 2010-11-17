@@ -31,8 +31,8 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __LEDS_H__
-#define __LEDS_H__
+#ifndef __SIMPLELIB_LEDS_H__
+#define __SIMPLELIB_LEDS_H__
 
 #include "mbed_globals.h"
 
