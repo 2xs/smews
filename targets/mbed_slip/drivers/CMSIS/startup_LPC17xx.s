@@ -31,7 +31,7 @@ __cs3_stack_mem:
 
 /*
 // <h> Heap Configuration
-//   <o>  Heap Size (in Bytes) <0x0-0xFFFFFFFF:8>
+/    <o>  Heap Size (in Bytes) <0x0-0xFFFFFFFF:8>
 // </h>
 */
 
