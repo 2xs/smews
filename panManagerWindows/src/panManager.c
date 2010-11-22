@@ -39,7 +39,7 @@
 #define DEV_MTU 1500
 #define IP_FROM "192.168.2.1"
 #define IP_TO   "192.168.2.2"
-#define COM_PORT "COM6"
+#define COM_PORT "\\\\.\\COM6"
 
 /* SLIP special bytes */
 #define SLIP_END             0xC0    /* indicates end of packet */
@@ -58,6 +58,12 @@ DWORD WINAPI TunReceiveThread(LPVOID lpParam)
 	commHandles * handles = (commHandles*) lpParam;
 	unsigned char packet[DEV_MTU];
 	unsigned char packetSlip[DEV_MTU*2];
+	int iRet;
+
+	// Create TX event
+	OVERLAPPED ov;
+	memset(&ov,0,sizeof(ov));
+	ov.hEvent = CreateEvent(0,0,0,0);
 
 	while(1)
 	{
@@ -96,48 +102,47 @@ DWORD WINAPI TunReceiveThread(LPVOID lpParam)
 
 		// Write packet to serial
 		nbBytesToSerial = pPacket-packetSlip;
-		WriteFile(handles->serial, packetSlip, nbBytesToSerial, &nbBytesWrittenToSerial, NULL);
+		iRet = WriteFile(handles->serial, packetSlip, nbBytesToSerial, &nbBytesWrittenToSerial, &ov);
+		if ( iRet == 0 )
+		{
+			WaitForSingleObject(ov.hEvent ,INFINITE);
+		}
 
 		#ifdef _DEBUG
 				printf("Written %d bytes to serial\n", nbBytesToSerial);
 		#endif
-
-		if(nbBytesToSerial != nbBytesWrittenToSerial)
-		{
-			char lastError[1024];
-			FormatMessage(
-				FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-				NULL,
-				GetLastError(),
-				MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-				lastError,
-				1024,
-				NULL);
-			printf("Error on serial write : %s", lastError);
-		}
 	}
 }
 
 /* Serial receive Thread */
 DWORD WINAPI SerialReceiveThread(LPVOID lpParam)
 {
+    enum slip_state_e {slip_in,slip_escaped};
+
 	commHandles * handles = (commHandles*) lpParam;
 	unsigned char packet[DEV_MTU];
 	unsigned int packetLength = 0;
 	unsigned int ended = 0;
-    enum slip_state_e {slip_in,slip_escaped};
-    /* current slip state */
     volatile enum slip_state_e slip_state = slip_in;
+
+	// Create RX Event
+	DWORD dwEventMask = 0;
+	OVERLAPPED ov;
+	memset(&ov, 0, sizeof(ov));
+	ov.hEvent = CreateEvent(0, 0, 0, 0);
 
 	while(1)
 	{
 		unsigned char c;
 		DWORD len;
-		unsigned int isChar = 1;
-		unsigned int r;
-		r = ReadFile(handles->serial, &c, 1, &len, NULL);
-		if(len)
+
+		// Wait RX Event
+		WaitCommEvent(handles->serial, &dwEventMask, &ov);
+		WaitForSingleObject(ov.hEvent, INFINITE);
+
+		while(ReadFile(handles->serial, &c, 1, &len, &ov), len > 0)
 		{
+			unsigned int isChar = 1;
 			switch(c)
 			{
 			  case SLIP_END:
@@ -206,7 +211,7 @@ int main(int argc, char * argv[])
 		printf("Tun OK, remote ip = %s, MTU = %d\n", IP_TO, DEV_MTU);
 
 	// Open Serial interface
-	serialInterface = CreateFile(COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+	serialInterface = CreateFile(COM_PORT, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 	if(serialInterface != INVALID_HANDLE_VALUE)
 		printf("Serial OK : %s\n", COM_PORT);
 	else
@@ -234,9 +239,11 @@ int main(int argc, char * argv[])
 	serialState.Parity = NOPARITY;
 	serialState.StopBits = ONESTOPBIT;
 	SetCommState(serialInterface, &serialState);
+	SetCommMask(serialInterface, EV_RXCHAR | EV_TXEMPTY);
 
 	handles.pTun = &tunInterface;
 	handles.serial = serialInterface;
+
 	// Spawn Tun receive thread
 	tunReceiveThreadID = CreateThread(NULL, 0, TunReceiveThread, &handles, 0, NULL);
 
