@@ -43,7 +43,3 @@ env.Replace(AS = 'as')
 env.Replace(AR = 'ar')
 env.Replace(RANLIB = 'ranlib')
 env.Append(CCFLAGS = '-fno-strict-aliasing')
-if platform.machine() == 'x86_64':
-	env.Append(CCFLAGS = '-m32')
-	env.Append(LINKFLAGS = '-m32')
-

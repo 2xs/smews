@@ -115,6 +115,35 @@ extern fd_set fdset;
 
 #define USE_FRAME_POINTER
 
+#ifdef __x86_64__
+
+#define BACKUP_CTX(sp) \
+	asm ("mov %%rsp, %0" : "=r"((sp)[0])); \
+	asm ("mov %%rbp, %0" : "=r"((sp)[1])); \
+		
+#define RESTORE_CTX(sp) \
+	asm ("mov %0, %%rsp" :: "r"((sp)[0])); \
+	asm ("mov %0, %%rbp" :: "r"((sp)[1])); \
+
+
+#define PUSHREGS asm( \
+	"push	%rbx\n" \
+	"push	%r12\n" \
+	"push	%r13\n" \
+	"push	%r14\n" \
+	"push	%r15\n" \
+); \
+
+#define POPREGS asm( \
+	"pop	%r15\n" \
+	"pop	%r14\n" \
+	"pop	%r13\n" \
+	"pop	%r12\n" \
+	"pop	%rbx\n" \
+); \
+
+#else
+
 #define BACKUP_CTX(sp) \
 	asm ("movl %%esp, %0" : "=r"((sp)[0])); \
 	asm ("movl %%ebp, %0" : "=r"((sp)[1])); \
@@ -135,6 +164,8 @@ extern fd_set fdset;
 	"popl	%esi\n" \
 	"popl	%edi\n" \
 ); \
+
+#endif
 
 /* Smews configuration */
 
