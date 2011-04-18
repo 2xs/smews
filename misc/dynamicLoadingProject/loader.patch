@@ -1,0 +1,2571 @@
+diff -rupN smews-1.5.0-original//core/loader/elfloader-arch.h smews-1.5.0/core/loader/elfloader-arch.h
+--- smews-1.5.0-original//core/loader/elfloader-arch.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/elfloader-arch.h	2011-01-27 15:15:00.000000000 +0100
+@@ -0,0 +1,140 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: elfloader-arch.h,v 1.4 2007/03/24 15:21:34 oliverschmidt Exp $
++ */
++/**
++ * \addtogroup elfloader
++ * @{
++ */
++
++/**
++ * \defgroup elfloaderarch Architecture specific functionality for the ELF loader.
++ *
++ * The architecture specific functionality for the Contiki ELF loader
++ * has to be implemented for each processor type Contiki runs on.
++ *
++ * Since the ELF format is slightly different for different processor
++ * types, the Contiki ELF loader is divided into two parts: the
++ * generic ELF loader module (\ref elfloader) and the architecture
++ * specific part (this module). The architecture specific part deals
++ * with memory allocation, code and data relocation, and writing the
++ * relocated ELF code into program memory.
++ *
++ * To port the Contiki ELF loader to a new processor type, this module
++ * has to be implemented for the new processor type.
++ *
++ * @{
++ */
++
++/**
++ * \file
++ *         Header file for the architecture specific parts of the Contiki ELF loader.
++ *
++ * \author
++ *         Adam Dunkels <adam@sics.se>
++ *
++ */
++
++#ifndef __ELFLOADER_ARCH_H__
++#define __ELFLOADER_ARCH_H__
++
++#include "loader/elfloader.h"
++
++/**
++ * \brief      Allocate RAM for a new module.
++ * \param size The size of the requested memory.
++ * \return     A pointer to the allocated RAM
++ *
++ *             This function is called from the Contiki ELF loader to
++ *             allocate RAM for the module to be loaded into.
++ *
++ * \bug        The Contiki ELF loader currently does not contain a
++ *             mechanism for deallocating the memory allocated with
++ *             this function.
++ */
++void *elfloader_arch_allocate_ram(int size);
++
++/**
++ * \brief      Allocate program memory for a new module.
++ * \param size The size of the requested memory.
++ * \return     A pointer to the allocated program memory
++ *
++ *             This function is called from the Contiki ELF loader to
++ *             allocate program memory (typically ROM) for the module
++ *             to be loaded into.
++ *
++ * \bug        The Contiki ELF loader currently does not contain a
++ *             mechanism for deallocating the memory allocated with
++ *             this function.
++ */
++void *elfloader_arch_allocate_rom(int size);
++
++/**
++ * \brief      Perform a relocation.
++ * \param fd   The file descriptor for the ELF file.
++ * \param sectionoffset The file offset at which the relocation can be found.
++ * \param sectionaddr The section start address (absolute runtime).
++ * \param rela A pointer to an ELF32 rela structure (struct elf32_rela).
++ * \param addr The relocated address.
++ *
++ *             This function is called from the Contiki ELF loader to
++ *             perform a relocation on a piece of code or data. The
++ *             relocated address is calculated by the Contiki ELF
++ *             loader, based on information in the ELF file, and it is
++ *             the responsibility of this function to patch the
++ *             executable code. The Contiki ELF loader passes a
++ *             pointer to an ELF32 rela structure (struct elf32_rela)
++ *             that contains information about how to patch the
++ *             code. This information is different from processor to
++ *             processor.
++ */
++void elfloader_arch_relocate(char *fd, unsigned int sectionoffset,
++			     char *sectionaddr,
++			     struct elf32_rela *rela, char *addr);
++
++/**
++ * \brief      Write to read-only memory (for example the text segment).
++ * \param fd   The file descriptor for the ELF file.
++ * \param textoff	Offset of text segment relative start of file.
++ * \param size The size of the text segment.
++ * \param mem  A pointer to the where the text segment should be flashed
++ *
++ *             This function is called from the Contiki ELF loader to
++ *             write the program code (text segment) of a loaded
++ *             module into memory. The function is called when all
++ *             relocations have been performed.
++ */
++void elfloader_arch_write_rom(char *fd, unsigned short textoff, unsigned int size, char *mem);
++
++#endif /* __ELFLOADER_ARCH_H__ */
++
++/** @} */
++/** @} */
+diff -rupN smews-1.5.0-original//core/loader/elfloader.c smews-1.5.0/core/loader/elfloader.c
+--- smews-1.5.0-original//core/loader/elfloader.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/elfloader.c	2011-03-23 14:19:40.000000000 +0100
+@@ -0,0 +1,599 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: elfloader.c,v 1.10 2009/02/27 14:28:02 nvt-se Exp $
++ * 
++ * Modified by Alexandre Nguyen, Clement Botquin
++ */
++
++#include "smews.h"
++
++#include "loader/elfloader.h"
++#include "loader/elfloader-arch.h"
++
++#include "loader/symtab.h"
++
++#include <stddef.h>
++#include <string.h>
++#include <stdio.h>
++
++#define DEBUG 1
++#if DEBUG
++#include <stdio.h>
++#define PRINTF(...) printf(__VA_ARGS__)
++#else
++#define PRINTF(...) do {} while (0)
++#endif
++
++#define EI_NIDENT 16
++
++
++struct elf32_ehdr {
++  unsigned char e_ident[EI_NIDENT];    /* ident bytes */
++  elf32_half e_type;                   /* file type */
++  elf32_half e_machine;                /* target machine */
++  elf32_word e_version;                /* file version */
++  elf32_addr e_entry;                  /* start address */
++  elf32_off e_phoff;                   /* phdr file offset */
++  elf32_off e_shoff;                   /* shdr file offset */
++  elf32_word e_flags;                  /* file flags */
++  elf32_half e_ehsize;                 /* sizeof ehdr */
++  elf32_half e_phentsize;              /* sizeof phdr */
++  elf32_half e_phnum;                  /* number phdrs */
++  elf32_half e_shentsize;              /* sizeof shdr */
++  elf32_half e_shnum;                  /* number shdrs */
++  elf32_half e_shstrndx;               /* shdr string index */
++};
++
++/* Values for e_type. */
++#define ET_NONE         0       /* Unknown type. */
++#define ET_REL          1       /* Relocatable. */
++#define ET_EXEC         2       /* Executable. */
++#define ET_DYN          3       /* Shared object. */
++#define ET_CORE         4       /* Core file. */
++
++struct elf32_shdr {
++  elf32_word sh_name; 		/* section name */
++  elf32_word sh_type; 		/* SHT_... */
++  elf32_word sh_flags; 	        /* SHF_... */
++  elf32_addr sh_addr; 		/* virtual address */
++  elf32_off sh_offset; 	        /* file offset */
++  elf32_word sh_size; 		/* section size */
++  elf32_word sh_link; 		/* misc info */
++  elf32_word sh_info; 		/* misc info */
++  elf32_word sh_addralign; 	/* memory alignment */
++  elf32_word sh_entsize; 	/* entry size if table */
++};
++
++/* sh_type */
++#define SHT_NULL        0               /* inactive */
++#define SHT_PROGBITS    1               /* program defined information */
++#define SHT_SYMTAB      2               /* symbol table section */
++#define SHT_STRTAB      3               /* string table section */
++#define SHT_RELA        4               /* relocation section with addends*/
++#define SHT_HASH        5               /* symbol hash table section */
++#define SHT_DYNAMIC     6               /* dynamic section */
++#define SHT_NOTE        7               /* note section */
++#define SHT_NOBITS      8               /* no space section */
++#define SHT_REL         9               /* relation section without addends */
++#define SHT_SHLIB       10              /* reserved - purpose unknown */
++#define SHT_DYNSYM      11              /* dynamic symbol table section */
++#define SHT_LOPROC      0x70000000      /* reserved range for processor */
++#define SHT_HIPROC      0x7fffffff      /* specific section header types */
++#define SHT_LOUSER      0x80000000      /* reserved range for application */
++#define SHT_HIUSER      0xffffffff      /* specific indexes */
++
++struct elf32_rel {
++  elf32_addr      r_offset;       /* Location to be relocated. */
++  elf32_word      r_info;         /* Relocation type and symbol index. */
++};
++
++struct elf32_sym {
++  elf32_word      st_name;        /* String table index of name. */
++  elf32_addr      st_value;       /* Symbol value. */
++  elf32_word      st_size;        /* Size of associated object. */
++  unsigned char   st_info;        /* Type and binding information. */
++  unsigned char   st_other;       /* Reserved (not used). */
++  elf32_half      st_shndx;       /* Section index of symbol. */
++};
++
++#define ELF32_R_SYM(info)       ((info) >> 8)
++#define ELF32_R_TYPE(info)      ((unsigned char)(info))
++
++struct relevant_section {
++  unsigned char number;
++  unsigned int offset;
++  char *address;
++};
++
++char elfloader_unknown[30];	/* Name that caused link error. */
++
++struct process * const * elfloader_autostart_processes;
++
++static struct relevant_section bss, data, rodata, text;
++
++static const unsigned char elf_magic_header[] =
++  {0x7f, 0x45, 0x4c, 0x46,  /* 0x7f, 'E', 'L', 'F' */
++   0x01,                    /* Only 32-bit objects. */
++   0x01,                    /* Only LSB data. */
++   0x01,                    /* Only ELF version 1. */
++  };
++
++/*---------------------------------------------------------------------------*/
++static void
++/*seek_read(int fd, unsigned int offset, char *buf, int len)*/
++seek_read(char* ptr , unsigned int offset, char *buf, int len)
++{
++  memcpy(buf,&ptr[offset],len);
++#if DEBUG
++  {
++    int i;
++    PRINTF("seek_read: Read len %d from offset %d\n",
++	   len, offset);
++    for(i = 0; i < len; ++i ) {
++      PRINTF("%02x ", buf[i]);
++    }
++    printf("\n");
++  }
++#endif /* DEBUG */
++}
++/*---------------------------------------------------------------------------*/
++/*
++static void
++seek_write(int fd, unsigned int offset, char *buf, int len)
++{
++  cfs_seek(fd, offset, CFS_SEEK_SET);
++  cfs_write(fd, buf, len);
++}
++*/
++/*---------------------------------------------------------------------------*/
++static void *
++find_local_symbol(char *fd, const char *symbol,
++		  unsigned int symtab, unsigned short symtabsize,
++		  unsigned int strtab)
++{
++  struct elf32_sym s;
++  unsigned int a;
++  char name[30];
++  struct relevant_section *sect;
++  
++  for(a = symtab; a < symtab + symtabsize; a += sizeof(s)) {
++    seek_read(fd, a, (char *)&s, sizeof(s));
++
++    if(s.st_name != 0) {
++      seek_read(fd, strtab + s.st_name, name, sizeof(name));
++      if(strcmp(name, symbol) == 0) {
++	if(s.st_shndx == bss.number) {
++	  sect = &bss;
++	} else if(s.st_shndx == data.number) {
++	  sect = &data;
++	} else if(s.st_shndx == text.number) {
++	  sect = &text;
++	} else {
++	  return NULL;
++	}
++	return &(sect->address[s.st_value]);
++      }
++    }
++  }
++  return NULL;
++}
++/*---------------------------------------------------------------------------*/
++static int
++relocate_section(char *fd,
++		 unsigned int section, unsigned short size,
++		 unsigned int sectionaddr,
++		 char *sectionbase,
++		 unsigned int strs,
++		 unsigned int strtab,
++		 unsigned int symtab, unsigned short symtabsize,
++		 unsigned char using_relas)
++{
++  /* sectionbase added; runtime start address of current section */
++  struct elf32_rela rela; /* Now used both for rel and rela data! */
++  int rel_size = 0;
++  struct elf32_sym s;
++  unsigned int a;
++  char name[30];
++  char *addr;
++  struct relevant_section *sect;
++
++  /* determine correct relocation entry sizes */
++  if(using_relas) {
++    rel_size = sizeof(struct elf32_rela);
++  } else {
++    rel_size = sizeof(struct elf32_rel);
++  }
++  
++  for(a = section; a < section + size; a += rel_size) {
++    seek_read(fd, a, (char *)&rela, rel_size);
++    seek_read(fd,
++	      symtab + sizeof(struct elf32_sym) * ELF32_R_SYM(rela.r_info),
++	      (char *)&s, sizeof(s));
++    if(s.st_name != 0) {
++      seek_read(fd, strtab + s.st_name, name, sizeof(name));
++      PRINTF("name: %s\n", name);
++      addr = (char *)symtab_lookup(name);
++      /* ADDED */
++      if(addr == NULL) {
++	PRINTF("name not found in global: %s\n", name);
++	addr = find_local_symbol(fd, name, symtab, symtabsize, strtab);
++	PRINTF("found address %p\n", addr);
++      }
++      if(addr == NULL) {
++	if(s.st_shndx == bss.number) {
++	  sect = &bss;
++	} else if(s.st_shndx == data.number) {
++	  sect = &data;
++	} else if(s.st_shndx == rodata.number) {
++	  sect = &rodata;
++	} else if(s.st_shndx == text.number) {
++	  sect = &text;
++	} else {
++	  PRINTF("elfloader unknown name: '%30s'\n", name);
++	  PRINTF(">>> %s\n",name);
++	  memcpy(elfloader_unknown, name, sizeof(elfloader_unknown));
++	  elfloader_unknown[sizeof(elfloader_unknown) - 1] = 0;
++	  return ELFLOADER_SYMBOL_NOT_FOUND;
++	}
++	addr = sect->address;
++      }
++    } else {
++      if(s.st_shndx == bss.number) {
++	sect = &bss;
++      } else if(s.st_shndx == data.number) {
++	sect = &data;
++      } else if(s.st_shndx == rodata.number) {
++	sect = &rodata;
++      } else if(s.st_shndx == text.number) {
++	sect = &text;
++      } else {
++	return ELFLOADER_SEGMENT_NOT_FOUND;
++      }
++      
++      addr = sect->address;
++    }
++
++    if(!using_relas) {
++      /* copy addend to rela structure */
++      seek_read(fd, sectionaddr + rela.r_offset, (char *)&rela.r_addend, 4);
++    }
++
++    elfloader_arch_relocate(fd, sectionaddr, sectionbase, &rela, addr);
++  }
++  return ELFLOADER_OK;
++}
++/*---------------------------------------------------------------------------*/
++static void *
++find_program_processes(char *fd,
++		       unsigned int symtab, unsigned short size,
++		       unsigned int strtab)
++{
++  struct elf32_sym s;
++  unsigned int a;
++  char name[30];
++  
++  for(a = symtab; a < symtab + size; a += sizeof(s)) {
++    seek_read(fd, a, (char *)&s, sizeof(s));
++
++    if(s.st_name != 0) {
++      seek_read(fd, strtab + s.st_name, name, sizeof(name));
++      if(strcmp(name, "autostart_processes") == 0) {
++	return &data.address[s.st_value];
++      }
++    }
++  }
++  return NULL;
++/*   return find_local_symbol(fd, "autostart_processes", symtab, size, strtab); */
++}
++/*---------------------------------------------------------------------------*/
++void
++elfloader_init(void)
++{
++  elfloader_autostart_processes = NULL;
++}
++/*---------------------------------------------------------------------------*/
++#if 0
++static void
++print_chars(unsigned char *ptr, int num)
++{
++  int i;
++  for(i = 0; i < num; ++i) {
++    PRINTF("%d", ptr[i]);
++    if(i == num - 1) {
++      PRINTF("\n");
++    } else {
++      PRINTF(", ");
++    }
++  }
++}
++#endif /* 0 */
++/*---------------------------------------------------------------------------*/
++int
++elfloader_load(char *fd)
++{
++  struct elf32_ehdr ehdr;
++  struct elf32_shdr shdr;
++  struct elf32_shdr strtable;
++  unsigned int strs;
++  unsigned int shdrptr;
++  unsigned int nameptr;
++  char name[12];
++  
++  int i;
++  unsigned short shdrnum, shdrsize;
++
++  unsigned char using_relas = -1;
++  unsigned short textoff = 0, textsize, textrelaoff = 0, textrelasize;
++  unsigned short dataoff = 0, datasize, datarelaoff = 0, datarelasize;
++  unsigned short rodataoff = 0, rodatasize, rodatarelaoff = 0, rodatarelasize;
++  unsigned short symtaboff = 0, symtabsize;
++  unsigned short strtaboff = 0, strtabsize;
++  unsigned short bsssize = 0;
++
++  struct process **process;
++  int ret;
++
++  elfloader_unknown[0] = 0;
++
++  /* The ELF header is located at the start of the buffer. */
++  seek_read(fd, 0, (char *)&ehdr, sizeof(ehdr));
++
++  /*  print_chars(ehdr.e_ident, sizeof(elf_magic_header));
++      print_chars(elf_magic_header, sizeof(elf_magic_header));*/
++  /* Make sure that we have a correct and compatible ELF header. */
++  if(memcmp(ehdr.e_ident, elf_magic_header, sizeof(elf_magic_header)) != 0) {
++    PRINTF("ELF header problems\n");
++    return ELFLOADER_BAD_ELF_HEADER;
++  }
++
++  /* Grab the section header. */
++  shdrptr = ehdr.e_shoff;
++  seek_read(fd, shdrptr, (char *)&shdr, sizeof(shdr));
++  
++  /* Get the size and number of entries of the section header. */
++  shdrsize = ehdr.e_shentsize;
++  shdrnum = ehdr.e_shnum;
++
++  PRINTF("Section header: size %d num %d\n", shdrsize, shdrnum);
++  
++  /* The string table section: holds the names of the sections. */
++  seek_read(fd, ehdr.e_shoff + shdrsize * ehdr.e_shstrndx,
++	    (char *)&strtable, sizeof(strtable));
++
++  /* Get a pointer to the actual table of strings. This table holds
++     the names of the sections, not the names of other symbols in the
++     file (these are in the sybtam section). */
++  strs = strtable.sh_offset;
++
++  PRINTF("Strtable offset %d\n", strs);
++  
++  /* Go through all sections and pick out the relevant ones. The
++     ".text" segment holds the actual code from the ELF file, the
++     ".data" segment contains initialized data, the ".bss" segment
++     holds the size of the unitialized data segment. The ".rel[a].text"
++     and ".rel[a].data" segments contains relocation information for the
++     contents of the ".text" and ".data" segments, respectively. The
++     ".symtab" segment contains the symbol table for this file. The
++     ".strtab" segment points to the actual string names used by the
++     symbol table.
++
++     In addition to grabbing pointers to the relevant sections, we
++     also save the section number for resolving addresses in the
++     relocator code.
++  */
++
++
++  /* Initialize the segment sizes to zero so that we can check if
++     their sections was found in the file or not. */
++  textsize = textrelasize = datasize = datarelasize =
++    rodatasize = rodatarelasize = symtabsize = strtabsize = 0;
++
++  bss.number = data.number = rodata.number = text.number = -1;
++		
++  shdrptr = ehdr.e_shoff;
++  for(i = 0; i < shdrnum; ++i) {
++
++    seek_read(fd, shdrptr, (char *)&shdr, sizeof(shdr));
++    
++    /* The name of the section is contained in the strings table. */
++    nameptr = strs + shdr.sh_name;
++    seek_read(fd, nameptr, name, sizeof(name));
++    PRINTF("Section shdrptr 0x%x, %d + %d type %d\n",
++	   shdrptr,
++	   strs, shdr.sh_name,
++	   (int)shdr.sh_type);
++    /* Match the name of the section with a predefined set of names
++       (.text, .data, .bss, .rela.text, .rela.data, .symtab, and
++       .strtab). */
++    /* added support for .rodata, .rel.text and .rel.data). */
++
++    if(shdr.sh_type == SHT_SYMTAB/*strncmp(name, ".symtab", 7) == 0*/) {
++      PRINTF("symtab\n");
++      symtaboff = shdr.sh_offset;
++      symtabsize = shdr.sh_size;
++    } else if(shdr.sh_type == SHT_STRTAB/*strncmp(name, ".strtab", 7) == 0*/) {
++      PRINTF("strtab\n");
++      strtaboff = shdr.sh_offset;
++      strtabsize = shdr.sh_size;
++    } else if(strncmp(name, ".text", 5) == 0) {
++      textoff = shdr.sh_offset;
++      textsize = shdr.sh_size;
++      text.number = i;
++      text.offset = textoff;
++    } else if(strncmp(name, ".rel.text", 9) == 0) {
++      using_relas = 0;
++      textrelaoff = shdr.sh_offset;
++      textrelasize = shdr.sh_size;
++    } else if(strncmp(name, ".rela.text", 10) == 0) {
++      using_relas = 1;
++      textrelaoff = shdr.sh_offset;
++      textrelasize = shdr.sh_size;
++    } else if(strncmp(name, ".data", 5) == 0) {
++      dataoff = shdr.sh_offset;
++      datasize = shdr.sh_size;
++      data.number = i;
++      data.offset = dataoff;
++    } else if(strncmp(name, ".rodata", 7) == 0) {
++      /* read-only data handled the same way as regular text section */
++      rodataoff = shdr.sh_offset;
++      rodatasize = shdr.sh_size;
++      rodata.number = i;
++      rodata.offset = rodataoff;
++    } else if(strncmp(name, ".rel.rodata", 11) == 0) {
++      /* using elf32_rel instead of rela */
++      using_relas = 0;
++      rodatarelaoff = shdr.sh_offset;
++      rodatarelasize = shdr.sh_size;
++    } else if(strncmp(name, ".rela.rodata", 12) == 0) {
++      using_relas = 1;
++      rodatarelaoff = shdr.sh_offset;
++      rodatarelasize = shdr.sh_size;
++    } else if(strncmp(name, ".rel.data", 9) == 0) {
++      /* using elf32_rel instead of rela */
++      using_relas = 0;
++      datarelaoff = shdr.sh_offset;
++      datarelasize = shdr.sh_size;
++    } else if(strncmp(name, ".rela.data", 10) == 0) {
++      using_relas = 1;
++      datarelaoff = shdr.sh_offset;
++      datarelasize = shdr.sh_size;
++    } else if(strncmp(name, ".bss", 4) == 0) {
++      bsssize = shdr.sh_size;
++      bss.number = i;
++      bss.offset = 0;
++    }
++
++    /* Move on to the next section header. */
++    shdrptr += shdrsize;
++  }
++
++  if(symtabsize == 0) {
++    return ELFLOADER_NO_SYMTAB;
++  }
++  if(strtabsize == 0) {
++    return ELFLOADER_NO_STRTAB;
++  }
++  if(textsize == 0) {
++    return ELFLOADER_NO_TEXT;
++  }
++
++  PRINTF("before allocate ram\n");
++  bss.address = (char *)elfloader_arch_allocate_ram(bsssize + datasize);
++  data.address = (char *)bss.address + bsssize;
++  PRINTF("before allocate rom\n");
++  text.address = (char *)elfloader_arch_allocate_rom(textsize + rodatasize);
++  rodata.address = (char *)text.address + textsize;
++  
++
++  PRINTF("bss base address: bss.address = 0x%08x\n", bss.address);
++  PRINTF("data base address: data.address = 0x%08x\n", data.address);
++  PRINTF("text base address: text.address = 0x%08x\n", text.address);
++  PRINTF("rodata base address: rodata.address = 0x%08x\n", rodata.address);
++
++
++  /* If we have text segment relocations, we process them. */
++  PRINTF("elfloader: relocate text\n");
++  if(textrelasize > 0) {
++	    ret = relocate_section(fd,
++			   textrelaoff, textrelasize,
++			   textoff,
++			   text.address,
++			   strs,
++			   strtaboff,
++			   symtaboff, symtabsize, using_relas);
++    if(ret != ELFLOADER_OK) {
++      return ret;
++    }
++  }
++
++  /* If we have any rodata segment relocations, we process them too. */
++  PRINTF("elfloader: relocate rodata\n");
++  if(rodatarelasize > 0) {
++    ret = relocate_section(fd,
++			   rodatarelaoff, rodatarelasize,
++			   rodataoff,
++			   rodata.address,
++			   strs,
++			   strtaboff,
++			   symtaboff, symtabsize, using_relas);
++    if(ret != ELFLOADER_OK) {
++      PRINTF("elfloader: data failed\n");
++      return ret;
++    }
++  }
++
++  /* If we have any data segment relocations, we process them too. */
++  PRINTF("elfloader: relocate data\n");
++  if(datarelasize > 0) {
++    ret = relocate_section(fd,
++			   datarelaoff, datarelasize,
++			   dataoff,
++			   data.address,
++			   strs,
++			   strtaboff,
++			   symtaboff, symtabsize, using_relas);
++    if(ret != ELFLOADER_OK) {
++      PRINTF("elfloader: data failed\n");
++      return ret;
++    }
++  }
++
++  /* Write text and rodata segment into flash and data segment into RAM. */
++  elfloader_arch_write_rom(fd, textoff, textsize, text.address);
++  elfloader_arch_write_rom(fd, rodataoff, rodatasize, rodata.address);
++  
++  memset(bss.address, 0, bsssize);
++  seek_read(fd, dataoff, data.address, datasize);
++
++  PRINTF("elfloader: autostart search\n");
++  process = (struct process **) find_local_symbol(fd,/*autostart_processes*/"main", symtaboff, symtabsize, strtaboff);
++  if(process != NULL) {
++    PRINTF("elfloader: autostart found\n");
++    elfloader_autostart_processes = process;
++
++//TODO need to define a protocol for calling dynamically loaded apps eg: which function to call, etc
++	void (*test) (void) = find_local_symbol(fd,"main", symtaboff, symtabsize, strtaboff);
++	test();
++
++
++//process_start(process, NULL);
++
++    return ELFLOADER_OK;
++  } else {
++    PRINTF("elfloader: no autostart\n");
++    process = (struct process **) find_program_processes(fd, symtaboff, symtabsize, strtaboff);
++    if(process != NULL) {
++      PRINTF("elfloader: FOUND PRG\n");
++    }
++    return ELFLOADER_NO_STARTPOINT;
++  }
++}
++/*---------------------------------------------------------------------------*/
+diff -rupN smews-1.5.0-original//core/loader/elfloader.h smews-1.5.0/core/loader/elfloader.h
+--- smews-1.5.0-original//core/loader/elfloader.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/elfloader.h	2011-01-27 14:59:52.000000000 +0100
+@@ -0,0 +1,191 @@
++/**
++ * \addtogroup loader
++ * @{
++ */
++
++/**
++ * \defgroup elfloader The Contiki ELF loader
++ *
++ * The Contiki ELF loader links, relocates, and loads ELF
++ * (Executable Linkable Format) object files into a running Contiki
++ * system.
++ *
++ * ELF is a standard format for relocatable object code and executable
++ * files. ELF is the standard program format for Linux, Solaris, and
++ * other operating systems.
++ *
++ * An ELF file contains either a standalone executable program or a
++ * program module. The file contains both the program code, the
++ * program data, as well as information about how to link, relocate,
++ * and load the program into a running system.
++ *
++ * The ELF file is composed of a set of sections. The sections contain
++ * program code, data, or relocation information, but can also contain
++ * debugging information.
++ *
++ * To link and relocate an ELF file, the Contiki ELF loader first
++ * parses the ELF file structure to find the appropriate ELF
++ * sections. It then allocates memory for the program code and data in
++ * ROM and RAM, respectively. After allocating memory, the Contiki ELF
++ * loader starts relocating the code found in the ELF file.
++ *
++ * @{
++ */
++
++/**
++ * \file
++ *         Header file for the Contiki ELF loader.
++ * \author
++ *         Adam Dunkels <adam@sics.se>
++ *
++ */
++
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: elfloader.h,v 1.3 2008/01/24 13:09:33 adamdunkels Exp $
++ *	
++ * Modified by Alexandre Nguyen et Clement Botquin
++ */
++#ifndef __ELFLOADER_H__
++#define __ELFLOADER_H__
++
++
++/**
++ * Return value from elfloader_load() indicating that loading worked.
++ */
++#define ELFLOADER_OK                  0
++/**
++ * Return value from elfloader_load() indicating that the ELF file had
++ * a bad header.
++ */
++#define ELFLOADER_BAD_ELF_HEADER      1
++/**
++ * Return value from elfloader_load() indicating that no symbol table
++ * could be find in the ELF file.
++ */
++#define ELFLOADER_NO_SYMTAB           2
++/**
++ * Return value from elfloader_load() indicating that no string table
++ * could be find in the ELF file.
++ */
++#define ELFLOADER_NO_STRTAB           3
++/**
++ * Return value from elfloader_load() indicating that the size of the
++ * .text segment was zero.
++ */
++#define ELFLOADER_NO_TEXT             4
++/**
++ * Return value from elfloader_load() indicating that a symbol
++ * specific symbol could not be found.
++ *
++ * If this value is returned from elfloader_load(), the symbol has
++ * been copied into the elfloader_unknown[] array.
++ */
++#define ELFLOADER_SYMBOL_NOT_FOUND    5
++/**
++ * Return value from elfloader_load() indicating that one of the
++ * required segments (.data, .bss, or .text) could not be found.
++ */
++#define ELFLOADER_SEGMENT_NOT_FOUND   6
++/**
++ * Return value from elfloader_load() indicating that no starting
++ * point could be found in the loaded module.
++ */
++#define ELFLOADER_NO_STARTPOINT       7
++
++/**
++ * elfloader initialization function.
++ *
++ * This function should be called at boot up to initilize the elfloader.
++ */
++void elfloader_init(void);
++
++/**
++ * \brief      Load and relocate an ELF file.
++ * \param fd   An open CFS file descriptor.
++ * \return     ELFLOADER_OK if loading and relocation worked.
++ *             Otherwise an error value.
++ *
++ *             This function loads and relocates an ELF file. The ELF
++ *             file must have been opened with cfs_open() prior to
++ *             calling this function.
++ *
++ *             If the function is able to load the ELF file, a pointer
++ *             to the process structure in the model is stored in the
++ *             elfloader_loaded_process variable.
++ *
++ * \note       This function modifies the ELF file opened with cfs_open()!
++ *             If the contents of the file is required to be intact,
++ *             the file must be backed up first.
++ *
++ */
++int elfloader_load(char *fd);
++
++/**
++ * A pointer to the processes loaded with elfloader_load().
++ */
++extern struct process * const * elfloader_autostart_processes;
++
++/**
++ * If elfloader_load() could not find a specific symbol, it is copied
++ * into this array.
++ */
++extern char elfloader_unknown[30];
++
++#ifdef ELFLOADER_CONF_DATAMEMORY_SIZE
++#define ELFLOADER_DATAMEMORY_SIZE ELFLOADER_CONF_DATAMEMORY_SIZE
++#else
++#define ELFLOADER_DATAMEMORY_SIZE 0x100
++#endif
++
++#ifdef ELFLOADER_CONF_TEXTMEMORY_SIZE
++#define ELFLOADER_TEXTMEMORY_SIZE ELFLOADER_CONF_TEXTMEMORY_SIZE
++#else
++#define ELFLOADER_TEXTMEMORY_SIZE 0x100
++#endif
++
++typedef unsigned long  elf32_word;
++typedef   signed long  elf32_sword;
++typedef unsigned short elf32_half;
++typedef unsigned long  elf32_off;
++typedef unsigned long  elf32_addr;
++
++struct elf32_rela {
++  elf32_addr      r_offset;       /* Location to be relocated. */
++  elf32_word      r_info;         /* Relocation type and symbol index. */
++  elf32_sword     r_addend;       /* Addend. */
++};
++
++
++#endif /* __ELFLOADER_H__ */
++
++/** @} */
++/** @} */
+diff -rupN smews-1.5.0-original//core/loader/symbols-def.h smews-1.5.0/core/loader/symbols-def.h
+--- smews-1.5.0-original//core/loader/symbols-def.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/symbols-def.h	2011-01-27 12:42:22.000000000 +0100
+@@ -0,0 +1,45 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved. 
++ *
++ * Redistribution and use in source and binary forms, with or without 
++ * modification, are permitted provided that the following conditions 
++ * are met: 
++ * 1. Redistributions of source code must retain the above copyright 
++ *    notice, this list of conditions and the following disclaimer. 
++ * 2. Redistributions in binary form must reproduce the above copyright 
++ *    notice, this list of conditions and the following disclaimer in the 
++ *    documentation and/or other materials provided with the distribution. 
++ * 3. Neither the name of the Institute nor the names of its contributors 
++ *    may be used to endorse or promote products derived from this software 
++ *    without specific prior written permission. 
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
++ * SUCH DAMAGE. 
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: symbols-def.h,v 1.3 2007/01/12 13:55:04 bg- Exp $
++ */
++#ifndef __SYMBOLS_DEF_H__
++#define __SYMBOLS_DEF_H__
++
++struct symbols {
++  const char *name;
++  void *value;
++};
++
++extern const int symbols_nelts;
++
++extern const struct symbols symbols[/* symbols_nelts */];
++
++#endif /* __SYMBOLS_DEF_H__ */
+diff -rupN smews-1.5.0-original//core/loader/symbols.h smews-1.5.0/core/loader/symbols.h
+--- smews-1.5.0-original//core/loader/symbols.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/symbols.h	2011-02-17 15:17:32.000000000 +0100
+@@ -0,0 +1,45 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: symbols.h,v 1.5 2007/01/30 18:04:59 bg- Exp $
++ */
++#ifndef __SYMBOLS_H__
++#define __SYMBOLS_H__
++
++struct symbols {
++  const char *name;
++  void *value;
++};
++
++extern const int symbols_nelts;
++
++extern const struct symbols symbols[/* symbols_nelts */];
++
++#endif /* __SYMBOLS_H__ */
+diff -rupN smews-1.5.0-original//core/loader/symtab.c smews-1.5.0/core/loader/symtab.c
+--- smews-1.5.0-original//core/loader/symtab.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/symtab.c	2011-02-18 09:52:34.000000000 +0100
+@@ -0,0 +1,83 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: symtab.c,v 1.7 2007/01/24 16:13:50 adamdunkels Exp $
++ */
++
++#include "symtab.h"
++
++#include "symbols.h"
++
++#include <string.h>
++
++/* Binary search is twice as large but still small. */
++#ifndef SYMTAB_CONF_BINARY_SEARCH
++#define SYMTAB_CONF_BINARY_SEARCH 1
++#endif
++
++/*---------------------------------------------------------------------------*/
++#if SYMTAB_CONF_BINARY_SEARCH
++void *
++symtab_lookup(const char *name)
++{
++  int start, middle, end;
++  int r;
++  
++  start = 0;
++  end = symbols_nelts - 1;	/* Last entry is { 0, 0 }. */
++
++  while(start <= end) {
++    /* Check middle, divide */
++    middle = (start + end) / 2;
++    r = strcmp(name, symbols[middle].name);
++    if(r < 0) {
++      end = middle - 1;
++    } else if(r > 0) {
++      start = middle + 1;
++    } else {
++      return symbols[middle].value;   
++    }
++  }
++  return NULL;
++}
++#else /* SYMTAB_CONF_BINARY_SEARCH */
++void *
++symtab_lookup(const char *name)
++{
++  const struct symbols *s;
++  for(s = symbols; s->name != NULL; ++s) {
++    if(strcmp(name, s->name) == 0) {
++      return s->value;
++    }
++  }
++  return 0;
++}
++#endif /* SYMTAB_CONF_BINARY_SEARCH */
++/*---------------------------------------------------------------------------*/
+diff -rupN smews-1.5.0-original//core/loader/symtab.h smews-1.5.0/core/loader/symtab.h
+--- smews-1.5.0-original//core/loader/symtab.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/core/loader/symtab.h	2011-02-17 15:16:34.000000000 +0100
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: symtab.h,v 1.4 2007/01/12 13:55:05 bg- Exp $
++ */
++#ifndef __SYMTAB_H__
++#define __SYMTAB_H__
++
++void *symtab_lookup(const char *name);
++
++#endif /* __SYMTAB_H__ */
+diff -rupN smews-1.5.0-original//core/main.c smews-1.5.0/core/main.c
+--- smews-1.5.0-original//core/main.c	2010-06-22 16:11:34.000000000 +0200
++++ smews-1.5.0/core/main.c	2011-03-30 12:40:39.000000000 +0200
+@@ -38,9 +38,73 @@ main function can be linked with libsmew
+ party software. */
+ 
+ #include "smews.h"
++#include "hello.h"
++#include "loader/elfloader.h"
++
++/*
++#define DEBUG 1
++#if DEBUG
++#include <stdio.h>
++#define PRINTF(...) printf(__VA_ARGS__)
++#else
++#define PRINTF(...) do {} while (0)
++#endif
++
++void hello_smews(void){
++
++PRINTF("Hello from smews");
++//printf("hello from smews");
++//exit(9);
++
++}
++*/
+ 
+ /*-----------------------------------------------------------------------------------*/
+ int main(void) {
++/*
++    int ret;
++    char *print, *symbol;
++
++	elfloader_init();
++	ret = elfloader_load(smews_to_load);
++
++	switch(ret) {
++	case ELFLOADER_OK:
++	
++	print = "OK";
++	break;
++	case ELFLOADER_BAD_ELF_HEADER:
++	print = "Bad ELF header";
++	break;
++	case ELFLOADER_NO_SYMTAB:
++	print = "No symbol table";
++	break;
++	case ELFLOADER_NO_STRTAB:
++	print = "No string table";
++	break;
++	case ELFLOADER_NO_TEXT:
++	print = "No text segment";
++	break;
++	case ELFLOADER_SYMBOL_NOT_FOUND:
++	print = "Symbol not found: ";
++	symbol = elfloader_unknown;
++	break;
++	case ELFLOADER_SEGMENT_NOT_FOUND:
++	print = "Segment not found: ";
++	symbol = elfloader_unknown;
++	break;
++	case ELFLOADER_NO_STARTPOINT:
++	print = "No starting point";
++	break;
++	default:
++	print = "Unknown return code from the ELF loader (internal bug)";
++	break;
++	}
++
++	printf(print);
++	printf("\n");
++*/
++
+ 	smews_init();
+ 	while(1) {
+ 		smews_main_loop_step();
+diff -rupN smews-1.5.0-original//SConscript smews-1.5.0/SConscript
+--- smews-1.5.0-original//SConscript	2010-06-22 16:11:34.000000000 +0200
++++ smews-1.5.0/SConscript	2011-03-23 14:35:53.000000000 +0100
+@@ -33,9 +33,10 @@
+ 
+ import os
+ import GenApps
++import sys
+ 
+ # imports from SConstruct
+-Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped')
++Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped nmCmd')
+ 
+ # returns the list of .c and .s files in dir, prefixed by dstDir
+ def getAllSourceFiles(dir, dstDir):
+@@ -47,6 +48,16 @@ def getAllSourceFiles(dir, dstDir):
+ 		elif file.endswith('.s'):
+ 				sFiles.append(os.path.join(dstDir,file))
+ 	return sFiles + cFiles
++# returns the list of .c and .s files in dir, prefixed by dstDir recursively
++def getAllSourceFilesRec(dir, dstDir):
++	cFiles = []
++	sFiles = []
++	for file in GenApps.getAppFiles(dir):
++		if file.endswith('.c'):
++			cFiles.append(os.path.join(dstDir,file))
++		elif file.endswith('.s'):
++				sFiles.append(os.path.join(dstDir,file))
++	return sFiles + cFiles
+ 
+ # builders for web applicative resources creation
+ # used to generate both static and dynamic resources
+@@ -139,7 +150,7 @@ env.GenChannelsH(channelsH,propsFilesLis
+ env.Depends(channelsH,toolsList)
+ 
+ # engine source code dependencies
+-coreFiles = getAllSourceFiles(coreDir, os.path.join(binDir,'core'))
++coreFiles = getAllSourceFilesRec(coreDir, os.path.join(binDir,'core'))
+ # target drivers source code dependencies
+ targetFiles = getAllSourceFiles(driversDir, os.path.join(binDir,'drivers'))
+ # create a library from all sources
+@@ -148,3 +159,11 @@ lib = env.Library(libFileName, targetFil
+ final = env.Program(elfFileName, targetFiles + coreFiles + genObjects)
+ # clean
+ Clean([lib,final],[binDir,genDir])
++
++#Prepare the command for creating the symbols file
++postInstallFile = 'postInstallScript'
++sconsCmd = ''
++for arg in sys.argv:
++	sconsCmd += arg + ' '
++os.system('echo \"#!/bin/sh\n' + nmCmd + ' ' + binDir + '/smews.elf | grep -v get_pc_thunk | awk -f tools/mknmlist > ' + driversDir  + '/symbols.c \n' + sconsCmd + '\"' + ' > ' + postInstallFile)
++os.system('chmod +x ' + postInstallFile)
+diff -rupN smews-1.5.0-original//SConstruct smews-1.5.0/SConstruct
+--- smews-1.5.0-original//SConstruct	2010-06-22 16:11:34.000000000 +0200
++++ smews-1.5.0/SConstruct	2011-03-21 14:19:07.000000000 +0100
+@@ -70,9 +70,12 @@ toolsList = map(lambda x: os.path.join(t
+ projectName = 'smews'
+ elfName = projectName + '.elf'
+ libName = projectName + '.a'
++# default nm command
++nmCmd = 'nm'
+ 
+ # options management
+ opts = Variables()
++
+ opts.Add(ListVariable('target', 'Set the target', 'none', filter(lambda x: not x.startswith('.'),os.listdir('targets'))))
+ opts.Add('apps', 'Set the Web applications directories:\na list of directories name in %s, possibly preceded by a replacement URL\nExample: inclusion of comet, generator (remplaced by gen in the URL), smews (as root of the file system):\napps=comet,gen:generator,:smews\n' %(appBase), None)
+ opts.Add(BoolVariable('gzip', 'Set to 1 to gzip (at compile time) static Web resources', True))
+@@ -211,7 +214,7 @@ for target in targets:
+ 			
+ 	# export variables for external SConscript files
+ 	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped')
+-	Export('env targetDir binDir projectName elfName')
++	Export('env targetDir binDir projectName elfName nmCmd')
+ 	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
+ 	# target dependent SConscript call
+ 	SConscript(os.path.join(targetDir,'SConscript'),build_dir = binDir,duplicate = 0)
+diff -rupN smews-1.5.0-original//targets/linux/drivers/elfloader-arch.c smews-1.5.0/targets/linux/drivers/elfloader-arch.c
+--- smews-1.5.0-original//targets/linux/drivers/elfloader-arch.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/linux/drivers/elfloader-arch.c	2011-03-23 14:21:09.000000000 +0100
+@@ -0,0 +1,135 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: elfloader-x86.c,v 1.3 2009/02/27 14:28:02 nvt-se Exp $
++ *
++ * Modified by Alexandre Nguyen et Clément Botquin
++ */
++#include "loader/elfloader-arch.h"
++#include <sys/mman.h>
++#include <fcntl.h>
++#include <stdio.h>
++#include <string.h>
++
++#define R_386_NONE          0
++#define R_386_32            1
++#define R_386_PC32          2
++#define R_386_GOT32         3
++#define R_386_PLT32         4
++#define R_386_COPY          5
++#define R_386_GLOB_DATA     6
++#define R_386_JMP_SLOT      7
++#define R_386_RELATIVE      8
++#define R_386_GOTOFF        9
++#define R_386_GOTPC         10
++
++#define ELF32_R_TYPE(info)      ((unsigned char)(info))
++
++static char datamemory[ELFLOADER_DATAMEMORY_SIZE];
++
++/*---------------------------------------------------------------------------*/
++void *
++elfloader_arch_allocate_ram(int size)
++{
++  return (void *)datamemory;
++}
++/*---------------------------------------------------------------------------*/
++void *
++elfloader_arch_allocate_rom(int size)
++{
++  int fd = open("/dev/zero", O_RDWR);
++  char *mem = mmap(0, ELFLOADER_TEXTMEMORY_SIZE, PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
++  return mem;
++}
++/*---------------------------------------------------------------------------*/
++void
++elfloader_arch_write_rom(char *fd, unsigned short textoff, unsigned int size, char *mem)
++{
++  memcpy(mem,&fd[textoff],size);
++}
++/*---------------------------------------------------------------------------*/
++void
++elfloader_arch_relocate(char *fd, unsigned int sectionoffset, char *sectionaddress, 
++			struct elf32_rela *rela, char *addr)
++{
++  unsigned int type;
++  
++  /* 
++     Given value addr is S
++     
++     S = runtime address of destination = addr
++     A = rela->r_addend 
++     P = absolute address of relocation (section base address and rela->r_offset)
++  */
++  
++  type = ELF32_R_TYPE(rela->r_info);
++  
++  switch(type) {
++  case R_386_NONE:
++  case R_386_COPY:
++    /* printf("elfloader-x86.c: relocation calculation completed (none) %d\n", type); */
++    break;
++  case R_386_32:
++    addr += rela->r_addend; /* +A */
++    memcpy(&fd[sectionoffset + rela->r_offset],&addr,4);	
++    /*printf("elfloader-x86.c: performed relocation type S + A (%d)\n", type);*/
++    break;
++  case R_386_PC32:
++    addr -= (sectionaddress + rela->r_offset); /* -P */
++    addr += rela->r_addend; /* +A */
++    memcpy(&fd[sectionoffset + rela->r_offset],&addr,4);
++    /*printf("elfloader-x86.c: performed relocation type S + A - P (%d)\n", type);*/
++    break;
++  case R_386_GOT32:
++    printf("elfloader-x86.c: unsupported relocation type G + A - P (%d)\n", type);
++    break;
++  case R_386_PLT32:
++    printf("elfloader-x86.c: unsupported relocation type L + A - P (%d)\n", type);
++    break;
++  case R_386_GLOB_DATA:
++  case R_386_JMP_SLOT:
++    printf("elfloader-x86.c: unsupported relocation type S (%d)\n", type);
++    break;
++  case R_386_RELATIVE:
++    printf("elfloader-x86.c: unsupported relocation type B + A (%d)\n", type);
++    break;
++  case R_386_GOTOFF:
++    printf("elfloader-x86.c: unsupported relocation type S + A - GOT (%d)\n", type);
++    break;
++  case R_386_GOTPC:
++    printf("elfloader-x86.c: unsupported relocation type GOT + A - P (%d)\n", type);
++    break;
++  default:
++    printf("elfloader-x86.c: unknown type (%d)\n", type);
++    break;
++  }
++  
++}
++/*---------------------------------------------------------------------------*/
+diff -rupN smews-1.5.0-original//targets/linux/drivers/symbols.c smews-1.5.0/targets/linux/drivers/symbols.c
+--- smews-1.5.0-original//targets/linux/drivers/symbols.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/linux/drivers/symbols.c	2011-03-28 11:15:00.000000000 +0200
+@@ -0,0 +1,283 @@
++#include "loader/symbols.h"
++
++extern int _IO_stdin_used();
++extern int __DTOR_END__();
++extern int __bss_start();
++extern int __data_start();
++extern int __dso_handle();
++extern int __libc_csu_fini();
++extern int __libc_csu_init();
++extern int _edata();
++extern int _end();
++extern int _fini();
++extern int _fp_hw();
++extern int _init();
++extern int _start();
++extern int all_connections();
++extern int all_timers();
++extern int apps_calendar_cal_add();
++extern int apps_calendar_cal_get();
++extern int apps_calendar_index_html_handler();
++extern int apps_contactsBook_cb_add();
++extern int apps_contactsBook_cb_get();
++extern int apps_contactsBook_index_html_handler();
++extern int apps_contactsBook_sc_png_handler();
++extern int apps_contactsBook_script_js_handler();
++extern int apps_contactsBook_style_css_handler();
++extern int apps_httpCodes_404_html_handler();
++extern int apps_welcome_index_html_handler();
++extern int apps_welcome_ressources_funcard7_jpg_handler();
++extern int apps_welcome_ressources_gba_jpg_handler();
++extern int apps_welcome_ressources_linux_jpg_handler();
++extern int apps_welcome_ressources_micaz_jpg_handler();
++extern int apps_welcome_ressources_smews_jpg_handler();
++extern int apps_welcome_ressources_style_css_handler();
++extern int apps_welcome_ressources_wsn430_jpg_handler();
++extern int check();
++extern int checksum_add();
++extern int checksum_add16();
++extern int checksum_add32();
++extern int checksum_end();
++extern int checksum_init();
++extern int chk_apps_calendar_index_html();
++extern int chk_apps_contactsBook_index_html();
++extern int chk_apps_contactsBook_sc_png();
++extern int chk_apps_contactsBook_script_js();
++extern int chk_apps_contactsBook_style_css();
++extern int chk_apps_httpCodes_404_html();
++extern int chk_apps_welcome_index_html();
++extern int chk_apps_welcome_ressources_funcard7_jpg();
++extern int chk_apps_welcome_ressources_gba_jpg();
++extern int chk_apps_welcome_ressources_linux_jpg();
++extern int chk_apps_welcome_ressources_micaz_jpg();
++extern int chk_apps_welcome_ressources_smews_jpg();
++extern int chk_apps_welcome_ressources_style_css();
++extern int chk_apps_welcome_ressources_wsn430_jpg();
++extern int chk_gen_linux_tmp_appList_js();
++extern int clean_service();
++extern int contacts();
++extern int context_backup();
++extern int context_restore();
++extern int cr_clean();
++extern int cr_init();
++extern int cr_prepare();
++extern int cr_run();
++extern int current_checksum();
++extern int data_apps_calendar_index_html();
++extern int data_apps_contactsBook_index_html();
++extern int data_apps_contactsBook_sc_png();
++extern int data_apps_contactsBook_script_js();
++extern int data_apps_contactsBook_style_css();
++extern int data_apps_httpCodes_404_html();
++extern int data_apps_welcome_index_html();
++extern int data_apps_welcome_ressources_funcard7_jpg();
++extern int data_apps_welcome_ressources_gba_jpg();
++extern int data_apps_welcome_ressources_linux_jpg();
++extern int data_apps_welcome_ressources_micaz_jpg();
++extern int data_apps_welcome_ressources_smews_jpg();
++extern int data_apps_welcome_ressources_style_css();
++extern int data_apps_welcome_ressources_wsn430_jpg();
++extern int data_gen_linux_tmp_appList_js();
++extern int data_start();
++extern int dev_data_to_read();
++extern int dev_get();
++extern int dev_init();
++extern int dev_output_done();
++extern int dev_prepare_output();
++extern int elfloader_arch_allocate_ram();
++extern int elfloader_arch_allocate_rom();
++extern int elfloader_arch_relocate();
++extern int elfloader_arch_write_rom();
++extern int elfloader_autostart_processes();
++extern int elfloader_init();
++extern int elfloader_load();
++extern int elfloader_unknown();
++extern int events();
++extern int fdset();
++extern int first_free();
++extern int free_connection();
++extern int gen_linux_tmp_appList_js_handler();
++extern int get_free_mem();
++extern int get_time();
++extern int hello_smews();
++extern int if_select();
++extern int in_buffer();
++extern int in_curr();
++extern int in_nbytes();
++extern int last_transmission_time();
++extern int local_ip_addr();
++extern int main();
++extern int main_sp();
++extern int mem_alloc();
++extern int mem_free();
++extern int mem_reset();
++extern int n_contacts();
++extern int n_events();
++extern int out_buffer();
++extern int out_c();
++extern int out_curr();
++extern int out_str();
++extern int out_uint();
++extern int ref_ack();
++extern int ref_finack();
++extern int ref_rst();
++extern int ref_synack();
++extern int resources_index();
++extern int rst_connection();
++extern int server_push();
++extern int set_timer();
++extern int smews_receive();
++extern int smews_retransmit();
++extern int smews_send();
++extern int smews_send_packet();
++extern int smews_timers();
++extern int smews_to_load();
++extern int something_to_send();
++extern int symtab_lookup();
++extern int tun_fd();
++extern int tv();
++extern int urls_tree();
++extern int wait_input();
++
++
++const int symbols_nelts = 139;
++const struct symbols symbols[139] = {
++{ "_IO_stdin_used", (void *)&_IO_stdin_used },
++{ "__DTOR_END__", (void *)&__DTOR_END__ },
++{ "__bss_start", (void *)&__bss_start },
++{ "__data_start", (void *)&__data_start },
++{ "__dso_handle", (void *)&__dso_handle },
++{ "__libc_csu_fini", (void *)&__libc_csu_fini },
++{ "__libc_csu_init", (void *)&__libc_csu_init },
++{ "_edata", (void *)&_edata },
++{ "_end", (void *)&_end },
++{ "_fini", (void *)&_fini },
++{ "_fp_hw", (void *)&_fp_hw },
++{ "_init", (void *)&_init },
++{ "_start", (void *)&_start },
++{ "all_connections", (void *)&all_connections },
++{ "all_timers", (void *)&all_timers },
++{ "apps_calendar_cal_add", (void *)&apps_calendar_cal_add },
++{ "apps_calendar_cal_get", (void *)&apps_calendar_cal_get },
++{ "apps_calendar_index_html_handler", (void *)&apps_calendar_index_html_handler },
++{ "apps_contactsBook_cb_add", (void *)&apps_contactsBook_cb_add },
++{ "apps_contactsBook_cb_get", (void *)&apps_contactsBook_cb_get },
++{ "apps_contactsBook_index_html_handler", (void *)&apps_contactsBook_index_html_handler },
++{ "apps_contactsBook_sc_png_handler", (void *)&apps_contactsBook_sc_png_handler },
++{ "apps_contactsBook_script_js_handler", (void *)&apps_contactsBook_script_js_handler },
++{ "apps_contactsBook_style_css_handler", (void *)&apps_contactsBook_style_css_handler },
++{ "apps_httpCodes_404_html_handler", (void *)&apps_httpCodes_404_html_handler },
++{ "apps_welcome_index_html_handler", (void *)&apps_welcome_index_html_handler },
++{ "apps_welcome_ressources_funcard7_jpg_handler", (void *)&apps_welcome_ressources_funcard7_jpg_handler },
++{ "apps_welcome_ressources_gba_jpg_handler", (void *)&apps_welcome_ressources_gba_jpg_handler },
++{ "apps_welcome_ressources_linux_jpg_handler", (void *)&apps_welcome_ressources_linux_jpg_handler },
++{ "apps_welcome_ressources_micaz_jpg_handler", (void *)&apps_welcome_ressources_micaz_jpg_handler },
++{ "apps_welcome_ressources_smews_jpg_handler", (void *)&apps_welcome_ressources_smews_jpg_handler },
++{ "apps_welcome_ressources_style_css_handler", (void *)&apps_welcome_ressources_style_css_handler },
++{ "apps_welcome_ressources_wsn430_jpg_handler", (void *)&apps_welcome_ressources_wsn430_jpg_handler },
++{ "check", (void *)&check },
++{ "checksum_add", (void *)&checksum_add },
++{ "checksum_add16", (void *)&checksum_add16 },
++{ "checksum_add32", (void *)&checksum_add32 },
++{ "checksum_end", (void *)&checksum_end },
++{ "checksum_init", (void *)&checksum_init },
++{ "chk_apps_calendar_index_html", (void *)&chk_apps_calendar_index_html },
++{ "chk_apps_contactsBook_index_html", (void *)&chk_apps_contactsBook_index_html },
++{ "chk_apps_contactsBook_sc_png", (void *)&chk_apps_contactsBook_sc_png },
++{ "chk_apps_contactsBook_script_js", (void *)&chk_apps_contactsBook_script_js },
++{ "chk_apps_contactsBook_style_css", (void *)&chk_apps_contactsBook_style_css },
++{ "chk_apps_httpCodes_404_html", (void *)&chk_apps_httpCodes_404_html },
++{ "chk_apps_welcome_index_html", (void *)&chk_apps_welcome_index_html },
++{ "chk_apps_welcome_ressources_funcard7_jpg", (void *)&chk_apps_welcome_ressources_funcard7_jpg },
++{ "chk_apps_welcome_ressources_gba_jpg", (void *)&chk_apps_welcome_ressources_gba_jpg },
++{ "chk_apps_welcome_ressources_linux_jpg", (void *)&chk_apps_welcome_ressources_linux_jpg },
++{ "chk_apps_welcome_ressources_micaz_jpg", (void *)&chk_apps_welcome_ressources_micaz_jpg },
++{ "chk_apps_welcome_ressources_smews_jpg", (void *)&chk_apps_welcome_ressources_smews_jpg },
++{ "chk_apps_welcome_ressources_style_css", (void *)&chk_apps_welcome_ressources_style_css },
++{ "chk_apps_welcome_ressources_wsn430_jpg", (void *)&chk_apps_welcome_ressources_wsn430_jpg },
++{ "chk_gen_linux_tmp_appList_js", (void *)&chk_gen_linux_tmp_appList_js },
++{ "clean_service", (void *)&clean_service },
++{ "contacts", (void *)&contacts },
++{ "context_backup", (void *)&context_backup },
++{ "context_restore", (void *)&context_restore },
++{ "cr_clean", (void *)&cr_clean },
++{ "cr_init", (void *)&cr_init },
++{ "cr_prepare", (void *)&cr_prepare },
++{ "cr_run", (void *)&cr_run },
++{ "current_checksum", (void *)&current_checksum },
++{ "data_apps_calendar_index_html", (void *)&data_apps_calendar_index_html },
++{ "data_apps_contactsBook_index_html", (void *)&data_apps_contactsBook_index_html },
++{ "data_apps_contactsBook_sc_png", (void *)&data_apps_contactsBook_sc_png },
++{ "data_apps_contactsBook_script_js", (void *)&data_apps_contactsBook_script_js },
++{ "data_apps_contactsBook_style_css", (void *)&data_apps_contactsBook_style_css },
++{ "data_apps_httpCodes_404_html", (void *)&data_apps_httpCodes_404_html },
++{ "data_apps_welcome_index_html", (void *)&data_apps_welcome_index_html },
++{ "data_apps_welcome_ressources_funcard7_jpg", (void *)&data_apps_welcome_ressources_funcard7_jpg },
++{ "data_apps_welcome_ressources_gba_jpg", (void *)&data_apps_welcome_ressources_gba_jpg },
++{ "data_apps_welcome_ressources_linux_jpg", (void *)&data_apps_welcome_ressources_linux_jpg },
++{ "data_apps_welcome_ressources_micaz_jpg", (void *)&data_apps_welcome_ressources_micaz_jpg },
++{ "data_apps_welcome_ressources_smews_jpg", (void *)&data_apps_welcome_ressources_smews_jpg },
++{ "data_apps_welcome_ressources_style_css", (void *)&data_apps_welcome_ressources_style_css },
++{ "data_apps_welcome_ressources_wsn430_jpg", (void *)&data_apps_welcome_ressources_wsn430_jpg },
++{ "data_gen_linux_tmp_appList_js", (void *)&data_gen_linux_tmp_appList_js },
++{ "data_start", (void *)&data_start },
++{ "dev_data_to_read", (void *)&dev_data_to_read },
++{ "dev_get", (void *)&dev_get },
++{ "dev_init", (void *)&dev_init },
++{ "dev_output_done", (void *)&dev_output_done },
++{ "dev_prepare_output", (void *)&dev_prepare_output },
++{ "elfloader_arch_allocate_ram", (void *)&elfloader_arch_allocate_ram },
++{ "elfloader_arch_allocate_rom", (void *)&elfloader_arch_allocate_rom },
++{ "elfloader_arch_relocate", (void *)&elfloader_arch_relocate },
++{ "elfloader_arch_write_rom", (void *)&elfloader_arch_write_rom },
++{ "elfloader_autostart_processes", (void *)&elfloader_autostart_processes },
++{ "elfloader_init", (void *)&elfloader_init },
++{ "elfloader_load", (void *)&elfloader_load },
++{ "elfloader_unknown", (void *)&elfloader_unknown },
++{ "events", (void *)&events },
++{ "fdset", (void *)&fdset },
++{ "first_free", (void *)&first_free },
++{ "free_connection", (void *)&free_connection },
++{ "gen_linux_tmp_appList_js_handler", (void *)&gen_linux_tmp_appList_js_handler },
++{ "get_free_mem", (void *)&get_free_mem },
++{ "get_time", (void *)&get_time },
++{ "hello_smews", (void *)&hello_smews },
++{ "if_select", (void *)&if_select },
++{ "in_buffer", (void *)&in_buffer },
++{ "in_curr", (void *)&in_curr },
++{ "in_nbytes", (void *)&in_nbytes },
++{ "last_transmission_time", (void *)&last_transmission_time },
++{ "local_ip_addr", (void *)&local_ip_addr },
++{ "main", (void *)&main },
++{ "main_sp", (void *)&main_sp },
++{ "mem_alloc", (void *)&mem_alloc },
++{ "mem_free", (void *)&mem_free },
++{ "mem_reset", (void *)&mem_reset },
++{ "n_contacts", (void *)&n_contacts },
++{ "n_events", (void *)&n_events },
++{ "out_buffer", (void *)&out_buffer },
++{ "out_c", (void *)&out_c },
++{ "out_curr", (void *)&out_curr },
++{ "out_str", (void *)&out_str },
++{ "out_uint", (void *)&out_uint },
++{ "ref_ack", (void *)&ref_ack },
++{ "ref_finack", (void *)&ref_finack },
++{ "ref_rst", (void *)&ref_rst },
++{ "ref_synack", (void *)&ref_synack },
++{ "resources_index", (void *)&resources_index },
++{ "rst_connection", (void *)&rst_connection },
++{ "server_push", (void *)&server_push },
++{ "set_timer", (void *)&set_timer },
++{ "smews_receive", (void *)&smews_receive },
++{ "smews_retransmit", (void *)&smews_retransmit },
++{ "smews_send", (void *)&smews_send },
++{ "smews_send_packet", (void *)&smews_send_packet },
++{ "smews_timers", (void *)&smews_timers },
++{ "smews_to_load", (void *)&smews_to_load },
++{ "something_to_send", (void *)&something_to_send },
++{ "symtab_lookup", (void *)&symtab_lookup },
++{ "tun_fd", (void *)&tun_fd },
++{ "tv", (void *)&tv },
++{ "urls_tree", (void *)&urls_tree },
++{ "wait_input", (void *)&wait_input },
++{ (const char *)0, (void *)0} };
+diff -rupN smews-1.5.0-original//targets/linux/SConscript smews-1.5.0/targets/linux/SConscript
+--- smews-1.5.0-original//targets/linux/SConscript	2010-06-22 16:11:34.000000000 +0200
++++ smews-1.5.0/targets/linux/SConscript	2011-03-21 11:51:52.000000000 +0100
+@@ -42,3 +42,6 @@ env.Replace(AS = 'as')
+ env.Replace(AR = 'ar')
+ env.Replace(RANLIB = 'ranlib')
+ env.Append(CCFLAGS = '-fno-strict-aliasing')
++nmCmd = 'nm'
++
++Export('nmCmd')
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/elfloader-arch.c smews-1.5.0/targets/WSN430/drivers/elfloader-arch.c
+--- smews-1.5.0-original//targets/WSN430/drivers/elfloader-arch.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/WSN430/drivers/elfloader-arch.c	2011-02-18 11:01:24.000000000 +0100
+@@ -0,0 +1,121 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: elfloader-msp430.c,v 1.5 2009/03/26 12:25:05 fros4943 Exp $
++ *
++ * Modified by Alexandre Nguyen et ClÃment Botquin
++ */
++#include "loader/elfloader-arch.h"
++#include <string.h>
++#include "flash.h"
++
++static uint16_t datamemory_aligned[ELFLOADER_DATAMEMORY_SIZE/2+1];
++static uint8_t* datamemory = (uint8_t *)datamemory_aligned;
++#if ELFLOADER_CONF_TEXT_IN_ROM
++static const char textmemory[ELFLOADER_TEXTMEMORY_SIZE] = {0};
++#else /* ELFLOADER_CONF_TEXT_IN_ROM */
++static char textmemory[ELFLOADER_TEXTMEMORY_SIZE];
++#endif /* ELFLOADER_CONF_TEXT_IN_ROM */
++/*---------------------------------------------------------------------------*/
++void *
++elfloader_arch_allocate_ram(int size)
++{
++  return datamemory;
++}
++/*---------------------------------------------------------------------------*/
++void *
++elfloader_arch_allocate_rom(int size)
++{
++#if ELFLOADER_CONF_TEXT_IN_ROM
++  /* Return an 512-byte aligned pointer. */
++  return (char *)
++    ((unsigned long)&textmemory[0] & 0xfffffe00) +
++    (((unsigned long)&textmemory[0] & 0x1ff) == 0? 0: 0x200);
++#else /* ELFLOADER_CONF_TEXT_IN_ROM */
++  return textmemory;
++#endif /* ELFLOADER_CONF_TEXT_IN_ROM */
++}
++/*---------------------------------------------------------------------------*/
++#define READSIZE 32
++void
++elfloader_arch_write_rom(char *fd, unsigned short textoff, unsigned int size, char *mem)
++{
++#if ELFLOADER_CONF_TEXT_IN_ROM
++  int i;
++  unsigned int ptr;
++  unsigned short *flashptr;
++
++  flash_setup();
++
++  flashptr = (unsigned short *)mem;
++
++  /*cfs_seek(fd, textoff, CFS_SEEK_SET);*/
++  for(ptr = 0; ptr < size; ptr += READSIZE) {
++
++    /* Read data from file into RAM. */
++    memcpy(datamemory,&fd[textoff],READSIZEx])
++    /*cfs_read(fd, (unsigned char *)datamemory, READSIZE);*/
++
++    /* Clear flash page on 512 byte boundary. */
++    if((((unsigned short)flashptr) & 0x01ff) == 0) {
++      flash_clear(flashptr);
++    }
++
++    /* Burn data from RAM into flash ROM. Flash is burned one 16-bit
++       word at a time, so we need to be careful when incrementing
++       pointers. The flashptr is already a short pointer, so
++       incrementing it by one will actually increment the address by
++       two. */
++    for(i = 0; i < READSIZE / 2; ++i) {
++      flash_write(flashptr, ((unsigned short *)datamemory)[i]);
++      ++flashptr;
++    }
++  }
++
++  flash_done();
++#else /* ELFLOADER_CONF_TEXT_IN_ROM */
++  /*cfs_seek(fd, textoff, CFS_SEEK_SET);
++  cfs_read(fd, (unsigned char *)mem, size);*/
++  memcpy(mem,&fd[textoff],size);
++#endif /* ELFLOADER_CONF_TEXT_IN_ROM */
++}
++/*---------------------------------------------------------------------------*/
++void
++elfloader_arch_relocate(char *fd, unsigned int sectionoffset,
++			char *sectionaddr,
++			struct elf32_rela *rela, char *addr)
++{
++  addr += rela->r_addend;
++  
++  memcpy(&fd[sectionoffset + rela->r_offset],&addr,2);
++  /*cfs_seek(fd, sectionoffset + rela->r_offset, CFS_SEEK_SET);
++  cfs_write(fd, (char *)&addr, 2);*/
++}
++/*---------------------------------------------------------------------------*/
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/flash.c smews-1.5.0/targets/WSN430/drivers/flash.c
+--- smews-1.5.0-original//targets/WSN430/drivers/flash.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/WSN430/drivers/flash.c	2011-02-18 10:44:18.000000000 +0100
+@@ -0,0 +1,111 @@
++/**
++ * \file
++ * Functions for reading and writing flash ROM.
++ * \author Adam Dunkels <adam@sics.se>
++ */
++
++/* Copyright (c) 2004 Swedish Institute of Computer Science.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without modification,
++ * are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ * 3. The name of the author may not be used to endorse or promote products
++ *    derived from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
++ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
++ * SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
++ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
++ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
++ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
++ * OF SUCH DAMAGE.
++ *
++ * $Id: flash.c,v 1.2 2007/11/17 10:28:04 adamdunkels Exp $
++ *
++ * Author: Adam Dunkels <adam@sics.se>
++ *
++ */
++
++#include <msp430x14x.h>
++#include <io.h>
++#include <signal.h>
++
++#include "flash.h"
++#include "watchdog.h"
++
++#define FLASH_TIMEOUT 30
++#define FLASH_REQ_TIMEOUT 150
++
++static unsigned short ie1, ie2;
++
++/*---------------------------------------------------------------------------*/
++void
++flash_setup(void)
++{
++
++  /* Disable all interrupts. */
++
++  /* Clear interrupt flag1. */
++  IFG1 = 0;
++
++  /* Stop watchdog. */
++  watchdog_stop();
++  
++  /* DCO(SMCLK) is 2,4576MHz, /6 = 409600 Hz
++     select SMCLK for flash timing, divider 5+1 */
++  FCTL2 = 0xA5C5;              
++
++  /* disable all interrupts to protect CPU
++     during programming from system crash */
++  _DINT();                   
++
++  /* disable all NMI-Interrupt sources */
++  ie1 = IE1;
++  ie2 = IE2;
++  IE1 = 0x00;                  
++  IE2 = 0x00;
++}
++/*---------------------------------------------------------------------------*/
++void
++flash_done(void)
++{
++  /* Enable interrupts. */
++  IE1 = ie1;
++  IE2 = ie2;
++  _EINT();
++  watchdog_start();
++}
++/*---------------------------------------------------------------------------*/
++void
++flash_clear(unsigned short *ptr)
++{
++  FCTL3 = 0xA500;               /* Lock = 0 */
++  while(FCTL3 & 0x0001) nop();  /* Wait for BUSY = 0, not needed
++				   unless run from RAM */
++  FCTL1 = 0xA502;               /* ERASE = 1 */
++  *ptr  = 0;                    /* erase Flash segment */
++  FCTL1 = 0xA500;               /* ERASE = 0 automatically done?! */
++  FCTL3 = 0xA510;               /* Lock = 1 */
++}
++/*---------------------------------------------------------------------------*/
++void
++flash_write(unsigned short *ptr, unsigned short word)
++{
++  FCTL3 = 0xA500;              /* Lock = 0 */
++  while(FCTL3 & 0x0001) nop(); /* Wait for BUSY = 0, not needed unless
++				  run from RAM */
++  FCTL1 = 0xA540;              /* WRT = 1 */
++  *ptr  = word;                /* program Flash word */
++  FCTL1 = 0xA500;              /* WRT = 0 */
++  FCTL3 = 0xA510;              /* Lock = 1 */
++}
++/*---------------------------------------------------------------------------*/
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/flash.h smews-1.5.0/targets/WSN430/drivers/flash.h
+--- smews-1.5.0-original//targets/WSN430/drivers/flash.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/WSN430/drivers/flash.h	2011-02-18 10:28:32.000000000 +0100
+@@ -0,0 +1,78 @@
++/**
++ * \file
++ * Functions for reading and writing MSP430 flash ROM.
++ * \author Adam Dunkels <adam@sics.se> 
++ */
++
++/* Copyright (c) 2004 Swedish Institute of Computer Science.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ * 3. The name of the author may not be used to endorse or promote products
++ *    derived from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
++ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
++ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
++ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
++ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
++ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
++ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ * $Id: flash.h,v 1.1 2006/06/17 22:41:21 adamdunkels Exp $
++ *
++ * Author: Adam Dunkels <adam@sics.se>
++ *
++ */
++
++#ifndef __FLASH_H__
++#define __FLASH_H__
++
++/**
++ * Setup function to be called before any of the flash programming functions.
++ *
++ */
++void flash_setup(void);
++
++/**
++ * Function that is to be called after flashing is done.
++ */
++void flash_done(void);
++
++/**
++ * Write a 16-bit word to flash ROM.
++ *
++ * This function writes a 16-bit word to flash ROM. The function
++ * flash_setup() must have been called first.
++ *
++ * \param addr A pointer to the address in flash ROM which is to be
++ * written.
++ *
++ * \param word The 16-bit word that is to be written.
++ */
++void flash_write(unsigned short *addr, unsigned short word);
++
++/**
++ * Clear a 16-bit word in flash ROM.
++ *
++ * This function clears a 16-bit word in flash ROM. The function
++ * flash_setup() must have been called first. 
++ *
++ * \param addr A pointer to the address in flash ROM which is to be
++ * cleared.
++ */
++void flash_clear(unsigned short *addr);
++
++#endif /* __FLASH_H__ */
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/serial_line.c smews-1.5.0/targets/WSN430/drivers/serial_line.c
+--- smews-1.5.0-original//targets/WSN430/drivers/serial_line.c	2010-06-22 16:11:34.000000000 +0200
++++ smews-1.5.0/targets/WSN430/drivers/serial_line.c	2011-02-18 11:14:14.000000000 +0100
+@@ -171,18 +171,18 @@ void dev_put(unsigned char byte) {
+ }
+ 
+ /* for debug purposes. allows to use printf. */
+-// /*-----------------------------------------------------------------------------------*/
+-// void putchar(unsigned char byte) {
+-//         static char in_frame = 0;
+-//         if(!in_frame) {
+-// 	      serial_line_write(SLIP_END);
+-// 	      in_frame = 1;
+-//         }
+-//         if(byte == '\n') {
+-// 	      serial_line_write(SLIP_END);
+-// 	      in_frame = 0;
+-//         } else {
+-// 	      dev_put(byte);
+-//         }
+-//         
+-// }
++/*-----------------------------------------------------------------------------------*/
++void putchar(unsigned char byte) {
++       static char in_frame = 0;
++       if(!in_frame) {
++ 	     serial_line_write(SLIP_END);
++	     in_frame = 1;
++       }
++       if(byte == '\n') {
++ 	      serial_line_write(SLIP_END);
++ 	      in_frame = 0;
++       } else {
++ 	      dev_put(byte);
++       }
++        
++}
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/symbols.c smews-1.5.0/targets/WSN430/drivers/symbols.c
+--- smews-1.5.0-original//targets/WSN430/drivers/symbols.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/WSN430/drivers/symbols.c	2011-02-18 11:26:36.000000000 +0100
+@@ -0,0 +1,141 @@
++#include "loader/symbols.h"
++
++extern int InterruptVectors();
++extern int __bss_size();
++extern int __bss_start();
++extern int __ctors_end();
++extern int __ctors_start();
++extern int __data_load_start();
++extern int __data_size();
++extern int __data_start();
++extern int __do_clear_bss();
++extern int __do_copy_data();
++extern int __dtors_end();
++extern int __dtors_start();
++extern int __init_stack();
++extern int __jump_to_main();
++extern int __low_level_init();
++extern int __stack();
++extern int __stop_progExec__();
++extern int __udivmodsi4();
++extern int _edata();
++extern int _end();
++extern int _etext();
++extern int _reset_vector__();
++extern int _unexpected_();
++extern int _unexpected_1_();
++extern int _vectors_end();
++extern int dev_put();
++extern int elfloader_arch_allocate_ram();
++extern int elfloader_arch_allocate_rom();
++extern int elfloader_arch_relocate();
++extern int elfloader_arch_write_rom();
++extern int elfloader_autostart_processes();
++extern int elfloader_init();
++extern int elfloader_load();
++extern int elfloader_unknown();
++extern int global_timer();
++extern int main();
++extern int memchr();
++extern int memcmp();
++void *memcpy();
++void *memset();
++int printf(const char *, ...);
++extern int putchar();
++extern int puts();
++extern int serial_line();
++extern int smews_to_load();
++extern int strcmp();
++extern int strncmp();
++extern int symtab_lookup();
++extern int timerA0();
++extern int usart1irq();
++extern int vector_ffe0();
++extern int vector_ffe2();
++extern int vector_ffe4();
++extern int vector_ffe6();
++extern int vector_ffe8();
++extern int vector_ffea();
++extern int vector_ffec();
++extern int vector_ffee();
++extern int vector_fff0();
++extern int vector_fff2();
++extern int vector_fff4();
++extern int vector_fff6();
++extern int vector_fff8();
++extern int vector_fffa();
++extern int vector_fffc();
++extern int vuprintf();
++extern int watchdog_interrupt();
++
++
++const int symbols_nelts = 68;
++const struct symbols symbols[68] = {
++{ "InterruptVectors", (void *)&InterruptVectors },
++{ "__bss_size", (void *)&__bss_size },
++{ "__bss_start", (void *)&__bss_start },
++{ "__ctors_end", (void *)&__ctors_end },
++{ "__ctors_start", (void *)&__ctors_start },
++{ "__data_load_start", (void *)&__data_load_start },
++{ "__data_size", (void *)&__data_size },
++{ "__data_start", (void *)&__data_start },
++{ "__do_clear_bss", (void *)&__do_clear_bss },
++{ "__do_copy_data", (void *)&__do_copy_data },
++{ "__dtors_end", (void *)&__dtors_end },
++{ "__dtors_start", (void *)&__dtors_start },
++{ "__init_stack", (void *)&__init_stack },
++{ "__jump_to_main", (void *)&__jump_to_main },
++{ "__low_level_init", (void *)&__low_level_init },
++{ "__stack", (void *)&__stack },
++{ "__stop_progExec__", (void *)&__stop_progExec__ },
++{ "__udivmodsi4", (void *)&__udivmodsi4 },
++{ "_edata", (void *)&_edata },
++{ "_end", (void *)&_end },
++{ "_etext", (void *)&_etext },
++{ "_reset_vector__", (void *)&_reset_vector__ },
++{ "_unexpected_", (void *)&_unexpected_ },
++{ "_unexpected_1_", (void *)&_unexpected_1_ },
++{ "_vectors_end", (void *)&_vectors_end },
++{ "dev_put", (void *)&dev_put },
++{ "elfloader_arch_allocate_ram", (void *)&elfloader_arch_allocate_ram },
++{ "elfloader_arch_allocate_rom", (void *)&elfloader_arch_allocate_rom },
++{ "elfloader_arch_relocate", (void *)&elfloader_arch_relocate },
++{ "elfloader_arch_write_rom", (void *)&elfloader_arch_write_rom },
++{ "elfloader_autostart_processes", (void *)&elfloader_autostart_processes },
++{ "elfloader_init", (void *)&elfloader_init },
++{ "elfloader_load", (void *)&elfloader_load },
++{ "elfloader_unknown", (void *)&elfloader_unknown },
++{ "global_timer", (void *)&global_timer },
++{ "main", (void *)&main },
++{ "memchr", (void *)&memchr },
++{ "memcmp", (void *)&memcmp },
++{ "memcpy", (void *)&memcpy },
++{ "memset", (void *)&memset },
++{ "printf", (void *)&printf },
++{ "putchar", (void *)&putchar },
++{ "puts", (void *)&puts },
++{ "serial_line", (void *)&serial_line },
++{ "smews_to_load", (void *)&smews_to_load },
++{ "strcmp", (void *)&strcmp },
++{ "strncmp", (void *)&strncmp },
++{ "symtab_lookup", (void *)&symtab_lookup },
++{ "timerA0", (void *)&timerA0 },
++{ "usart1irq", (void *)&usart1irq },
++{ "vector_ffe0", (void *)&vector_ffe0 },
++{ "vector_ffe2", (void *)&vector_ffe2 },
++{ "vector_ffe4", (void *)&vector_ffe4 },
++{ "vector_ffe6", (void *)&vector_ffe6 },
++{ "vector_ffe8", (void *)&vector_ffe8 },
++{ "vector_ffea", (void *)&vector_ffea },
++{ "vector_ffec", (void *)&vector_ffec },
++{ "vector_ffee", (void *)&vector_ffee },
++{ "vector_fff0", (void *)&vector_fff0 },
++{ "vector_fff2", (void *)&vector_fff2 },
++{ "vector_fff4", (void *)&vector_fff4 },
++{ "vector_fff6", (void *)&vector_fff6 },
++{ "vector_fff8", (void *)&vector_fff8 },
++{ "vector_fffa", (void *)&vector_fffa },
++{ "vector_fffc", (void *)&vector_fffc },
++{ "vuprintf", (void *)&vuprintf },
++{ "watchdog_interrupt", (void *)&watchdog_interrupt },
++{ (const char *)0, (void *)0} };
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/watchdog.c smews-1.5.0/targets/WSN430/drivers/watchdog.c
+--- smews-1.5.0-original//targets/WSN430/drivers/watchdog.c	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/WSN430/drivers/watchdog.c	2011-02-18 10:45:00.000000000 +0100
+@@ -0,0 +1,148 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: watchdog.c,v 1.11 2010/10/24 21:10:25 adamdunkels Exp $
++ */
++#include <io.h>
++#include <signal.h>
++#include "watchdog.h"
++
++static int counter = 0;
++
++#define PRINT_STACK_ON_REBOOT 0
++
++/*---------------------------------------------------------------------------*/
++#ifdef CONTIKI_TARGET_SKY
++static void
++printchar(char c)
++{
++  /* Transmit the data. */
++  TXBUF1 = c;
++
++  /* Loop until the transmission buffer is available. */
++  while((IFG2 & UTXIFG1) == 0);
++
++}
++/*---------------------------------------------------------------------------*/
++static void
++hexprint(uint8_t v)
++{
++  const char hexconv[] = "0123456789abcdef";
++  printchar(hexconv[v >> 4]);
++  printchar(hexconv[v & 0x0f]);
++}
++/*---------------------------------------------------------------------------*/
++static void
++printstring(char *s)
++{
++  while(*s) {
++    printchar(*s++);
++  }
++}
++#endif
++/*---------------------------------------------------------------------------*/
++interrupt(WDT_VECTOR)
++watchdog_interrupt(void)
++{
++#ifdef CONTIKI_TARGET_SKY
++#if PRINT_STACK_ON_REBOOT
++  uint8_t dummy;
++  static uint8_t *ptr;
++  static int i;
++
++  ptr = &dummy;
++  printstring("Watchdog reset");
++  printstring("\nStack at $");
++  hexprint(((int)ptr) >> 8);
++  hexprint(((int)ptr) & 0xff);
++  printstring(":\n");
++
++  for(i = 0; i < 64; ++i) {
++    hexprint(ptr[i]);
++    printchar(' ');
++    if((i & 0x0f) == 0x0f) {
++      printchar('\n');
++    }
++  }
++  printchar('\n');
++#endif /* PRINT_STACK_ON_REBOOT */
++#endif /* CONTIKI_TARGET_SKY */
++
++  watchdog_reboot();
++}
++/*---------------------------------------------------------------------------*/
++void
++watchdog_init(void)
++{
++  /* The MSP430 watchdog is enabled at boot-up, so we stop it during
++     initialization. */
++  counter = 0;
++  watchdog_stop();
++
++  IFG1 &= ~WDTIFG;
++  IE1 |= WDTIE;
++}
++/*---------------------------------------------------------------------------*/
++void
++watchdog_start(void)
++{
++  /* We setup the watchdog to reset the device after one second,
++     unless watchdog_periodic() is called. */
++  counter--;
++  if(counter == 0) {
++    WDTCTL = WDTPW | WDTCNTCL | WDT_ARST_1000 | WDTTMSEL;
++  }
++}
++/*---------------------------------------------------------------------------*/
++void
++watchdog_periodic(void)
++{
++  /* This function is called periodically to restart the watchdog
++     timer. */
++  /*  if(counter < 0) {*/
++    WDTCTL = (WDTCTL & 0xff) | WDTPW | WDTCNTCL | WDTTMSEL;
++    /*  }*/
++}
++/*---------------------------------------------------------------------------*/
++void
++watchdog_stop(void)
++{
++  counter++;
++  if(counter == 1) {
++    WDTCTL = WDTPW | WDTHOLD;
++  }
++}
++/*---------------------------------------------------------------------------*/
++void
++watchdog_reboot(void)
++{
++  WDTCTL = 0;
++}
++/*---------------------------------------------------------------------------*/
+diff -rupN smews-1.5.0-original//targets/WSN430/drivers/watchdog.h smews-1.5.0/targets/WSN430/drivers/watchdog.h
+--- smews-1.5.0-original//targets/WSN430/drivers/watchdog.h	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/targets/WSN430/drivers/watchdog.h	2011-02-18 10:43:50.000000000 +0100
+@@ -0,0 +1,43 @@
++/*
++ * Copyright (c) 2005, Swedish Institute of Computer Science
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the Institute nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * This file is part of the Contiki operating system.
++ *
++ * @(#)$Id: watchdog.h,v 1.3 2008/01/07 14:42:35 adamdunkels Exp $
++ */
++#ifndef __WATCHDOG_H__
++#define __WATCHDOG_H__
++
++void watchdog_init(void);
++void watchdog_start(void);
++void watchdog_periodic(void);
++void watchdog_stop(void);
++
++void watchdog_reboot(void);
++
++#endif /* __WATCHDOG_H__ */
+diff -rupN smews-1.5.0-original//targets/WSN430/SConscript smews-1.5.0/targets/WSN430/SConscript
+--- smews-1.5.0-original//targets/WSN430/SConscript	2010-06-22 16:11:34.000000000 +0200
++++ smews-1.5.0/targets/WSN430/SConscript	2011-03-21 11:38:34.000000000 +0100
+@@ -43,3 +43,7 @@ env.Replace(AR = 'msp430-ar')
+ env.Replace(RANLIB = 'msp430-ranlib')
+ env.Append(CCFLAGS = '-mmcu=msp430x1611 -ffunction-sections')
+ env.Append(LINKFLAGS = '-mmcu=msp430x1611 -Wl,--gc-sections,--undefined=_reset_vector__,--undefined=InterruptVectors,--undefined=_copy_data_init__,--undefined=_clear_bss_init__,--undefined=_end_of_init__')
++
++nmCmd = 'msp430-nm'
++
++Export('nmCmd')
+diff -rupN smews-1.5.0-original//tools/arrayBuilder.py smews-1.5.0/tools/arrayBuilder.py
+--- smews-1.5.0-original//tools/arrayBuilder.py	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/tools/arrayBuilder.py	2011-02-18 09:29:49.000000000 +0100
+@@ -0,0 +1,36 @@
++import xml.parsers.expat
++import os
++import gzip
++import StringIO
++import glob
++import shutil
++import time
++import datetime
++import sys
++
++def generateStaticResource(srcFile,dstFile):
++	file = open(srcFile,'rb')
++	lines = file.readlines()
++	if len(lines) != 0:
++		fileData = reduce(lambda x,y: x + y,lines)
++	else:
++		fileData = ''
++	
++	cOut = open(dstFile,'w')
++	
++	# file data generation
++	cOut.write('\n')
++	cOut.write('\n/********** File data **********/\n')
++	cOut.write('char smews_to_load[] = {\n')
++	cOut.write(reduce(lambda x,y: x + "," + y,map(lambda x: hex(ord(x)),fileData)))
++	cOut.write('};\n')
++	
++	cOut.close()
++
++if len(sys.argv) != 3:
++	print("USAGE : arrayBuilder binaryFile outputFile")
++	sys.exit(1)
++
++generateStaticResource(sys.argv[1],sys.argv[2]); 
++
++print("--- Array created ---")
+diff -rupN smews-1.5.0-original//tools/mknmlist smews-1.5.0/tools/mknmlist
+--- smews-1.5.0-original//tools/mknmlist	1970-01-01 01:00:00.000000000 +0100
++++ smews-1.5.0/tools/mknmlist	2011-02-18 09:29:19.000000000 +0100
+@@ -0,0 +1,53 @@
++function sort(V, N, 	                        tmp, i, j) {
++  V[-1] = ""; # Used as a sentinel before V[0].
++  for (i = 1; i < N; i++)
++    for (j = i; V[j - 1] > V[j]; j--) {
++      tmp = V[j];
++      V[j] = V[j - 1];
++      V[j - 1] = tmp;
++    }
++  return;
++}
++
++BEGIN {
++ nname = 0;
++ builtin["printf"] =	"int printf(const char *, ...)";
++ builtin["sprintf"] =	"int sprintf(char *, const char *, ...)";
++ builtin["malloc"] =	"void *malloc()";
++ builtin["calloc"] =	"void *calloc()";
++ builtin["memcpy"] =	"void *memcpy()";
++ builtin["memset"] =	"void *memset()";
++ builtin["memmove"] =	"void *memmove()";
++ builtin["strcpy"] =	"char *strcpy()";
++ builtin["strchr"] =	"char *strchr()";
++ builtin[""] = 	"";
++}
++
++/^[0123456789abcdef]+ [ABCDGRSTUVW] / {
++  if ($3 != "symbols" && $3 != "symbols_nelts") {
++    name[nname] = $3;
++    nname++;
++  }
++}
++
++END {
++  sort(name, nname);
++
++  print "#include \"loader/symbols.h\"\n";
++
++  # Must deal with compiler builtins etc.
++  for (x = 0; x < nname; x++) {
++    if (builtin[name[x]] != "")
++      print builtin[name[x]] ";";
++    else
++      print "extern int " name[x]"();";
++  }
++  print "\n";
++
++  # nname++: An { 0, 0 } entry is added at the end of the vector.
++  print "const int symbols_nelts = " nname+1 ";";
++  print "const struct symbols symbols[" nname+1 "] = {";
++  for (x = 0; x < nname; x++)
++    print "{ \"" name[x] "\", (void *)&"name[x]" },";
++  print "{ (const char *)0, (void *)0} };";
++}
