@@ -1,6 +1,7 @@
-- added POST support
-- bug fix in arguments parsing
-- added mbed target
+1.6.0:
+	- added POST support
+	- bugfix in arguments parsing
+	- added mbed target
 1.5.0:
 	- added generic panManager with slip and apduip plugins
 	- added IPv6 support
