@@ -65,7 +65,11 @@ void cr_init(struct coroutine_t *coroutine) {
 }
 
 /* run a context or return to main program (if coroutine is NULL) */
-void cr_run(struct coroutine_t *coroutine) {
+void cr_run(struct coroutine_t *coroutine
+#ifndef DISABLE_POST
+		, enum coroutine_type_e type
+#endif
+		) {
 	/* push all working registers */
 	PUSHREGS;
 	/* backup current context stack pointer(s) */
@@ -81,7 +85,14 @@ void cr_run(struct coroutine_t *coroutine) {
 		/* test if this is the first time we run this context */
 		if(current_cr->curr_context.status == cr_ready) {
 			current_cr->curr_context.status = cr_active;
-			current_cr->func(current_cr->args);
+#ifndef DISABLE_POST
+			if(type == cor_type_post_out)
+				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);
+			else if(type == cor_type_post_in)
+				current_cr->func.func_post_in(current_cr->params.in.content_type,current_cr->params.in.part_number,current_cr->params.in.filename,&current_cr->params.in.post_data);
+			else
+#endif
+				current_cr->func.func_get(current_cr->params.args);
 			current_cr->curr_context.status = cr_terminated;
 			current_cr = NULL;
 		}

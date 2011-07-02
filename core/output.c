@@ -41,6 +41,9 @@
 #include "smews.h"
 #include "connections.h"
 #include "memory.h"
+#ifndef DISABLE_POST
+	#include "defines.h"
+#endif
 
 /* IPV6 Common values */
 #ifdef IPV6
@@ -158,7 +161,11 @@ static void dev_put32_val(uint32_t word) {
 /*-----------------------------------------------------------------------------------*/
 char out_c(char c) {
 	if(curr_output.content_length == OUTPUT_BUFFER_SIZE) {
-		cr_run(NULL);
+		cr_run(NULL
+#ifndef DISABLE_POST
+				,cor_type_get
+#endif
+				);
 	}
 	checksum_add(c);
 	curr_output.buffer[curr_output.content_length++] = c;
@@ -516,9 +523,13 @@ char smews_send(void) {
 	/* enable a round robin */
 	all_connections = connection->next;
 
+	if(!connection->ready_to_send){
+		old_output_handler = connection->output_handler;
+		connection->output_handler = &ref_ack;
+	}
 #ifndef DISABLE_COMET
 	/* do we need to acknowledge a comet request without answering it? */
-	if(connection->comet_send_ack == 1) {
+	else if(connection->comet_send_ack == 1) {
 		old_output_handler = connection->output_handler;
 		connection->output_handler = &ref_ack;
 	}
@@ -533,8 +544,11 @@ char smews_send(void) {
 			if(connection->tcp_state == tcp_closing) {
 				free_connection(connection);
 			}
+
+			if(old_output_handler && !connection->ready_to_send)
+				connection->output_handler = old_output_handler;
 #ifndef DISABLE_COMET
-			if(old_output_handler) {
+			else if(old_output_handler) {
 				/* restore the right old output handler */
 				connection->output_handler = old_output_handler;
 				connection->comet_send_ack = 0;
@@ -567,9 +581,20 @@ char smews_send(void) {
 				UI32(curr_output.service->curr_outseqno) = UI32(connection->next_outseqno);
 				/* init coroutine */
 				cr_init(&curr_output.service->coroutine);
-				curr_output.service->coroutine.func = CONST_ADDR(GET_GENERATOR(connection->output_handler).doget);
+#ifndef DISABLE_POST
+				if(connection->post_data && connection->post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED){
+					curr_output.service->coroutine.func.func_post_out = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.post.dopostout);
+					curr_output.service->coroutine.params.out.content_type = connection->post_data->content_type;
+					curr_output.service->coroutine.params.out.post_data = connection->post_data->post_data;
+				}
+				else{
+#endif
+					curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.doget);
 #ifndef DISABLE_ARGS
-				curr_output.service->coroutine.args = connection->args;
+					curr_output.service->coroutine.params.args = connection->args;
+#endif
+#ifndef DISABLE_POST
+				}
 #endif
 				/* we don't know yet the final output sequence number for this service */
 				UI32(connection->final_outseqno) = UI32(connection->next_outseqno) - 1;
@@ -661,9 +686,24 @@ char smews_send(void) {
 					}
 
 					/* run the coroutine (generate one segment) */
-					cr_run(&curr_output.service->coroutine);
+#ifndef DISABLE_POST
+					if(connection->post_data && connection->post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
+						cr_run(&curr_output.service->coroutine,cor_type_post_out);
+					else						
+#endif
+						cr_run(&curr_output.service->coroutine
+#ifndef DISABLE_POST
+								,cor_type_get
+#endif
+								);
 					has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
-					
+#ifndef DISABLE_POST
+					/* cleaning post_data */
+					if(has_ended && connection->post_data){
+						mem_free(connection->post_data,sizeof(struct post_data_t));
+						connection->post_data = NULL;
+					}
+#endif
 					/* save the generated buffer after generation if persistent */
 					if(is_persistent) {
 						/* add it to the in-flight segments list */

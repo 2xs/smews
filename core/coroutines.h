@@ -49,8 +49,11 @@
  * */
 
 /* Types used for coroutines */
-
-typedef char (cr_func)(struct args_t *args);
+typedef char (cr_func_get)(struct args_t *args);
+#ifndef DISABLE_POST
+typedef char (cr_func_post_out)(uint8_t content_type,void *post_data);
+typedef char (cr_func_post_in)(uint8_t content_type, uint8_t part_number, char *filename, void **post_data);
+#endif
 
 /* A context (possibly several per coroutine) */
 struct cr_context_t {
@@ -66,8 +69,28 @@ struct cr_context_t {
 
 /* A coroutine, including its current context (one per service) */
 struct coroutine_t {
-	cr_func *func;
-	struct args_t *args;
+	union func_u {
+		cr_func_get *func_get;
+#ifndef DISABLE_POST
+		cr_func_post_in *func_post_in;
+		cr_func_post_out *func_post_out;
+#endif
+	} func;
+	union params_u {
+		struct args_t *args;
+#ifndef DISABLE_POST
+		struct in_t { /* used with dopostin function */
+			uint8_t content_type;
+			uint8_t part_number; /* number of part with multipart data (0 if one part) */
+			char *filename; /* filename of current file */
+			void *post_data; /* data flowing between dopostin and dopostout functions */
+		} in;	
+		struct out_t { /* used with dopostout function */
+			uint8_t content_type;
+			void *post_data; /* data flowing between dopostin and dopostout functions */
+		} out;
+#endif
+	} params;
 	struct cr_context_t curr_context;
 };
 
@@ -97,6 +120,11 @@ struct generator_service_t {
 	unsigned is_persistent: 1;
 };
 
+#ifndef DISABLE_POST
+/* enum with coroutine type */
+enum coroutine_type_e { cor_type_get, cor_type_post_in, cor_type_post_out } coroutine_type;
+#endif
+
 /* Functions and variables for coroutines */
 
 /* initialize a coroutine structure */
@@ -105,7 +133,11 @@ extern void cr_init(struct coroutine_t *coroutine);
  * (which information is possibly backuped in the coroutine using it) */
 extern struct coroutine_t *cr_prepare(struct coroutine_t *coroutine);
 /* run a context or return to main program (if coroutine is NULL) */
-extern void cr_run(struct coroutine_t *coroutine);
+extern void cr_run(struct coroutine_t *coroutine
+#ifndef DISABLE_POST
+		, enum coroutine_type_e type
+#endif
+		);
 /* deallocate the memory used by a coroutine (not including in-flight segments) */
 extern void cr_clean(struct coroutine_t *coroutine);
 /* deallocate all the memory used by in-flight segments that are now acknowledged (with out_seqno < inack) */

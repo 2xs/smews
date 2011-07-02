@@ -41,15 +41,26 @@ import glob
 import shutil
 import time
 import datetime
+import re
 
 # initialization
 propertiesInfos = None
 handlerInfos = {}
 argsList = []
+mimeListPostFileName = os.path.join('tools','mimeListPost')
+mimesListPost = []
+requestListFileName = os.path.join('tools','supportedRequestList')
+requestList = []
+attributListFileName = os.path.join('tools','supportedPostAttributList')
+attributList = []
+contentTypeList = []
+postList = []
+# doGet:1 doPost:2 doPostIn:4 doPostOut:8 args:16 content-types:32
+controlByte = 0
 chuncksSize = 0
 cOutName = 'pages.c'
-mimeListFileName = os.path.join('tools','mimeList')
-mimeHash = {}
+mimeListGetFileName = os.path.join('tools','mimeRessources')
+mimesHashGet = {}
 StaticResource, DynamicResource = range(2)
 argsTypesMap = {'str': 'arg_str',
 'uint8' : 'arg_ui8',
@@ -58,10 +69,75 @@ argsTypesMap = {'str': 'arg_str',
 }
 
 # process the Mime file
-for line in open(mimeListFileName,'r'):
+for line in open(mimeListGetFileName,'r'):
+	indice = line.find('#')
+	line = line[:indice]
 	split = line.split()
 	if len(split) == 2:
-		mimeHash[split[0]]=split[1]
+		mimesHashGet[split[0]]=split[1]
+
+for line in open(mimeListPostFileName,'r'):
+	indice = line.find('#')
+	line = line[:indice]
+	split = line.split()
+	if(len(split) > 0):
+		mimesListPost.append(split[0])
+
+for line in open(requestListFileName,'r'):
+	indice = line.find('#')
+	line = line[:indice]
+	split = line.split()
+	if(len(split) > 0):
+		requestList.append(split[0] + chr(32))
+
+for line in open(attributListFileName,'r'):
+	indice = line.find('#')
+	line = line[:indice]
+	split = line.split()
+	if(len(split) > 0):
+		attributList.append(split[0])
+
+def generateBlobsH(dstFile):
+	hOut = open(dstFile,'w')
+	writeHeader(hOut,0)
+	hOut.write('#ifndef __BLOBS_H__\n')
+	hOut.write('#define __BLOBS_H__\n\n')
+	GenBlob.genBlobTree(hOut,requestList,'blob_http_rqt',False)
+	GenBlob.genBlobTree(hOut,mimesListPost,'mimes_tree',False)
+	GenBlob.genBlobTree(hOut,attributList,'blob_http_header_content',False)
+	hOut.write('\n#endif\n')
+	hOut.close()
+
+def writeDefinesH(dstFile):
+	hOut = open(dstFile,'w')
+	writeHeader(hOut,0)
+	hOut.write('#ifndef __DEFINES_H__\n')
+	hOut.write('#define __DEFINES_H__\n\n')
+
+	# write mimes.h file referencing content-types supported by smews
+	for m in mimesListPost:
+		mime = m.upper()
+		for c in mime:
+			if(re.search('\W',c)):
+				mime =	mime.replace(c,'_'+str(ord(c))+'_')
+		hOut.write('#define \t CONTENT_TYPE_' + mime + '\t' + str(mimesListPost.index(m)) + '\n')
+
+	for m in requestList:
+		req = m.upper()
+		for c in req:
+			if(re.search('\W',c)):
+				req = req.replace(c,'_'+str(ord(c))+'_')
+		hOut.write('#define \t REQUEST_' + req + '\t' + str(requestList.index(m)) + '\n')
+	
+	for m in attributList:
+		att = m.upper()
+		for c in att:
+			if(re.search('\W',c)):
+				att =	att.replace(c,'_'+str(ord(c))+'_')
+		hOut.write('#define \t ATTRIBUT_' + att + '\t' + str(attributList.index(m)) + '\n')
+
+	hOut.write('\n#endif\n')
+	hOut.close()
 
 # get Mime type from a file extension
 def getMime(hash,ext):
@@ -133,14 +209,18 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 		fileData = reduce(lambda x,y: x + y,lines)
 	else:
 		fileData = ''
-	# prcoess XML only if dstFilInfos do not already contains informations
+	# process XML only if dstFileInfos do not already contains informations
 	if not dstFileInfos.has_key('hasXml'):
 		# 3 XML handler functions
 		def start_element(name, attrs):
 			global argsList
 			global handlerInfos
 			global propertiesInfos
+			global contentTypeList
+			global controlByte
 			if name == 'args':
+				contentTypeList.append('application/x-www-form-urlencoded')
+				controlByte += 16
 				argsList = []
 			elif name == 'arg':
 				argsList.append(attrs)
@@ -148,7 +228,11 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 				handlerInfos = attrs
 			elif name == 'properties':
 				propertiesInfos = attrs
-
+			elif name == 'content-types':
+				controlByte += 32
+				contentTypeList = []
+			elif name == 'content-type':
+				contentTypeList.append(attrs)
 		def end_element(name):
 			return
 		def char_data(data):
@@ -168,12 +252,14 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			global argsList
 			global handlerInfos
 			global propertiesInfos
-
+			global contentTypeList
+			global controlByte
 			# init globals used for parsing
 			propertiesInfos = None
 			handlerInfos = {}
 			argsList = []
-
+			contentTypeList = [] 
+			controlByte = 0
 			# parse the XML
 			p = xml.parsers.expat.ParserCreate()
 			p.StartElementHandler = start_element
@@ -181,10 +267,37 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			p.CharacterDataHandler = char_data
 			p.Parse(xmlData, 0)
 
-			# doGet handler
-			if handlerInfos == None or not handlerInfos.has_key('doGet'):
-				exit('Error: the file ' + srcFile + ' does not describe a doGet handler')
-			dstFileInfos['doGet'] = handlerInfos['doGet']
+			if handlerInfos.has_key('doGet'):
+				controlByte += 1
+				dstFileInfos['doGet'] = handlerInfos['doGet']
+
+			if handlerInfos.has_key('doPostIn'):
+				controlByte += 4
+				dstFileInfos['doPostIn'] = handlerInfos['doPostIn']
+				postList.append(srcFile)
+			
+			if handlerInfos.has_key('doPostOut'):
+				controlByte += 8
+				dstFileInfos['doPostOut'] = handlerInfos['doPostOut']
+				postList.append(srcFile)
+
+			if handlerInfos.has_key('doPost'):
+				controlByte += 2
+				dstFileInfos['doPost'] = handlerInfos['doPost']
+				postList.append(srcFile)
+	
+			if(controlByte != 1 and controlByte != 17 and controlByte != 18 and controlByte != 44):
+				if(controlByte == 0 or controlByte == 16 or controlByte == 32 or controlByte == 48):
+					exit('Error: the file ' + srcFile + ' does not describe a doGet or doPost handler or doPostIn and doPostOut handlers')
+				
+				exit('Error: the file ' + srcFile + 'has an incompatible decription (' + 
+						((controlByte & 1 == 1 and 'doGet,') or '') + 
+						((controlByte & 2 == 2 and 'doPost,') or '') +
+						((controlByte & 4 == 4 and 'doPostIn,') or '') +
+						((controlByte & 8 == 8 and 'doPostOut,') or '') + 
+						((controlByte & 16 == 16 and 'args,') or '') +
+						((controlByte & 32 == 32 and 'content-types,') or '') + ')')
+
 			# init handler
 			if handlerInfos.has_key('init'):
 				dstFileInfos['init'] = handlerInfos['init']
@@ -193,6 +306,8 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 				dstFileInfos['initGet'] = handlerInfos['initGet']
 			# generator arguments
 			dstFileInfos['argsList'] = argsList
+			dstFileInfos['contentTypeList'] = contentTypeList
+
 			if propertiesInfos != None:
 			          # generator persistence
 				if propertiesInfos.has_key('persistence'):
@@ -242,10 +357,13 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		shutil.copyfile(srcFile,dstFile)
 	# here, the c file is a generator. It will be enriched
 	else:
+		generatedMimesArray = ''
+
 		cFuncName = getCName(srcFile[:srcFile.rfind('.c')])
 
 		generatedHeader = '#include "generators.h"\n'
 		generatedHeader += '#include "stddef.h"\n\n'
+		generatedHeader += '#include "defines.h"\n\n'
 
 		generatedOutputHandler = '/********** Output handler **********/\n'
 		# handler functions declaration
@@ -253,7 +371,16 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			generatedOutputHandler += 'static generator_init_func_t ' + dstFileInfos['init'] + ';\n'
 		if dstFileInfos.has_key('initGet'):
 			generatedOutputHandler += 'static generator_initget_func_t ' + dstFileInfos['initGet'] + ';\n'
-		generatedOutputHandler += 'static generator_doget_func_t ' + dstFileInfos['doGet'] + ';\n'
+
+		if dstFileInfos.has_key('doGet'):
+			generatedOutputHandler += 'static generator_doget_func_t ' + dstFileInfos['doGet'] + ';\n'
+		if dstFileInfos.has_key('doPostOut'):
+			generatedOutputHandler += 'static generator_dopost_out_func_t ' + dstFileInfos['doPostOut'] + ';\n'
+		if dstFileInfos.has_key('doPostIn'):
+			generatedOutputHandler += 'static generator_dopost_in_func_t ' + dstFileInfos['doPostIn'] + ';\n'
+		if dstFileInfos.has_key('doPost'):
+			generatedOutputHandler += 'static generator_doget_func_t ' + dstFileInfos['doPost'] + ';\n'
+
 		# output_handler structure creation
 		generatedOutputHandler += 'CONST_VAR(struct output_handler_t, ' + cFuncName + ') = {\n'
 		# handler type
@@ -280,9 +407,25 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		# initGet
 		if dstFileInfos.has_key('initGet'):
 			generatedOutputHandler += '\t\t\t.initget = ' + dstFileInfos['initGet'] + ',\n'
-		# doGet
-		generatedOutputHandler += '\t\t\t.doget = ' + dstFileInfos['doGet'] + ',\n'
-		generatedOutputHandler += '\t\t}\n'
+		# doGet or doPost
+
+		generatedOutputHandler += '\t\t\t.handlers = {\n'
+		if dstFileInfos.has_key('doGet'):
+			generatedOutputHandler += '\t\t\t\t.doget = ' + dstFileInfos['doGet'] + ',\n'
+
+		if dstFileInfos.has_key('doPost'):
+			generatedOutputHandler += '\t\t\t\t.doget = ' + dstFileInfos['doPost'] + ',\n'
+		
+		#doPost		
+		if dstFileInfos.has_key('doPostIn'):
+			generatedOutputHandler += '\t\t\t\t.post = {\n'
+			generatedOutputHandler += '\t\t\t\t\t.dopostin = ' + dstFileInfos['doPostIn'] + ',\n'
+		
+		if dstFileInfos.has_key('doPostOut'):
+			generatedOutputHandler += '\t\t\t\t\t.dopostout = ' + dstFileInfos['doPostOut'] + ',\n'
+			generatedOutputHandler += '\t\t\t\t},\n'
+		generatedOutputHandler += '\t\t\t},\n'
+		generatedOutputHandler += '\t\t},\n'
 		generatedOutputHandler += '\t},\n'
 		# generator arguments information are also written in the structure
 		generatedOutputHandler += '#ifndef DISABLE_ARGS\n'
@@ -291,14 +434,58 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			generatedOutputHandler += '\t\t.args_tree = args_tree,\n'
 			generatedOutputHandler += '\t\t.args_index = args_index,\n'
 			generatedOutputHandler += '\t\t.args_size = sizeof(struct args_t)\n'
-		else:
+		else :
 			generatedOutputHandler += '\t\t.args_tree = NULL,\n'
 			generatedOutputHandler += '\t\t.args_index = NULL,\n'
 			generatedOutputHandler += '\t\t.args_size = 0\n'
-		generatedOutputHandler += '\t}\n'
+		
+		generatedOutputHandler += '\t},\n'
+		generatedOutputHandler += '#endif\n'
+		
+		generatedOutputHandler += '#ifndef DISABLE_POST\n'
+		generatedOutputHandler += '\t.handler_mimes = {\n'
+
+		if (dstFileInfos.has_key('doPostIn') and len(dstFileInfos['contentTypeList']) > 0) :
+			generatedOutputHandler += '\t\t.mimes_index = mimes_index,\n'
+			generatedOutputHandler += '\t\t.mimes_size = '+ str(len(dstFileInfos['contentTypeList'])) +',\n'    
+		elif(dstFileInfos.has_key('doPost') and len(dstFileInfos['argsList']) > 0) :
+			generatedOutputHandler += '\t\t.mimes_index = mimes_index,\n'
+			generatedOutputHandler += '\t\t.mimes_size = 1,\n'    
+		else :
+			generatedOutputHandler += '\t\t.mimes_index = NULL,\n'
+			generatedOutputHandler += '\t\t.mimes_size = 0,\n'
+
+		generatedOutputHandler += '\t},\n'
 		generatedOutputHandler += '#endif\n'
 		generatedOutputHandler += '};\n'
-		
+
+		if (dstFileInfos.has_key('doPost') or dstFileInfos.has_key('doPostIn')):
+			generatedMimesArray = '/********* Content-types array **********/\n'
+			generatedMimesArray += 'static CONST_VAR(unsigned char, mimes_index[]) = {'
+			
+			countAttr =  len(dstFileInfos['contentTypeList'])
+			
+			if(len(dstFileInfos['argsList']) > 0):
+				if 'application/x-www-form-urlencoded' in mimesListPost:	
+					generatedMimesArray += str(mimesListPost.index('application/x-www-form-urlencoded'))
+				else:
+					exit('the mime type application/x-www-form-urlencoded don\'t exist in the mimeListPost file')
+			
+			elif len(dstFileInfos['contentTypeList']) > 0:
+				for attrs in dstFileInfos['contentTypeList']:
+					if attrs['type'] in mimesListPost:	
+						generatedMimesArray +=  str(mimesListPost.index(attrs['type']))
+					else:
+						exit('the mime type ' + attrs['type'] + ' don\'t exist in the mimeListPost file')
+					if countAttr > 1:
+						generatedMimesArray += ','
+					countAttr -= 1
+			else:
+				generatedMimesArray += 'NULL'
+			
+				
+			generatedMimesArray += '};\n'
+
 		# arguments c structure creation (this structure is directly used by the generator functions)
 		generatedArgsStruc = '/********** Arguments structure **********/\n'
 		generatedArgsStruc += 'struct args_t {\n'
@@ -330,6 +517,11 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		cOut = open(dstFile,'w')
 		writeHeader(cOut,1)
 		cOut.write(generatedHeader)
+		if (dstFileInfos.has_key('doPost') or dstFileInfos.has_key('doPostIn')):
+			cOut.write('#ifndef DISABLE_POST\n')
+			cOut.write(generatedMimesArray)
+			cOut.write('\n')
+			cOut.write('#endif\n')
 		if len(dstFileInfos['argsList']) > 0:
 			cOut.write('#ifndef DISABLE_ARGS\n')
 			cOut.write(generatedArgsStruc)
@@ -365,7 +557,7 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 			gzipper.close()
 			fileData = sio.getvalue()
 		# HTTP header insertion before the file data
-		tmp = str(len(fileData)) + '\r\nServer: Smews\r\nContent-Type: ' + getMime(mimeHash,srcFile[srcFile.rfind('.')+1:])
+		tmp = str(len(fileData)) + '\r\nServer: Smews\r\nContent-Type: ' + getMime(mimesHashGet,srcFile[srcFile.rfind('.')+1:])
 		if gzipped:
 			tmp += '\r\nContent-Encoding: gzip'
 		#~ headerPadding = 205
@@ -377,6 +569,8 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 		fileData = tmp
 		if os.path.basename(srcFile) == '404.html':
 			fileData = 'HTTP/1.1 404 Not Found\r\nContent-Length: ' + fileData
+		elif os.path.basename(srcFile) == '505.html':
+			fileData = 'HTTP/1.1 505 HTTP Version Not Supported\r\nContent-Length: ' + fileData
 		else:
 			fileData = 'HTTP/1.1 200 OK\r\nContent-Length: ' + fileData
 			
@@ -511,10 +705,14 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 				fileName = fileName + '/'
 			filesRefs[fileName] = handlerName
 	# generator
+	# fp is the file post list 
+	fp = []
 	for fileName in set(generatorFilesNames):
 		# retrieve the output_handler for this file
 		handlerName = fileName[:fileName.rfind('.')]
 		handlerName = getCName(handlerName)
+		# save fileName
+		fn = fileName
 		# retrive the URL for this file
 		fileName = sourcesMap[fileName]
 		# .c extension is deleted
@@ -524,6 +722,9 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 			fileName = fileName.replace('\\','/')
 		#update filesRef
 		filesRefs[fileName] = handlerName
+		# search if it's POST URL
+		if fn in postList:
+			fp.append(fileName)
 
 	# the ordered list of URLs
 	filesList = filesRefs.keys()
@@ -539,6 +740,14 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 	cOut.write('\tNULL,\n')
 	cOut.write('};\n')
 
+	# construct filesList with end caracter for post urls
+	filesListNew = []
+	for fileName in filesList:
+		if fileName in fp:
+			filesListNew.append(fileName + chr(255))
+		else:
+			filesListNew.append(fileName)
+
 	# generate the URLs tree	
-	GenBlob.genBlobTree(cOut,filesList,'urls_tree',False)
+	GenBlob.genBlobTree(cOut,filesListNew,'urls_tree',False)
 	cOut.close()

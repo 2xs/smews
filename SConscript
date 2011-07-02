@@ -35,7 +35,7 @@ import os
 import GenApps
 
 # imports from SConstruct
-Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped')
+Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
 
 # returns the list of .c and .s files in dir, prefixed by dstDir
 def getAllSourceFiles(dir, dstDir):
@@ -75,6 +75,21 @@ def generateResourceProps(target, source, env):
 	GenApps.generateResourceProps(str(source[0]),propsFilesMap[str(source[0])])
 	return None
 
+def generateDefinesH(target, source, env):
+	GenApps.writeDefinesH(str(target[0]))
+	return None
+
+def generateBlobsH(target, source, env):
+	GenApps.generateBlobsH(str(target[0]))
+	return None
+
+def runTest(target, source, env):
+	os.system('tools/launch_test')	
+	return None
+
+
+env['BUILDERS']['GenBlobsH'] = Builder(action = generateBlobsH)
+env['BUILDERS']['GenDefinesH'] = Builder(action = generateDefinesH)
 env['BUILDERS']['GenResource'] = Builder(action = generateResource)
 env['BUILDERS']['GenIndex'] = Builder(action = generateIndex)
 env['BUILDERS']['GenChannelsH'] = Builder(action = generateChannelsH)
@@ -89,7 +104,8 @@ resourcesIndexO = os.path.join(binDir,'gen','resources_index')
 resourcesIndexC = os.path.join(genDir,'resources_index.c')
 channelsH = os.path.join(genDir,'channels.h')
 appListName = os.path.join(genDir,'appList')
-
+definesH = os.path.join(coreDir,'defines.h')
+blobsH = os.path.join(coreDir,'blobs.h')
 # loop on each web resource in order to generate associated c files
 # static resources generate pre-computed c files
 # dynamic resources are enriched with new declarations (from their XML)
@@ -138,7 +154,8 @@ genObjects.append(env.Object(resourcesIndexO, resourcesIndexC))
 # channels header file
 env.GenChannelsH(channelsH,propsFilesList)
 env.Depends(channelsH,toolsList)
-
+env.GenDefinesH(definesH,[])
+env.GenBlobsH(blobsH,[])
 # engine source code dependencies
 coreFiles = getAllSourceFiles(coreDir, os.path.join(binDir,'core'))
 # target drivers source code dependencies

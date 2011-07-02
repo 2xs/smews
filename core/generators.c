@@ -59,6 +59,11 @@ char server_push(const struct output_handler_t *push_handler /*CONST_VAR*/) {
 
 /*-----------------------------------------------------------------------------------*/
 void out_uint(uint16_t i) {
+#ifndef DISABLE_POST
+	/* unauthorised out */
+	if(coroutine_state.state == cor_in)
+		return;
+#endif
 	char buffer[6];
 	char *c = buffer + 5;
 	buffer[5] = '\0';
@@ -73,6 +78,11 @@ void out_uint(uint16_t i) {
 
 /*-----------------------------------------------------------------------------------*/
 void out_str(const char str[]) {
+#ifndef DISABLE_POST
+	/* unauthorised out */
+	if(coroutine_state.state == cor_in)
+		return;
+#endif
 	const char *c = str;
 	while(*c) {
 		out_c(*c++);

@@ -51,3 +51,8 @@ extern void *mem_alloc(uint16_t size);
 /* free a bloc of at least size bytes (but multiple of 4).
  * Only use on free data. */
 extern void mem_free(void *ptr, uint16_t size);
+/* very basic realloc
+ * this function must be reimplemented to avoid memory fragmentation
+ * free ptr
+ * return NULL if failed */
+extern void *mem_realloc(void *ptr, uint16_t size, uint16_t size_to_add);

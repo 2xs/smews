@@ -40,6 +40,8 @@
 #include "timers.h"
 #include "memory.h"
 #include "coroutines.h"
+#include "blobs.h"
+#include "defines.h"
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
@@ -76,8 +78,14 @@ extern CONST_VAR(struct output_handler_t, apps_httpCodes_404_html_handler);
 /* Initial sequence number */
 #define BASIC_SEQNO 0x42b7a491
 
-/* Blob containing supported HTTP commands */
-static CONST_VAR(unsigned char, blob_http_rqt[]) = {'G','E','T',' ',128};
+#ifndef DISABLE_POST
+	#define URL_POST_END 255
+	#define HEADER_POST_END 128
+	static CONST_VAR(unsigned char, blob_http_header_end[]) = {13,10,13,128};
+	/* "505 HTTP Version Not Supported" handler */
+	#define http_505_handler apps_httpCodes_505_html_handler
+	extern CONST_VAR(struct output_handler_t, apps_httpCodes_505_html_handler);
+#endif
 
 /* gets 16 bits and checks if nothing wrong appened */
 static char dev_get16(unsigned char *word) {
@@ -166,6 +174,59 @@ static char dev_get128(unsigned char *dword) {
 	checksum_add32(&c[0]); \
 }
 
+#endif
+
+#ifndef DISABLE_POST
+struct curr_input_t {	
+	struct http_connection *connection;
+	uint16_t length;
+} curr_input;
+
+/* called from dopostin function */
+short in(){
+	unsigned char tmp;
+	if(coroutine_state.state == cor_out)
+		return -1;
+	if(!curr_input.connection->post_data->content_length)
+		return -1;
+	if(curr_input.connection->post_data->boundary && (curr_input.connection->post_data->boundary->index == (uint8_t)-1)) /* index = -1 => boundary found */
+		return -1;
+	if(!curr_input.length)
+		cr_run(NULL,cor_type_get); /* input buffer is empty, changing context */
+	if(curr_input.connection->post_data->boundary){
+		/* getting next value in input buffer */
+		tmp = curr_input.connection->post_data->boundary->boundary_buffer[curr_input.connection->post_data->boundary->index];
+		DEV_GETC(curr_input.connection->post_data->boundary->boundary_buffer[curr_input.connection->post_data->boundary->index]);
+		curr_input.connection->post_data->boundary->index++;
+		/* searching boundary */
+		if(curr_input.connection->post_data->boundary->index == curr_input.connection->post_data->boundary->boundary_size)
+			curr_input.connection->post_data->boundary->index = 0;
+		/* comparing first and last characters of buffer with boundary, then all characters */
+		if(curr_input.connection->post_data->boundary->boundary_buffer[(unsigned char)(curr_input.connection->post_data->boundary->index - 1) % curr_input.connection->post_data->boundary->boundary_size] 
+				== curr_input.connection->post_data->boundary->boundary_ref[curr_input.connection->post_data->boundary->boundary_size-1] 
+				&& curr_input.connection->post_data->boundary->boundary_buffer[curr_input.connection->post_data->boundary->index] 
+				== curr_input.connection->post_data->boundary->boundary_ref[0]){
+			unsigned char index = curr_input.connection->post_data->boundary->index + 1;
+			unsigned char i;
+			for(i = 1 ; i < curr_input.connection->post_data->boundary->boundary_size-1 ; i++){
+				if(index == curr_input.connection->post_data->boundary->boundary_size)
+					index = 0;
+				if(curr_input.connection->post_data->boundary->boundary_ref[i] != curr_input.connection->post_data->boundary->boundary_buffer[index])
+					break;
+				index++;
+			}
+			if(i == curr_input.connection->post_data->boundary->boundary_size-1)
+				curr_input.connection->post_data->boundary->index = -1;
+		}	
+	}
+	else
+		DEV_GETC(tmp);
+	/* updating counters */
+	if(curr_input.connection->post_data->content_length != (uint16_t)-1)
+		curr_input.connection->post_data->content_length--;
+	curr_input.length--;
+	return tmp;
+}
 #endif
 
 /*-----------------------------------------------------------------------------------*/
@@ -337,12 +398,17 @@ char smews_receive(void) {
 		tmp_connection.parsing_state = parsing_out;
 		UI16(tmp_connection.inflight) = 0;
 		tmp_connection.generator_service = NULL;
+		tmp_connection.ready_to_send = 1;
 #ifndef DISABLE_COMET
 		tmp_connection.comet_send_ack = 0;
 		tmp_connection.comet_passive = 0;
 #endif
 #ifndef DISABLE_TIMERS
 		tmp_connection.transmission_time = last_transmission_time;
+#endif
+#ifndef DISABLE_POST
+		tmp_connection.post_data = NULL;
+		tmp_connection.post_url_detected = 0;
 #endif
 	}
 
@@ -390,8 +456,8 @@ char smews_receive(void) {
 			defer_free_args_size = CONST_UI16(tmp_connection.output_handler->handler_args.args_size);
 #endif
 		}
-		if(tmp_connection.comet_streaming == 0) {
-		    tmp_connection.output_handler = NULL;
+		if(/*tmp_connection.parsing_state == parsing_out &&*/ tmp_connection.comet_streaming == 0) {
+		  tmp_connection.output_handler = NULL;
 		}
 	}
 
@@ -498,6 +564,7 @@ char smews_receive(void) {
 		unsigned char blob_curr;
 #ifndef DISABLE_ARGS
 		struct arg_ref_t tmp_arg_ref = {0,0,0};
+		uint16_t tmp_args_size_ref;
 #endif
 
 		if(tmp_connection.parsing_state == parsing_out) {
@@ -507,8 +574,15 @@ char smews_receive(void) {
 #endif
 			tmp_connection.blob = blob_http_rqt;
 			tmp_connection.parsing_state = parsing_cmd;
+			tmp_connection.ready_to_send = 1;
+			tmp_connection.output_handler = NULL;
+#ifndef DISABLE_POST
+			tmp_connection.post_data = NULL;
+			tmp_connection.post_url_detected = 0;
+#endif
 		}
-
+		else if(tmp_connection.output_handler)
+			output_handler = tmp_connection.output_handler;	
 		blob = tmp_connection.blob;
 
 #ifndef DISABLE_ARGS
@@ -518,29 +592,424 @@ char smews_receive(void) {
 			tmp_arg_ref.arg_type = CONST_UI8(tmp_arg_ref_ptr->arg_type);
 			tmp_arg_ref.arg_size = CONST_UI8(tmp_arg_ref_ptr->arg_size);
 			tmp_arg_ref.arg_offset = CONST_UI8(tmp_arg_ref_ptr->arg_offset);
+			tmp_args_size_ref = CONST_UI16(output_handler->handler_args.args_size);
 		}
 #endif
-
-		while(x < segment_length && output_handler != &http_404_handler) {
-			x++;
-			DEV_GETC(tmp_char);
+		while(x < segment_length && output_handler != &http_404_handler 
+#ifndef DISABLE_POST
+				&& output_handler != &http_505_handler
+#endif
+				) {
 			blob_curr = CONST_READ_UI8(blob);
+#ifndef DISABLE_POST
+			/* testing end multipart */
+			if(tmp_connection.post_data 
+					&& tmp_connection.post_data->boundary 
+					&& tmp_connection.post_data->boundary->ready_to_count 
+					&& tmp_connection.post_data->content_length < 3){
+				tmp_connection.ready_to_send = 1;
+				tmp_connection.parsing_state = parsing_end;
+				break;
+			}
+			if(tmp_connection.parsing_state != parsing_post_data){
+#endif
+				x++;
+				DEV_GETC(tmp_char);
+#ifndef DISABLE_POST
+				/* updating content length */
+				if((tmp_connection.parsing_state == parsing_init_buffer
+						|| tmp_connection.parsing_state == parsing_post_args
+						||(tmp_connection.post_data 
+						&& tmp_connection.post_data->boundary 
+						&& tmp_connection.post_data->boundary->ready_to_count))
+						&& tmp_connection.post_data->content_length != (uint16_t)-1)
+					tmp_connection.post_data->content_length--;
+			}
+			/* initializing buffer before parsing data */
+			if(tmp_connection.parsing_state == parsing_init_buffer){
+				tmp_connection.post_data->boundary->boundary_buffer[tmp_connection.post_data->boundary->index] = tmp_char;
+				tmp_connection.post_data->boundary->index++;
+				if(tmp_connection.post_data->boundary->index == tmp_connection.post_data->boundary->boundary_size){
+					tmp_connection.parsing_state = parsing_post_data;
+					/* verifying buffer */
+					if(tmp_connection.post_data->boundary->boundary_buffer[(tmp_connection.post_data->boundary->index-1) % tmp_connection.post_data->boundary->boundary_size] 
+							== tmp_connection.post_data->boundary->boundary_ref[tmp_connection.post_data->boundary->boundary_size-1] 
+							&& tmp_connection.post_data->boundary->boundary_buffer[tmp_connection.post_data->boundary->index] 
+							== tmp_connection.post_data->boundary->boundary_ref[0]){
+						unsigned char index = tmp_connection.post_data->boundary->index + 1;
+						unsigned char i;
+						for(i = 1 ; i < tmp_connection.post_data->boundary->boundary_size-1 ; i++){
+							if(index == tmp_connection.post_data->boundary->boundary_size)
+								index = 0;
+							if(tmp_connection.post_data->boundary->boundary_ref[i] != tmp_connection.post_data->boundary->boundary_buffer[index])
+								break;
+							index++;
+						}
+						if(i == tmp_connection.post_data->boundary->boundary_size-1){
+							tmp_connection.parsing_state = parsing_post_attributes;
+							blob = blob_http_header_content;
+							tmp_connection.post_data->boundary->index = -1;
+						}
+					}
+				}
+				else
+					continue;
+			}
+			/* parsing boundary */
+			else if(tmp_connection.parsing_state == parsing_boundary){
+				if(tmp_connection.post_data->boundary->index == tmp_connection.post_data->boundary->boundary_size)
+					tmp_connection.post_data->boundary->index = 0; /* update index */
+				/* comparing first and last characters then all */
+				if(tmp_connection.post_data->boundary->boundary_buffer[(tmp_connection.post_data->boundary->index-1) % tmp_connection.post_data->boundary->boundary_size] 
+						== tmp_connection.post_data->boundary->boundary_ref[tmp_connection.post_data->boundary->boundary_size-1] 
+						&& tmp_connection.post_data->boundary->boundary_buffer[tmp_connection.post_data->boundary->index] 
+						== tmp_connection.post_data->boundary->boundary_ref[0]){
+					unsigned char index = tmp_connection.post_data->boundary->index + 1;
+					unsigned char i;
+					for(i = 1 ; i < tmp_connection.post_data->boundary->boundary_size-1 ; i++){
+						if(index == tmp_connection.post_data->boundary->boundary_size)
+							index = 0;
+						if(tmp_connection.post_data->boundary->boundary_ref[i] != tmp_connection.post_data->boundary->boundary_buffer[index])
+							break;
+						index++;
+					}
+					if(i == tmp_connection.post_data->boundary->boundary_size-1){
+						tmp_connection.parsing_state = parsing_post_attributes;
+						blob = blob_http_header_content;
+						tmp_connection.post_data->boundary->index = -1;
+						continue;
+					}
+				}	
+				tmp_connection.post_data->boundary->boundary_buffer[tmp_connection.post_data->boundary->index] = tmp_char;
+				tmp_connection.post_data->boundary->index++;
+				continue;
+			}
+#endif
 			/* search for the web applicative resource to send */
-			if(blob_curr >= 128 && output_handler != &http_404_handler) {
+			if(blob_curr >= 128 && output_handler != &http_404_handler 
+#ifndef DISABLE_POST
+					&& output_handler != &http_505_handler
+#endif
+				) {
+#ifndef DISABLE_POST
+				/* "\n\r\n\r" detected (end header or end part of multipart )*/
+				if(tmp_connection.parsing_state == parsing_post_end){
+					if(tmp_connection.post_data->content_type == (uint8_t)-1){ /* no content type */
+						output_handler = &http_505_handler;
+						break;
+					}
+					if(tmp_connection.post_data->boundary){
+						tmp_connection.post_data->boundary->ready_to_count = 1;
+						/* parsing header part of multipart */
+						if(tmp_connection.post_data->content_type == CONTENT_TYPE_MULTIPART_47_FORM_45_DATA){
+							tmp_connection.parsing_state = parsing_post_attributes;
+							blob = blob_http_header_content;
+							continue;
+						}
+						else
+							/* parsing data */
+							tmp_connection.parsing_state = parsing_post_data;
+					}
+					/* parsing form */
+					else if(tmp_connection.post_data->content_type == CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
+						tmp_connection.parsing_state = parsing_post_args;
+					else{
+						/* no content length detected = boundary is "\r\n\r\n" */
+						if(tmp_connection.post_data->content_length == (uint16_t)-1){
+							tmp_connection.post_data->boundary = mem_alloc(sizeof(struct boundary_t));
+							if(!tmp_connection.post_data->boundary){
+								output_handler = &http_404_handler;
+								break;
+							}
+							tmp_connection.post_data->boundary->boundary_size = 4;
+							tmp_connection.post_data->boundary->index = -1;
+							tmp_connection.post_data->boundary->multi_part_counter = 0;
+							tmp_connection.post_data->boundary->boundary_ref = "\r\n\r\n";
+							tmp_connection.post_data->boundary->boundary_buffer = mem_alloc(4*sizeof(char));
+							if(!tmp_connection.post_data->boundary->boundary_ref){
+								output_handler = &http_404_handler;
+								break;
+							}
+						}
+						tmp_connection.parsing_state = parsing_post_data;
+					}
+				}
+				/* parsing post data => run coroutine */
+				if(tmp_connection.parsing_state == parsing_post_data){
+					/* starting buffer init */
+					if(tmp_connection.post_data->coroutine.curr_context.status == cr_terminated 
+							&& tmp_connection.post_data->boundary 
+							&& tmp_connection.post_data->boundary->index == 255){
+						tmp_connection.post_data->boundary->index = 0;
+						tmp_connection.parsing_state = parsing_init_buffer;
+						continue;
+					}
+					uint16_t length_temp = segment_length - x;
+					/* initialization coroutine */
+					if(tmp_connection.post_data->coroutine.curr_context.status == cr_terminated){
+						cr_init(&(tmp_connection.post_data->coroutine));
+						tmp_connection.post_data->coroutine.func.func_post_in = CONST_ADDR(GET_GENERATOR(output_handler).handlers.post.dopostin);
+						tmp_connection.post_data->coroutine.params.in.content_type = tmp_connection.post_data->content_type;
+						tmp_connection.post_data->coroutine.params.in.filename = tmp_connection.post_data->filename;
+						tmp_connection.post_data->coroutine.params.in.post_data = tmp_connection.post_data->post_data;
+						if(tmp_connection.post_data->boundary){
+							tmp_connection.post_data->coroutine.params.in.part_number = tmp_connection.post_data->boundary->multi_part_counter;
+							tmp_connection.post_data->boundary->index = 0;
+						}
+						else
+							tmp_connection.post_data->coroutine.params.in.part_number = 0;
+						if(cr_prepare(&(tmp_connection.post_data->coroutine)) == NULL) 
+							return 1;
+					}
+					curr_input.length = length_temp;
+					curr_input.connection = &tmp_connection;
+					coroutine_state.state = cor_in;
+					/* running coroutine */
+					cr_run(&(tmp_connection.post_data->coroutine),cor_type_post_in);
+					coroutine_state.state = cor_out;
+					x += (length_temp-curr_input.length);	
+					if(tmp_connection.post_data->coroutine.curr_context.status == cr_terminated){ /* if is terminated */
+						tmp_connection.post_data->post_data = tmp_connection.post_data->coroutine.params.in.post_data;
+						cr_clean(&(tmp_connection.post_data->coroutine));
+						/* cleaning filename memory */
+						if(tmp_connection.post_data->filename){
+							uint8_t i = 0;
+							while(tmp_connection.post_data->filename[i++] != '\0');
+							mem_free(tmp_connection.post_data->filename,i*sizeof(char));
+							tmp_connection.post_data->filename = NULL;
+						}
+						/* if no boundary, there is no data to parse */
+						if(!tmp_connection.post_data->boundary){
+							tmp_connection.parsing_state = parsing_end;
+							tmp_connection.ready_to_send = 1;
+						}
+						else{
+							/* starting search of boundary if no found, or ready for next part */
+							tmp_connection.post_data->boundary->multi_part_counter++;
+							if(tmp_connection.post_data->boundary->index != (uint8_t)-1)
+								tmp_connection.parsing_state = parsing_boundary;
+							else{
+								tmp_connection.parsing_state = parsing_post_attributes;
+								blob = blob_http_header_content;
+							}
+							/* if no content length, parsing is terminated */
+							if(tmp_connection.post_data->content_length == (uint16_t)-1){
+								tmp_connection.parsing_state = parsing_end;
+								tmp_connection.ready_to_send = 1;
+								break;
+							}
+						}
+					}
+					if(tmp_connection.post_data->boundary)
+						continue;
+					break;
+				}
+				/* searching end character of post url detection */
+				if(tmp_connection.parsing_state == parsing_url && blob_curr == URL_POST_END){
+					if(tmp_connection.post_data){
+						tmp_connection.post_url_detected = 1;
+						blob_curr = CONST_READ_UI8(++blob);
+					}
+					else{ /* get unauthorized */
+						output_handler = &http_404_handler;
+						break;
+					}
+				}
+			 	/* parsing attributes of post header */	
+				if(tmp_connection.parsing_state == parsing_post_attributes){
+					if(blob_curr == ATTRIBUT_CONTENT_45_TYPE + 128) { /* content-type */
+						blob = mimes_tree;
+						tmp_connection.parsing_state = parsing_post_content_type;
+					}
+					else if(blob_curr == ATTRIBUT_CONTENT_45_LENGTH + 128){ /* content-length */
+						if(tmp_connection.post_data->content_length == (uint8_t)-1)
+							tmp_connection.post_data->content_length = 0;
+						if(tmp_char != ' ' && tmp_char != '\r'){
+							tmp_connection.post_data->content_length *= 10;
+							tmp_connection.post_data->content_length += tmp_char - '0';
+						}					
+					}
+					else if(blob_curr == ATTRIBUT_FILENAME_61_ + 128){ /* filename */
+						if(!tmp_connection.post_data->filename){
+							tmp_connection.post_data->filename = mem_alloc(10 * sizeof(char));
+							if(!tmp_connection.post_data->filename){
+								output_handler = &http_404_handler;
+								break;
+							}
+							tmp_connection.post_data->filename[0] = 2; /* first value is the size of filename */
+							tmp_connection.post_data->filename[1] = 10; /* seconde value is the size allocated */
+						}
+						else if(tmp_char == '\"'){ /* end of filename, the indexes are removed */
+							uint8_t i = 0;
+							char *new_tab = mem_alloc((tmp_connection.post_data->filename[0]-1)*sizeof(char));
+							if(!new_tab){
+								output_handler = &http_404_handler;
+								break;
+							}
+							for(i = 0 ; i < tmp_connection.post_data->filename[0]-2 ; i++)
+								new_tab[i] = tmp_connection.post_data->filename[i+2];
+							new_tab[i]='\0';
+							mem_free(tmp_connection.post_data->filename,(tmp_connection.post_data->filename[1])*sizeof(char));
+							tmp_connection.post_data->filename = new_tab;
+							tmp_connection.parsing_state = parsing_post_attributes;
+							blob = blob_http_header_content;
+						}
+						else{
+							/* reallocating filename */
+							if(tmp_connection.post_data->filename[0] == tmp_connection.post_data->filename[1]){
+								tmp_connection.post_data->filename = mem_realloc(tmp_connection.post_data->filename,tmp_connection.post_data->filename[1],10);
+								if(!tmp_connection.post_data->filename){
+									output_handler = &http_404_handler;
+									break;
+								}
+								/* updating size */
+		 						tmp_connection.post_data->filename[1] = tmp_connection.post_data->filename[1] + 10;
+							}
+							/* add current character */
+							tmp_connection.post_data->filename[tmp_connection.post_data->filename[0]] = tmp_char;
+							tmp_connection.post_data->filename[0]++;
+						}
+					}
+					/* parsing boundary */
+					else if(blob_curr == ATTRIBUT_BOUNDARY_61_ + 128){
+						if(tmp_char != '\r'){
+							/* reallocating tab */
+							if(tmp_connection.post_data->boundary->index == tmp_connection.post_data->boundary->boundary_size){
+								tmp_connection.post_data->boundary->boundary_ref = mem_realloc(tmp_connection.post_data->boundary->boundary_ref,tmp_connection.post_data->boundary->boundary_size,10);
+								if(!tmp_connection.post_data->boundary->boundary_ref){
+									output_handler = &http_404_handler;
+									break;
+								}
+								/* updating size */
+								tmp_connection.post_data->boundary->boundary_size += 10;							
+							}	
+							tmp_connection.post_data->boundary->boundary_ref[tmp_connection.post_data->boundary->index++] = tmp_char; /* saving boundary char */
+						}
+						else{
+							/* final reallocation */
+							uint8_t i = 0;
+							char *new_tab = mem_alloc((tmp_connection.post_data->boundary->index+5)*sizeof(char));	
+							if(!new_tab){
+								output_handler = &http_404_handler;
+								break;
+							}
+							new_tab[0] = '\n';
+							new_tab[1] = '\r';
+							new_tab[2] = '\n';
+							new_tab[3] = '-';
+							new_tab[4] = '-';
+							/* copying boundary */
+							for(i = 0 ; i < tmp_connection.post_data->boundary->index ; i++)
+								new_tab[i+5] = tmp_connection.post_data->boundary->boundary_ref[i];
+							mem_free(tmp_connection.post_data->boundary->boundary_ref,(tmp_connection.post_data->boundary->boundary_size)*sizeof(char));
+							tmp_connection.post_data->boundary->boundary_size = tmp_connection.post_data->boundary->index + 5;
+							tmp_connection.post_data->boundary->boundary_ref = new_tab;
+							tmp_connection.post_data->boundary->index = -1;
+							tmp_connection.post_data->boundary->boundary_buffer = mem_alloc(tmp_connection.post_data->boundary->boundary_size*sizeof(char));
+							if(!tmp_connection.post_data->boundary->boundary_buffer){
+								output_handler = &http_404_handler;
+								break;
+							}
+						}
+					}
+				}
+				/* parsing content-type */
+				else if(tmp_connection.parsing_state == parsing_post_content_type){
+					if(blob_curr - 128 == CONTENT_TYPE_MULTIPART_47_FORM_45_DATA){ /* multipart */
+						/* allocating boundary structure */
+						tmp_connection.post_data->boundary = mem_alloc(sizeof(struct boundary_t));
+						if(!tmp_connection.post_data->boundary){
+							output_handler = &http_404_handler;
+							break;
+						}
+						tmp_connection.post_data->boundary->boundary_size = 10;
+						tmp_connection.post_data->boundary->index = 0;
+						tmp_connection.post_data->boundary->multi_part_counter = 0;
+						tmp_connection.post_data->boundary->ready_to_count = 0;
+						tmp_connection.post_data->boundary->boundary_ref = mem_alloc(10*sizeof(char));
+						if(!tmp_connection.post_data->boundary->boundary_ref){
+							output_handler = &http_404_handler;
+							break;
+						}
+						tmp_connection.post_data->content_type = CONTENT_TYPE_MULTIPART_47_FORM_45_DATA;	
+					}
+					else{ /* searching content-type in application to verify it */
+						tmp_connection.post_data->content_type = (uint8_t) -1;
+						if(!output_handler->handler_mimes.mimes_size)
+							tmp_connection.post_data->content_type = blob_curr - 128;
+						else{	
+							uint8_t i;
+							for(i = 0 ; i < output_handler->handler_mimes.mimes_size ; i++){
+								if(output_handler->handler_mimes.mimes_index[i] == blob_curr - 128)
+									tmp_connection.post_data->content_type = blob_curr - 128;
+							}
+						}					
+						if(tmp_connection.post_data->content_type == (uint8_t) -1){
+							output_handler = &http_404_handler;
+							break;
+						}
+					}
+					tmp_connection.parsing_state = parsing_post_attributes;
+					blob = blob_http_header_content;
+				} else
+#endif
 				if(tmp_connection.parsing_state == parsing_cmd) {
+#ifndef DISABLE_POST
+					if(blob_curr == REQUEST_POST_32_ + 128){ /* post request */
+						/* allocating post data structure */
+						tmp_connection.post_data = mem_alloc(sizeof(struct post_data_t));
+						if(!tmp_connection.post_data){
+							output_handler = &http_404_handler;
+							break;
+						}
+						tmp_connection.post_data->content_type = -1;
+						tmp_connection.post_data->content_length = -1;
+						tmp_connection.post_data->boundary = NULL;
+						tmp_connection.post_data->post_data = NULL;
+						tmp_connection.post_data->filename = NULL;
+						tmp_connection.post_data->coroutine.curr_context.status = cr_terminated;
+					}
+#endif
 					tmp_connection.parsing_state = parsing_url;
 					blob = urls_tree;
 				} else {
 					if(tmp_char == ' ') {
-						if(!output_handler)
-							output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
-						break;
+#ifndef DISABLE_POST
+						if(tmp_connection.post_data && tmp_connection.post_url_detected == 0) { /* post unauthorized */
+							output_handler = &http_404_handler;
+							break;
+						}
+						else{
+#endif
+							if(!output_handler)
+								output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
+#ifndef DISABLE_POST
+							if(tmp_connection.post_data){
+								tmp_connection.parsing_state = parsing_post_attributes;
+								blob = blob_http_header_content;
+								tmp_connection.ready_to_send = 0;
+							}
+							else{
+#endif
+								tmp_connection.parsing_state = parsing_end;
+								break;
+#ifndef DISABLE_POST
+							}
+						}	
+#endif
 					} else {
 #ifndef DISABLE_ARGS
-						if(tmp_char == '?') {
+						if(tmp_char == '?'
+#ifndef DISABLE_POST 
+						||	(tmp_connection.parsing_state == parsing_post_args && tmp_char == 10)
+#endif
+						){
 							uint16_t tmp_args_size;
-							output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
+							if(!output_handler)
+								output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
 							tmp_args_size = CONST_UI16(output_handler->handler_args.args_size);
+							tmp_args_size_ref = tmp_args_size;
+							tmp_connection.ready_to_send = 0;
 							if(tmp_args_size) {
 								uint16_t i;
 								blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
@@ -577,6 +1046,19 @@ char smews_receive(void) {
 				}
 			blob_curr = CONST_READ_UI8(blob);
 			}
+#ifndef DISABLE_POST
+			/* end header detection */
+			if(tmp_connection.parsing_state == parsing_post_attributes && tmp_char == 13){
+				blob = blob_http_header_end;
+				tmp_connection.parsing_state = parsing_post_end;
+			}
+			else if(tmp_connection.parsing_state == parsing_post_end){
+				if(tmp_char != blob_curr){
+					blob = blob_http_header_content;
+					tmp_connection.parsing_state = parsing_post_attributes;
+				}
+			}
+#endif
 #ifndef DISABLE_ARGS
 			if(tmp_connection.arg_ref_index != 128) {
 				if(tmp_char == '&') {
@@ -584,6 +1066,8 @@ char smews_receive(void) {
 					blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
 					continue;
 				} else if(tmp_char == ' ') {
+					tmp_connection.ready_to_send = 1;
+					tmp_connection.parsing_state = parsing_end;
 					break;
 				} else {
 					switch(tmp_arg_ref.arg_type) {
@@ -607,11 +1091,27 @@ char smews_receive(void) {
 				}
 			} else
 #endif
+#ifndef DISABLE_POST
+				if(tmp_connection.parsing_state == parsing_post_end && blob_curr != HEADER_POST_END){
+					blob++;
+				} 
+				else if(
+						!(tmp_connection.parsing_state == parsing_post_content_type && (tmp_char == 32 || tmp_char == 58))
+						&& !(tmp_connection.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_CONTENT_45_LENGTH + 128)
+						&& !(tmp_connection.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_BOUNDARY_61_ + 128)
+						&& !(tmp_connection.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_FILENAME_61_ + 128)
+				)
+#endif
 			{
 				do {
+
 					unsigned char offsetInf = 0;
 					unsigned char offsetEq = 0;
 					unsigned char blob_next;
+#ifndef DISABLE_POST
+					if(tmp_connection.parsing_state == parsing_post_attributes && tmp_char < 123 && tmp_char > 96)
+						tmp_char = tmp_char - 'a' + 'A';
+#endif
 					blob_curr = CONST_READ_UI8(blob);
 					blob_next = CONST_READ_UI8(++blob);
 					if (tmp_char != blob_curr && blob_next >= 128) {
@@ -626,7 +1126,12 @@ char smews_receive(void) {
 							if (blob_next & 2) {
 								blob += offsetEq;
 							} else {
-								output_handler = &http_404_handler;
+#ifndef DISABLE_POST
+								if(tmp_connection.parsing_state == parsing_post_attributes)
+									blob = blob_http_header_content;
+								else
+#endif
+									output_handler = &http_404_handler;
 								break;
 							}
 						}
@@ -635,7 +1140,12 @@ char smews_receive(void) {
 						if (blob_next < 32 && blob_next & 1) {
 							blob += offsetInf;
 						} else {
-							output_handler = &http_404_handler;
+#ifndef DISABLE_POST
+							if(tmp_connection.parsing_state == parsing_post_attributes)
+								blob = blob_http_header_content;
+							else
+#endif
+								output_handler = &http_404_handler;
 							break;
 						}
 					} else {
@@ -643,17 +1153,34 @@ char smews_receive(void) {
 							unsigned char offsetSup = offsetEq + ((blob_next & 3)?CONST_READ_UI8(blob+(offsetInf-1)):0);
 							blob += offsetSup;
 						} else {
-							output_handler = &http_404_handler;
+#ifndef DISABLE_POST
+							if(tmp_connection.parsing_state == parsing_post_attributes)
+								blob = blob_http_header_content;
+							else
+#endif
+								output_handler = &http_404_handler;
 							break;
 						}
 					}
 				} while(1);
 			}
 		}
- 
-		if(!output_handler) {
+		/* detecting parsing_end */
+		if(
+#ifndef DISABLE_POST
+				(tmp_connection.parsing_state == parsing_post_args && !tmp_connection.post_data->content_length) || 
+#endif
+				((output_handler == &http_404_handler 
+#ifndef DISABLE_POST
+					|| output_handler == &http_505_handler
+#endif
+					) && tmp_connection.parsing_state != parsing_cmd)){
+			tmp_connection.parsing_state = parsing_end;
+			tmp_connection.ready_to_send = 1;
+		}
+		if(!output_handler)
 			tmp_connection.blob = blob;
-		} else {
+		else {
 			if(tmp_connection.parsing_state != parsing_cmd) {
 				tmp_connection.output_handler = output_handler;
 				UI32(tmp_connection.next_outseqno) = UI32(current_inack);
@@ -668,18 +1195,56 @@ char smews_receive(void) {
 				tmp_connection.comet_streaming = 0;
 #endif
 			}
-			tmp_connection.parsing_state = parsing_out;
-			tmp_connection.blob = blob_http_rqt;
-#ifndef DISABLE_ARGS
-			tmp_connection.arg_ref_index = 128;
+			if(tmp_connection.parsing_state == parsing_end || tmp_connection.parsing_state == parsing_cmd){
+#ifndef DISABLE_POST
+				/* cleaning memory */
+				if(tmp_connection.post_data){ /* Warning : don't clean post_data, useful in output function (unless error 404 or 505) */
+					if(tmp_connection.post_data->filename){
+						uint8_t i = 0;
+						while(tmp_connection.post_data->filename[i++] != '\0');
+						mem_free(tmp_connection.post_data->filename,i*sizeof(char));
+						tmp_connection.post_data->filename = NULL;
+					}
+					if(tmp_connection.post_data->boundary){
+						if(tmp_connection.post_data->boundary->boundary_ref && tmp_connection.post_data->content_length != (uint16_t)-1)
+							mem_free(tmp_connection.post_data->boundary->boundary_ref,tmp_connection.post_data->boundary->boundary_size*sizeof(char));
+						if(tmp_connection.post_data->boundary->boundary_buffer)
+							mem_free(tmp_connection.post_data->boundary->boundary_buffer,(tmp_connection.post_data->boundary->boundary_size)*sizeof(char));
+						mem_free(tmp_connection.post_data->boundary,sizeof(struct boundary_t));
+					}
+					tmp_connection.post_data->boundary = NULL;
+				}
+				if(output_handler == &http_404_handler 
+#ifndef DISABLE_POST
+						|| output_handler == &http_505_handler
 #endif
+						){
+					/* cleaning post_data if error */
+					if(tmp_connection.post_data){
+						mem_free(tmp_connection.post_data,sizeof(struct post_data_t));
+						tmp_connection.post_data = NULL;
+					}					
+					/* cleaning args data if error */
+					if(tmp_connection.args){
+						mem_free(tmp_connection.args,tmp_args_size_ref);
+						tmp_connection.args = NULL;
+					}
+				}
+#endif
+				tmp_connection.parsing_state = parsing_out;
+				tmp_connection.blob = blob_http_rqt;
+#ifndef DISABLE_ARGS
+				tmp_connection.arg_ref_index = 128;
+#endif
+			}
+			else
+				tmp_connection.blob = blob;
 		}
 	}
-
 	/* drop remaining TCP data */
 	while(x++ < segment_length)
 		DEV_GETC(tmp_char);
-
+	
 	/* acknowledge received and processed TCP data if no there is no current output_handler */
 	if(!tmp_connection.output_handler && tmp_connection.tcp_state == tcp_established && segment_length) {
 		tmp_connection.output_handler = &ref_ack;
@@ -688,7 +1253,6 @@ char smews_receive(void) {
 	/* check TCP checksum using the partially precalculated pseudo header checksum */
 	checksum_end();
 	if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
-		
 		if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
 			clean_service(tmp_connection.generator_service, current_inack);
 			if(defer_free_handler) { /* free handler and generator service is the service is completely acknowledged */

@@ -139,3 +139,23 @@ void mem_free(void *ptr, uint16_t size) {
 		}
 	}
 }
+
+/* very basic realloc
+ * this function must be reimplemented to avoid memory fragmentation
+ * free ptr
+ * return NULL if failed */
+void *mem_realloc(void *ptr, uint16_t size, uint16_t size_to_add){
+	uint16_t i = 0;
+	/* allocating new ptr */
+	void *new_ptr = mem_alloc((size + size_to_add)*sizeof(char));
+	if(!new_ptr){
+		mem_free(ptr,size);
+		return NULL;
+	}
+	/* copying data */
+	for(i = 0 ; i < size ; i++)
+		((char *)new_ptr)[i] = ((char *)ptr)[i];
+	/* free ptr */
+	mem_free(ptr,size);
+	return new_ptr;
+}

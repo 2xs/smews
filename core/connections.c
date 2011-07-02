@@ -151,3 +151,9 @@ void free_connection(const struct http_connection *connection) {
 	mem_free(connection->generator_service, sizeof(struct generator_service_t));
 	mem_free((void*)connection, sizeof(struct http_connection));
 }
+
+#ifndef DISABLE_POST
+struct coroutine_state_t coroutine_state = {
+	.state = cor_out,
+};
+#endif

@@ -46,12 +46,24 @@ struct args_t;
 typedef char (generator_init_func_t)(void);
 typedef char (generator_initget_func_t)(struct args_t *);
 typedef char (generator_doget_func_t)(struct args_t *);
+#ifndef DISABLE_POST
+typedef char (generator_dopost_in_func_t)(uint8_t,uint8_t,char *,void **);
+typedef char (generator_dopost_out_func_t)(uint8_t,void *);
+#endif
 
 /* Generator: init and run functions */
 struct dynamic_resource {
 	generator_init_func_t *init;
 	generator_initget_func_t *initget;
-	generator_doget_func_t *doget;
+	union handlers_u {
+		generator_doget_func_t *doget;
+#ifndef DISABLE_POST
+		struct post_handlers{
+			generator_dopost_in_func_t *dopostin;
+			generator_dopost_out_func_t *dopostout;
+		} post;
+#endif
+	} handlers;
 	enum prop_e { prop_persistent, prop_idempotent, prop_volatile } prop;
 };
 
@@ -110,6 +122,12 @@ struct output_handler_t {
 		const struct arg_ref_t * /*CONST_VAR*/ args_index;
 		uint16_t args_size;
 	} handler_args;
+#endif
+#ifndef DISABLE_POST
+	struct handler_mimes_t {
+		unsigned const char * /*CONST VAR*/ mimes_index;
+		uint8_t mimes_size;
+	}handler_mimes;
 #endif
 };
 

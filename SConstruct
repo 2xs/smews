@@ -78,12 +78,14 @@ opts.Add('apps', 'Set the Web applications directories:\na list of directories n
 opts.Add(BoolVariable('gzip', 'Set to 1 to gzip (at compile time) static Web resources', True))
 opts.Add(BoolVariable('debug', 'Set to 1 to build for debug', False))
 opts.Add(BoolVariable('sdump', 'Set to 1 to include stack dump', False))
+opts.Add(BoolVariable('test', 'Set to 1 to test the test apps', False))
 opts.Add('ipaddr', 'Set the IP address of Smews', None)
 # the list of disableable options
 disabledHash = {}
 disabledHash['timers'] = 'DISABLE_TIMERS'
 disabledHash['comet'] = 'DISABLE_COMET'
 disabledHash['arguments'] = 'DISABLE_ARGS'
+disabledHash['post'] = 'DISABLE_POST'
 opts.Add(ListVariable('disable', 'Disable smews functionnalities', 'none', disabledHash.keys()))
 opts.Add(ListVariable('endian', 'Force endianness', 'none', ['little','big']))
 opts.Add('chuncksNbits', 'Set the checksum chuncks size', 5)
@@ -99,8 +101,15 @@ sdump = globalEnv['sdump']
 chuncksNbits = int(globalEnv['chuncksNbits'])
 toDisable = globalEnv['disable']
 endian = globalEnv['endian']
+test = globalEnv['test']
 if endian:
 	endian = endian[0]
+
+if test:
+	globalEnv['ipaddr'] = '192.168.1.2'
+	globalEnv['apps'] = 'post_test'
+	globalEnv['target'].append('linux')
+
 targets = map(lambda x: os.path.normpath(str(x)),globalEnv['target'])
 
 # static configuration of the ip adress
@@ -136,10 +145,12 @@ else:
 # clean rule used if no target: clean all
 if len(targets) == 0:
 	pycFiles = []
+	definesh = os.path.join(coreDir,'defines.h')	
+	blobsh = os.path.join(coreDir,'blobs.h')
 	for file in os.listdir(toolsDir):
 		if file.endswith('.pyc'):
 			pycFiles.append(os.path.join(toolsDir,file))
-	Clean('.',[binBase,genBase,sconsCache,pycFiles])
+	Clean('.',[binBase,genBase,sconsCache,pycFiles,definesh,blobsh])
 
 # the appDirs map contains associations between application URLs and real paths
 # ex.: apps = :smews,myApp:myApplication,test
@@ -210,7 +221,7 @@ for target in targets:
 				os.mkdir(dir)
 			
 	# export variables for external SConscript files
-	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped')
+	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
 	Export('env targetDir binDir projectName elfName')
 	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
 	# target dependent SConscript call

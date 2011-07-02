@@ -48,5 +48,8 @@ extern char server_push(const struct output_handler_t * /*CONST_VAR*/ push_handl
 char out_c(char c);
 extern void out_uint(uint16_t i);
 extern void out_str(const char str[]);
+#ifndef DISABLE_POST
+extern short in();
+#endif
 
 #endif /* __GENERATOR_H__ */
