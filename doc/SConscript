@@ -12,9 +12,10 @@ htmlIndex = 'index.html'
 #heveaCommand = 'hevea -exec xxdate.exe -fix %s'
 #hachaCommand = 'hacha -o %s %s'
 
-env.DVI(dviTarget, source)
-env.PostScript(psTarget, dviTarget)
-env.PDF(pdfTarget, psTarget)
+#env.DVI(dviTarget, source)
+#env.PostScript(psTarget, dviTarget)
+#env.PDF(pdfTarget, psTarget)
+env.PDF(pdfTarget, source)
 
 #uncomment de below to lines to generate html
 #env.Command(htmlToc, dviTarget,  heveaCommand % (source))
