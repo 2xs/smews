@@ -1,0 +1,45 @@
+#!/usr/bin/python
+import os
+import sys
+import threading 
+import time
+import signal
+
+
+# execute all test in the dstDir directory
+def execFiles(dstDir,ip):
+	for file in os.listdir(os.path.join(dstDir)):
+		file_path = os.path.join(dstDir,file)
+		if file.endswith('.py'):
+			resp = os.system('\t%s %s'%(file_path,ip))
+			if (resp  == os.EX_OK):
+				print('%40s %s'%(file[:-3],'OK'))
+			else:
+				print('%40s %s'%(file[:-3],'KO'))
+		elif os.path.isdir(file_path):
+			execFiles(file_path,ip)
+			
+# duplicate the process			
+pid=os.fork()
+
+# child process launch the server
+if pid==0:
+	
+#	sys.stdout.fileno()
+	os.system('bin/linux/smews.elf')
+# father process 
+else:
+	try:
+		# try to call execFiles function
+		print('\n')
+		execFiles("tools/test","192.168.1.2")
+	except:
+		print('error in the execFiles function')
+	else:
+		os.kill(0,signal.SIGKILL)
+
+	# kill the child process (server)
+	os.kill(0,signal.SIGKILL)
+	
+os.wait()
+

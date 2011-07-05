@@ -1,0 +1,61 @@
+How to test your apps in smews.
+
+Warning : The tests can only be launch with a python version >= 3.2.0
+
+1) you have to place your application in the apps/test/ directory.
+2) you write test and place it in the tools/test directory (you can group your test in a sub directory)
+3) this test work only on the linux target
+
+to lauch the test, you must launch the follow command as root
+	~/ scons test=true
+
+This command 
+	compile SMEWS with apps, which are in the apps/test directory 
+	launch SMEWS on the 192.168.1.2 ipAdress
+	launch all test which are write in the tools/test directory and its subdirectory 
+
+You can see test example in the tools/test directory.
+
+What it work?
+	
+	- Example with file Simple_GET test
+
+	#!/usr/bin/python
+	import socket
+	import sys
+	import time 
+	import os
+
+	# create couple HOST (IP address), PORT
+	HOST,PORT = sys.argv[1],80
+	# the send request
+	request = 'GET /test/post/get_test_1 \r\n\r\n'
+	correctAck = 'HTTP/1.1 200 OK\\r\\n'
+	correctAnswer = 'Hello World!'
+	# create the socket
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	# connection to the server
+	sock.connect((HOST,PORT))
+
+	sock.send(bytes(request,'UTF-8'))
+
+	# receive the server answer
+	data = sock.recv(1024)
+
+	# close the socket
+	sock.close()
+
+	if(correctAck in str(data) and correctAnswer in str(data)):
+		sys.exit(os.EX_OK)
+	else:
+		sys.exit(os.EX_SOFTWARE)
+
+
+Each test send a HTTP request to the server, and receive it. 
+So you have just to change the request field and the last test, with your own test on receive data.
+You have to exit the test with sys.exit(os.EX_OK) (that means, that the test is OK) or with sys.exit(os.EX_SOFTWARE)(that means, that the test is KO (fail))	
+
+
+You have different kind of test yet implemented in the directory tools/test.
+
+

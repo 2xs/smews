@@ -1,0 +1,54 @@
+<html>
+	<head>
+		<title>Post Test</title>
+	</head>
+	<body>
+		Hello World !
+		<br />
+		<br />
+		Get Request Without Args
+		<form action="get_test_1" method=get>
+			<input type=submit value="Submit"/> 
+		</form>
+		<br />
+		Get Request With Args
+		<form action="get_test_2" method=get>
+			<label for="pseudo">int :</label>
+			<input type="text" name="i1" id="i1" value="4" />
+			<br />
+			<label for="pass">str :</label>
+			<input type="text" name="s" id="s" value="toto" />
+			<br />
+			<label for="pseudo">int :</label>
+			<input type="text" name="i2" id="i2" value="5" />
+			<input type=submit value="Submit"/> 
+		</form>
+		<br />
+		Post Request With Form Content Type
+		<form action="post_test_1" method=post>
+			<label>int :</label>
+			<input type="text" name="i1" id="i1" value="4" />
+			<br />
+			<label>str :</label>
+			<input type="text" name="s" id="s" value="toto" />
+			<br />
+			<label>int :</label>
+			<input type="text" name="i2" id="i2" value="5" />
+			<input type=submit value="Submit"/> 
+		</form>
+		<br />
+		Post Request With Data Content Type MultiPart
+		<form enctype=multipart/form-data action="post_test_2" method=post>
+			<input type=file name=file2 value="Choose file"/>
+			<input type=submit value="Submit"/>
+		</form>
+		<br />
+		Post Request With Data Content Type MultiPart 2
+		<form enctype=multipart/form-data action="post_test_3" method=post>
+			<input type=file name=file2 value="Choose file"/>
+			<input type=file name=file3 value="Choose file"/>
+			<input type=file name=file4 value="Choose file"/>
+			<input type=submit value="Submit"/>
+		</form>
+		</body>
+</html>
