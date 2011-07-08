@@ -1,3 +1,5 @@
+1.6.1:
+	- added arduino_slip target
 1.6.0:
 	- added POST support
 	- bugfix in arguments parsing
