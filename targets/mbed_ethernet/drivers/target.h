@@ -55,6 +55,8 @@ typedef char int8_t;
 
 /* Target specific includes */
 #include <rflpc17xx/drivers/leds.h>
+#include <rflpc17xx/drivers/ethernet.h>
+#include <rflpc17xx/drivers/eth_const.h>
 #include "hardware.h"
 
 /* Smews includes */
@@ -151,8 +153,18 @@ typedef char int8_t;
 /* size of the buffer used to generate dynamic content */
 #define OUTPUT_BUFFER_SIZE 256
 /* size of the shared stack used by all dynamic content generators */
-#define STACK_SIZE 64
+#define STACK_SIZE 512
 /* size of the dynamic memory allocator pool */
-#define ALLOC_SIZE 2048
+#define ALLOC_SIZE 8192
+
+/* Ethernet configuration */
+/* Number of frame descriptors for reception. For each descriptor, 
+ * 16 bytes will be needed */
+#define RX_DESCRIPTORS 2
+/* Size of the reception buffers. One buffer will be needed per reception descriptor */
+#define RX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH
+/* Number of frame descriptors for transmission. For each descriptor,
+ * 12 bytes will be needed */
+#define TX_DESCRIPTORS 2
 
 #endif /* __TARGET_H__ */
