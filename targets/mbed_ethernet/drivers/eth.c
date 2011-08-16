@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-14
-  Time-stamp: <2011-07-15 17:11:32 (hauspie)>
+  Time-stamp: <2011-07-15 17:42:02 (hauspie)>
 
 */
 #include <rflpc17xx/drivers/ethernet.h>
@@ -80,6 +80,11 @@
 
 EthAddr local_eth_addr = {{2, 3, 4, 5, 6, 7}};
 
+/* Pointer to the current rx frame */
+uint8_t *current_eth_rx_frame;
+/* Pointer to the next byte to provide to smews */
+uint32_t current_eth_rx_frame_idx;
+uint32_t current_eth_rx_frame_size;
 
 typedef struct
 {
@@ -213,4 +218,16 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 	rflpc_eth_done_process_rx_packet();
 	return;
     }
+    if (eth.type != PROTO_IP) /* not IPv4, drop */
+    {
+	rflpc_eth_done_process_rx_packet();
+	return;
+    }
+/* a new packet has been received, but the previous one has not been fully
+ * handled */
+    if (current_eth_rx_frame == d->packet) 
+	return;
+    current_eth_rx_frame = d->packet;
+    current_eth_rx_frame_idx = PROTO_MAC_HLEN; /* point to the first IP byte */
+    current_eth_rx_frame_size = (s->status_info & 0x7FF) + 1; /* size of the frame */
 }
