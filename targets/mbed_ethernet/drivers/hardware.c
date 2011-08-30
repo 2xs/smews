@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-07-15 17:11:16 (hauspie)>
+  Time-stamp: <2011-08-30 17:44:18 (hauspie)>
 */
 #include <rflpc17xx/drivers/uart.h>
 #include <rflpc17xx/drivers/ethernet.h>
@@ -48,15 +48,16 @@
 #include "eth.h"
 
 
+/* transmission descriptors */
+static rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS];
 /* reception descriptors */
 static rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS];
+
+/* transmission status */
+static rfEthTxStatus   _tx_status[TX_DESCRIPTORS];
 /* reception status */
 static rfEthRxStatus   _rx_status[RX_DESCRIPTORS];
 
-/* transmission descriptors */
-static rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS];
-/* transmission status */
-static rfEthTxStatus   _tx_status[TX_DESCRIPTORS];
 
 int putchar(int c)
 {
@@ -70,66 +71,16 @@ int putchar(int c)
     return c;
 }
 
-static void _dump_packet(rfEthDescriptor *d, rfEthRxStatus *s)
-{
-    printf("= %p %p %p",d, s, d->packet);
-    if (s->status_info & (1 << 18))
-	printf("cf ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 21))
-	printf("mf ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 22))
-	printf("bf ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 23))
-	printf("crc ");
-    else
-	printf("    ");
-    if (s->status_info & (1 << 24))
-	printf("se ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 25))
-	printf("le ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 27))
-	printf("ae ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 28))
-	printf("ov ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 29))
-	printf("nd ");
-    else
-	printf("   ");
-    if (s->status_info & (1 << 30))
-	printf("lf ");
-    else
-	printf("   ");
-
-    printf("size:%d ", (s->status_info & 0x7FF) + 1);
-/*    for (i = 0 ; i < (s->status_info & 0x7FF) + 1 ; ++i)
-    {
-	if (i % 16 == 0)
-	    printf("\r\n");
-	printf("%x ", d->packet[i]);
-	}*/
-    printf("\r\n");
-
-}
-
-
 RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
-    static rfEthDescriptor *d;
-    static rfEthRxStatus *s;
+    rfEthDescriptor *d;
+    rfEthRxStatus *s;
+
+    /* int i; */
+    /* for (i = 0 ; i < RX_DESCRIPTORS ; ++i) */
+    /* { */
+    /* 	printf("%d %p %x %p\r\n", i, _rx_descriptors[i].packet, _rx_descriptors[i].control, &_rx_descriptors[i].control); */
+    /* } */
 
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
     {
@@ -150,6 +101,7 @@ static void _init_rx()
     {
 	_rx_descriptors[i].packet = (uint8_t*) mem_alloc(RX_BUFFER_SIZE);
 	_rx_descriptors[i].control = (RX_BUFFER_SIZE - 1) | (1 << 31); /* -1 encoding and enable irq generation on packet reception */
+	printf("%d %p %x %p\r\n", i, _rx_descriptors[i].packet, _rx_descriptors[i].control, &_rx_descriptors[i].control);
     }
     rflpc_eth_set_irq_handler(_eth_irq_handler);
     rflpc_eth_irq_enable_set(RFLPC_ETH_IRQ_EN_RX_DONE);
@@ -163,11 +115,20 @@ RFLPC_IRQ_HANDLER _rit_handler()
 
 void mbed_eth_hardware_init(void)
 {
+    RFLPC_DUMP_STACK();
     rflpc_eth_init();
     while (!rflpc_eth_link_state());
     rflpc_eth_set_mac_address(local_eth_addr.addr);
     rflpc_eth_set_tx_base_addresses(_tx_descriptors, _tx_status, TX_DESCRIPTORS);
     _init_rx();
+    printf(" #####                                          #     # ######  ####### ######\r\n");
+    printf("#     #  #    #  ######  #    #   ####          ##   ## #     # #       #     #\r\n");
+    printf("#        ##  ##  #       #    #  #              # # # # #     # #       #     #\r\n");
+    printf(" #####   # ## #  #####   #    #   ####          #  #  # ######  #####   #     #\r\n");
+    printf("      #  #    #  #       # ## #       #         #     # #     # #       #     #\r\n");
+    printf("#     #  #    #  #       ##  ##  #    #         #     # #     # #       #     #\r\n");
+    printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
+    printf("\r\n");
     printf("Mbed Ethernet smews initialization done\r\n");
 
    /* setting rit timer to periodicaly check for link state */

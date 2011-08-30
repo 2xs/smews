@@ -34,16 +34,83 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-07-13
-  Time-stamp: <2011-08-30 09:31:41 (hauspie)>
+  Created: 2011-08-30
+  Time-stamp: <2011-08-30 17:49:01 (hauspie)>
+
 */
-#ifndef __HARDWARE_H__
-#define __HARDWARE_H__
+#include "eth.h"
+#include "mbed_eth_debug.h"
 
-/* NULL pointer */
-#define NULL ((void*)0)
+#define MAX_ARP_ENTRY 10
 
+typedef struct
+{
+    uint32_t ip;
+    EthAddr mac;
+    /* TODO, add a timestamp to choose the couple to delete from cache */
+} ArpEntry;
 
-extern void mbed_eth_hardware_init(void);
+ArpEntry _arp_table[MAX_ARP_ENTRY];
 
-#endif
+#define GET_BYTE(ptr,i) (((uint8_t*)(ptr))[i])
+
+void _dump_arp_cache()
+{
+    int i;
+    MBED_DEBUG("ARP CACHE\r\n");
+    for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
+    {
+	if (_arp_table[i].ip != 0)
+	{
+	    MBED_DEBUG("%d: %x:%x:%x:%x:%x:%x -> %d.%d.%d.%d\r\n", i,
+		       _arp_table[i].mac.addr[0],
+		       _arp_table[i].mac.addr[1],
+		       _arp_table[i].mac.addr[2],
+		       _arp_table[i].mac.addr[3],
+		       _arp_table[i].mac.addr[4],
+		       _arp_table[i].mac.addr[5],
+		       GET_BYTE(&_arp_table[i].ip, 3),
+		       GET_BYTE(&_arp_table[i].ip, 2),
+		       GET_BYTE(&_arp_table[i].ip, 1),
+		       GET_BYTE(&_arp_table[i].ip, 0));
+	}
+	else
+	    MBED_DEBUG("%d: empty\r\n", i);
+
+    }
+    MBED_DEBUG("END ARP CACHE\r\n");
+}
+
+void arp_add_mac(uint32_t ipv4, EthAddr *mac)
+{
+    int i;
+    MBED_DEBUG("Adding new entry\r\n");
+    for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
+    {
+	if (_arp_table[i].ip == ipv4 || _arp_table[i].ip == 0)
+	{
+	    _arp_table[i].ip = ipv4;
+	    _arp_table[i].mac = *mac;
+/*	    _dump_arp_cache();*/
+	    return;
+	}
+    }
+    /* every entry is used, remove the first one (TODO: really use timestamps ! :) ) */
+    _arp_table[0].ip = ipv4;
+    _arp_table[i].mac = *mac;
+/*    _dump_arp_cache();*/
+}
+
+int arp_get_mac(uint32_t ipv4, EthAddr *mac)
+{
+    int i;
+    for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
+    {
+	if (_arp_table[i].ip == ipv4)
+	{
+	    *mac = _arp_table[i].mac;
+	    return 1;
+	}
+    }
+    return 0;
+}

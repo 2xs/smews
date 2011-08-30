@@ -35,12 +35,16 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-15
-  Time-stamp: <2011-07-15 17:10:13 (hauspie)>
+  Time-stamp: <2011-08-30 13:25:36 (hauspie)>
 
 */
 #ifndef __ETH_H__
 #define __ETH_H__
 
+#include <stdint.h>
+#include "hardware.h"
+#include "mbed_eth_debug.h"
+#include <rflpc17xx/drivers/ethernet.h>
 
 typedef struct
 {
@@ -49,7 +53,97 @@ typedef struct
 
 extern EthAddr local_eth_addr;
 
+/* Pointer to the current rx frame */
+extern uint8_t *current_eth_rx_frame;
+/* Pointer to the next byte to provide to smews */
+extern uint32_t current_eth_rx_frame_idx;
+extern uint32_t current_eth_rx_frame_size;
 
 extern void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s);
 
+/*************************************************************
+*                   RX functions                             *
+*************************************************************/
+
+/* Gets next available byte */
+static inline uint8_t eth_get_next_byte()
+{
+    uint8_t byte;
+
+    if (current_eth_rx_frame == NULL || current_eth_rx_frame_idx >= current_eth_rx_frame_size)
+    {
+	MBED_DEBUG("No data, but queried!\r\n");
+	return 0;
+    }
+
+    byte = current_eth_rx_frame[current_eth_rx_frame_idx++];
+    if (current_eth_rx_frame_idx >= current_eth_rx_frame_size)
+    {
+	rfEthDescriptor *d;
+	rfEthRxStatus *s;
+	current_eth_rx_frame = NULL;
+    	rflpc_eth_done_process_rx_packet(); /* end packet processing */
+	/* check if there is another packet available (in case we missed an interrupt */
+	if (rflpc_eth_get_current_rx_packet_descriptor(&d, &s))
+    	{
+    	    /* packet received */
+    	    process_rx_packet(d,s);
+    	    /* done with it */
+    	}
+    }
+/*    MBED_DEBUG("%0x (%c) %d/%d\r\n", byte, byte, current_eth_rx_frame_idx, current_eth_rx_frame_size);*/
+    return byte;
+}
+
+/* tests if a new byte is available */
+static inline int eth_byte_available()
+{
+    if (current_eth_rx_frame == NULL)
+	return 0;
+    if (current_eth_rx_frame_idx >= current_eth_rx_frame_size)
+	return 0;
+/*    MBED_DEBUG("Byte available\r\n");*/
+    return 1;
+}
+
+
+
+/*************************************************************
+*                   TX functions                             *
+*************************************************************/
+
+#include "memory.h"
+
+/* Pointer to the current tx frame */
+extern uint8_t *current_eth_tx_frame;
+extern uint32_t current_eth_tx_frame_idx;
+extern uint32_t current_eth_tx_frame_size;
+
+
+extern void eth_send_current_frame();
+
+static inline void eth_add_byte(uint8_t c)
+{
+    if (current_eth_tx_frame == NULL)
+    {
+	MBED_DEBUG("Trying to add byte without tx buffer\r\n");
+	return;
+    }
+    if (current_eth_tx_frame_idx >= current_eth_tx_frame_size)
+    {
+	MBED_DEBUG("Trying to add byte without tx buffer\r\n");
+	return;
+    }
+
+    current_eth_tx_frame[current_eth_tx_frame_idx++] = c;
+}
+
+extern  void eth_prepare_output(int n);
+
+static inline void eth_done_output()
+{
+    /* Frame is ready to be sent */
+    eth_send_current_frame();
+    current_eth_tx_frame = NULL;
+}
 #endif

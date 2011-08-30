@@ -35,13 +35,15 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-14
-  Time-stamp: <2011-07-15 17:42:02 (hauspie)>
+  Time-stamp: <2011-08-30 17:52:32 (hauspie)>
 
 */
 #include <rflpc17xx/drivers/ethernet.h>
 
 #include "eth.h"
 #include "connections.h" /* for local_ip_addr */
+#include "mbed_eth_debug.h"
+#include "arp_cache.h"
 
 #define PROTO_MAC_HLEN  14
 #define PROTO_ARP_HLEN  28
@@ -81,10 +83,14 @@
 EthAddr local_eth_addr = {{2, 3, 4, 5, 6, 7}};
 
 /* Pointer to the current rx frame */
-uint8_t *current_eth_rx_frame;
+uint8_t *current_eth_rx_frame = NULL;
 /* Pointer to the next byte to provide to smews */
 uint32_t current_eth_rx_frame_idx;
 uint32_t current_eth_rx_frame_size;
+
+uint8_t *current_eth_tx_frame = NULL;
+uint32_t current_eth_tx_frame_idx;
+uint32_t current_eth_tx_frame_size;
 
 typedef struct
 {
@@ -161,6 +167,17 @@ void proto_arp_mangle(ArpHead *ah, uint8_t *data)
     PUT_FOUR(data, idx, ah->target_ip);
 }
 
+#define SRC_IP_OFFSET 12
+#define DST_IP_OFFSET 16
+
+uint32_t get_ip(uint8_t *frame, int offset)
+{
+    uint32_t ip;
+    int idx = PROTO_MAC_HLEN + offset;
+    GET_FOUR(ip, frame, idx);
+    return ip;
+}
+
 static uint8_t _arp_answer_buffer[PROTO_MAC_HLEN + PROTO_ARP_HLEN];
 
 int transmit_buffer(void *buffer, uint32_t size)
@@ -169,6 +186,7 @@ int transmit_buffer(void *buffer, uint32_t size)
     rfEthTxStatus *txs;
     if (!rflpc_eth_get_current_tx_packet_descriptor(&txd, &txs))
     {
+	MBED_DEBUG("no more transmit descriptor\r\n");
 	return -1;
     }
     txd->packet = buffer;
@@ -179,10 +197,73 @@ int transmit_buffer(void *buffer, uint32_t size)
     return 0;
 }
 
+#define DUMP_BYTES(ptr, c) do {int i; for (i = 0 ; i < (c) ; ++i) \
+				      {				  \
+					  if (i % 16 == 0)	  \
+					      printf("\r\n");	  \
+					  printf("%x ", (ptr)[i]);	\
+				      }					\
+	printf("\r\n");							\
+    } while(0)
+
+static void _dump_packet(rfEthDescriptor *d, rfEthRxStatus *s)
+{
+    printf("= %p %p %p %x ",d, s, d->packet, d->control);
+    if (s->status_info & (1 << 18))
+	printf("cf ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 21))
+	printf("mf ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 22))
+	printf("bf ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 23))
+	printf("crc ");
+    else
+	printf("    ");
+    if (s->status_info & (1 << 24))
+	printf("se ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 25))
+	printf("le ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 27))
+	printf("ae ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 28))
+	printf("ov ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 29))
+	printf("nd ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 30))
+	printf("lf ");
+    else
+	printf("   ");
+
+    printf("size:%d ", (s->status_info & 0x7FF) + 1);
+    DUMP_BYTES(d->packet, (s->status_info & 0x7FF) + 1);
+}
+
+
 void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 {
     /* check if packet is ARP */
     EthHead eth;
+
+
+    MBED_DEBUG("Received new packet\r\n");
+    _dump_packet(d, s);
+	
 
     proto_eth_demangle(&eth, d->packet);
 
@@ -192,6 +273,7 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 	ArpHead arp_send;
 	
 	proto_arp_demangle(&arp_rcv, d->packet + PROTO_MAC_HLEN);
+
 	if (arp_rcv.target_ip != MY_IP)
 	    return;
 	/* generate reply */
@@ -211,15 +293,22 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 	arp_send.target_mac = arp_rcv.sender_mac;
 	arp_send.target_ip = arp_rcv.sender_ip;
 
+	/* store dst ip in arp cache */
+	arp_add_mac(arp_send.target_ip, &arp_send.target_mac);
+
+	/* @bug: If this function is called, the last rx descriptor is overwritten by something... */
 	proto_eth_mangle(&eth, _arp_answer_buffer);
-	proto_arp_mangle(&arp_send, _arp_answer_buffer + PROTO_MAC_HLEN);
-	transmit_buffer(_arp_answer_buffer, PROTO_MAC_HLEN + PROTO_ARP_HLEN);
+	/* proto_arp_mangle(&arp_send, _arp_answer_buffer + PROTO_MAC_HLEN); */
+	/* transmit_buffer(_arp_answer_buffer, PROTO_MAC_HLEN + PROTO_ARP_HLEN); */
 	/* send packet */
 	rflpc_eth_done_process_rx_packet();
 	return;
     }
+    rflpc_eth_done_process_rx_packet();
+    return;
     if (eth.type != PROTO_IP) /* not IPv4, drop */
     {
+	MBED_DEBUG("Dropped unhandled packet\r\n");
 	rflpc_eth_done_process_rx_packet();
 	return;
     }
@@ -227,7 +316,38 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
  * handled */
     if (current_eth_rx_frame == d->packet) 
 	return;
+
+    /* store dst ip in arp cache */
+    arp_add_mac(get_ip(d->packet, SRC_IP_OFFSET), &eth.src);
+    
+
     current_eth_rx_frame = d->packet;
     current_eth_rx_frame_idx = PROTO_MAC_HLEN; /* point to the first IP byte */
-    current_eth_rx_frame_size = (s->status_info & 0x7FF) + 1; /* size of the frame */
+    current_eth_rx_frame_size = (s->status_info & 0x7FF) + 1 - 4; /* size of the frame (-4 is to skip MAC crc at the end */
+}
+
+void eth_prepare_output(int n)
+{
+    current_eth_tx_frame = mem_alloc(n + PROTO_MAC_HLEN);
+    current_eth_tx_frame_size = n + PROTO_MAC_HLEN;
+    current_eth_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx to the first payload byte */
+}
+
+void eth_send_current_frame()
+{
+    EthHead eth;
+
+    eth.type = PROTO_IP;
+    if (!arp_get_mac(get_ip(current_eth_tx_frame, DST_IP_OFFSET), &eth.dst))
+    {
+	MBED_DEBUG("DST IP is not in arp cache :( dropping\r\n");
+	mem_free(current_eth_tx_frame, current_eth_tx_frame_size);
+	current_eth_tx_frame = NULL;
+	return;
+    }
+    eth.src = local_eth_addr;
+    proto_eth_mangle(&eth, current_eth_tx_frame);
+    MBED_DEBUG("Buffer tranmit %d\r\n", current_eth_tx_frame_size);
+    DUMP_BYTES(current_eth_tx_frame, current_eth_tx_frame_size);
+    transmit_buffer(current_eth_tx_frame, current_eth_tx_frame_size);
 }
