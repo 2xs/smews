@@ -34,21 +34,24 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-07-13
-  Time-stamp: <2011-08-31 15:37:20 (hauspie)>
+  Created: 2011-08-31
+  Time-stamp: <2011-08-31 15:31:58 (hauspie)>
 */
-#ifndef __HARDWARE_H__
-#define __HARDWARE_H__
+#ifndef __ETH_INPUT_H__
+#define __ETH_INPUT_H__
 
-#include "protocols.h"
-
-/* NULL pointer */
-#define NULL ((void*)0)
-
-extern const EthAddr local_eth_addr;
-#define MY_IP (*((uint32_t *)local_ip_addr))
+#include <stdint.h>
 
 
-extern void mbed_eth_hardware_init(void);
+#define ETH_INPUT_FREE_PACKET 0
+#define ETH_INPUT_KEEP_PACKET 1
+
+/** 
+ * Process an incoming packet
+ * 
+ * @param packet 
+ * @param size 
+ */
+extern int mbed_process_input(const uint8_t *packet, int size);
 
 #endif

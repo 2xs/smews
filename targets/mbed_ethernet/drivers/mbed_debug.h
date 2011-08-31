@@ -34,21 +34,30 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-07-13
-  Time-stamp: <2011-08-31 15:37:20 (hauspie)>
+  Created: 2011-08-31
+  Time-stamp: <2011-08-31 16:36:42 (hauspie)>
 */
-#ifndef __HARDWARE_H__
-#define __HARDWARE_H__
+#ifndef __MBED_DEBUG_H__
+#define __MBED_DEBUG_H__
 
-#include "protocols.h"
+#include <rflpc17xx/drivers/ethernet.h>
 
-/* NULL pointer */
-#define NULL ((void*)0)
+#define MBED_DUMP_BYTES(ptr, c) do {					\
+	int i; for (i = 0 ; i < (c) ; ++i)				\
+	       {							\
+		   if (i % 16 == 0)					\
+		       printf("\r\n");					\
+		   printf("%02x ", (ptr)[i]);				\
+	       }							\
+	printf("\r\n");							\
+    } while(0)
 
-extern const EthAddr local_eth_addr;
-#define MY_IP (*((uint32_t *)local_ip_addr))
 
+#define MBED_DEBUG printf
 
-extern void mbed_eth_hardware_init(void);
+extern void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents);
 
 #endif
+
+
+

@@ -35,13 +35,13 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-30
-  Time-stamp: <2011-08-30 11:23:23 (hauspie)>
+  Time-stamp: <2011-08-31 16:02:29 (hauspie)>
 
 */
 #ifndef __ARP_CACHE_H__
 #define __ARP_CACHE_H__
 
-#include "eth.h"
+#include "protocols.h"
 
 extern void arp_add_mac(uint32_t ipv4, EthAddr *mac);
 extern int arp_get_mac(uint32_t ipv4, EthAddr *mac);
