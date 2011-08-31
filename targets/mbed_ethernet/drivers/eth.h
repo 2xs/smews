@@ -35,16 +35,18 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-15
-  Time-stamp: <2011-08-30 13:25:36 (hauspie)>
+  Time-stamp: <2011-08-31 13:51:40 (hauspie)>
 
 */
 #ifndef __ETH_H__
 #define __ETH_H__
 
 #include <stdint.h>
+#include <rflpc17xx/drivers/ethernet.h>
+#include <rflpc17xx/debug.h>
+
 #include "hardware.h"
 #include "mbed_eth_debug.h"
-#include <rflpc17xx/drivers/ethernet.h>
 
 typedef struct
 {
@@ -70,6 +72,7 @@ static inline uint8_t eth_get_next_byte()
 {
     uint8_t byte;
 
+    RFLPC_ASSERT_STACK();
     if (current_eth_rx_frame == NULL || current_eth_rx_frame_idx >= current_eth_rx_frame_size)
     {
 	MBED_DEBUG("No data, but queried!\r\n");
@@ -98,6 +101,7 @@ static inline uint8_t eth_get_next_byte()
 /* tests if a new byte is available */
 static inline int eth_byte_available()
 {
+    RFLPC_ASSERT_STACK();
     if (current_eth_rx_frame == NULL)
 	return 0;
     if (current_eth_rx_frame_idx >= current_eth_rx_frame_size)
@@ -124,6 +128,7 @@ extern void eth_send_current_frame();
 
 static inline void eth_add_byte(uint8_t c)
 {
+    RFLPC_ASSERT_STACK();
     if (current_eth_tx_frame == NULL)
     {
 	MBED_DEBUG("Trying to add byte without tx buffer\r\n");
@@ -142,6 +147,7 @@ extern  void eth_prepare_output(int n);
 
 static inline void eth_done_output()
 {
+    RFLPC_ASSERT_STACK();
     /* Frame is ready to be sent */
     eth_send_current_frame();
     current_eth_tx_frame = NULL;
