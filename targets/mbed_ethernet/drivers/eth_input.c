@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-08-31 17:41:42 (hauspie)>
+  Time-stamp: <2011-09-02 10:44:50 (hauspie)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -47,6 +47,37 @@
 #include "hardware.h"
 #include "arp_cache.h"
 
+
+/* These are information on the current frame read by smews */
+uint8_t *current_rx_frame = NULL;
+uint32_t current_rx_frame_size = 0;
+uint32_t current_rx_frame_idx = 0;
+
+uint8_t mbed_eth_get_byte()
+{
+    uint8_t byte;
+    if (current_rx_frame == NULL)
+    {
+	MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
+	return 0;
+    }
+
+    byte = current_rx_frame[current_rx_frame_idx++];
+    if (current_rx_frame_idx >= current_rx_frame_size)
+    {
+	current_rx_frame = NULL;
+	current_rx_frame_size = 0;
+	current_rx_frame_idx = 0;
+	rflpc_eth_done_process_rx_packet();
+    }
+    MBED_DEBUG("I: %02x (%c) %d/%d\r\n", byte, byte, current_rx_frame_idx, current_rx_frame_size);
+    return byte;
+}
+
+int mbed_eth_byte_available()
+{
+    return current_rx_frame != NULL;
+}
 
 void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 {
@@ -97,24 +128,6 @@ int mbed_process_input(const uint8_t *packet, int size)
 
     proto_eth_demangle(&eth, packet);
 
-    /* printf("From\t%02x:%02x:%02x:%02x:%02x:%02x\r\n",  */
-    /* 	   eth.src.addr[0], */
-    /* 	   eth.src.addr[1], */
-    /* 	   eth.src.addr[2], */
-    /* 	   eth.src.addr[3], */
-    /* 	   eth.src.addr[4], */
-    /* 	   eth.src.addr[5]); */
-
-    /* printf("To\t%02x:%02x:%02x:%02x:%02x:%02x\r\n",  */
-    /* 	   eth.dst.addr[0], */
-    /* 	   eth.dst.addr[1], */
-    /* 	   eth.dst.addr[2], */
-    /* 	   eth.dst.addr[3], */
-    /* 	   eth.dst.addr[4], */
-    /* 	   eth.dst.addr[5]); */
-    
-/* /\*    printf("Type\t%x\r\n", eth.type);*\/ */
-
     if (eth.type == PROTO_ARP)
     {
 	mbed_process_arp(&eth, packet, size);
@@ -122,5 +135,17 @@ int mbed_process_input(const uint8_t *packet, int size)
     }
     if (eth.type != PROTO_IP)
 	return ETH_INPUT_FREE_PACKET; /* drop packet */
-    return ETH_INPUT_FREE_PACKET;
+
+
+    /* IP Packet received */
+    if (packet == current_rx_frame)
+	return; /* already processing this packet */
+
+    current_rx_frame = packet;
+    current_rx_frame_size = size - 4; /* -4 because of the MAC CRC at the end */
+    current_rx_frame_idx = PROTO_MAC_HLEN; /* idx points to the first IP byte */
+    return ETH_INPUT_KEEP_PACKET; /* do not get the packet back to the driver,
+				   * keep it while smews process it. The packet
+				   * will be "freed" when smews gets its last
+				   * byte */
 }

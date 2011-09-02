@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-08-31 17:42:09 (hauspie)>
+  Time-stamp: <2011-09-02 10:19:20 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -66,9 +66,9 @@ rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
 
 
 /* Transmission buffers */
-uint8_t _tx_buffers[TX_DESCRIPTORS][TX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
+uint8_t _tx_buffers[TX_DESCRIPTORS*TX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
 /* Reception buffers */
-uint8_t _rx_buffers[RX_DESCRIPTORS][RX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
+uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
 
 
 
@@ -130,13 +130,13 @@ static void _init_buffers()
     RFLPC_ASSERT_STACK();
     for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
     {
-	_rx_descriptors[i].packet = _rx_buffers[i];
+	_rx_descriptors[i].packet = _rx_buffers + RX_BUFFER_SIZE*i;
 	MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
 	_rx_descriptors[i].control = (RX_BUFFER_SIZE - 1) | (1 << 31); /* -1 encoding and enable irq generation on packet reception */
     }
     for (i = 0 ; i < TX_DESCRIPTORS ; ++i)
     {
-	_tx_descriptors[i].packet = _tx_buffers[i];
+	_tx_descriptors[i].packet = _tx_buffers + TX_BUFFER_SIZE*i;
     }
     rflpc_eth_set_tx_base_addresses(_tx_descriptors, _tx_status, TX_DESCRIPTORS);
     rflpc_eth_set_rx_base_addresses(_rx_descriptors, _rx_status, RX_DESCRIPTORS);

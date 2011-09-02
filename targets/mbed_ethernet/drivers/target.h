@@ -57,6 +57,7 @@ typedef char int8_t;
 #include <rflpc17xx/drivers/eth_const.h>
 #include <rflpc17xx/nxp/core_cm3.h>
 #include "hardware.h"
+#include "eth_input.h"
 
 /* Smews includes */
 
@@ -73,15 +74,15 @@ typedef char int8_t;
 /* Returns the time in milliseconds */
 #define TIME_MILLIS 0
 /* Return 1 if data can be read */
-#define DEV_DATA_TO_READ 0
+#define DEV_DATA_TO_READ mbed_eth_byte_available()
 /* Reads one byte */
-#define DEV_GET(c) {(c) = 0;}
+#define DEV_GET(c) {(c) = mbed_eth_get_byte();}
 /* Writes one byte */
-#define DEV_PUT(c) 
+#define DEV_PUT(c) printf("O: %02x (%c)\r\n", (c), (c))
 /* Preparation for sending n bytes */
-#define DEV_PREPARE_OUTPUT(n) 
+#define DEV_PREPARE_OUTPUT(n) printf("preparing output for %d bytes\r\n", n);
 /* End of output */
-#define DEV_OUTPUT_DONE 
+#define DEV_OUTPUT_DONE printf("Done sending bytes\r\n");
 
 /* Optionnal Smews macros */
 

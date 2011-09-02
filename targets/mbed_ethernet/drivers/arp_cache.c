@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-30
-  Time-stamp: <2011-08-31 15:58:30 (hauspie)>
+  Time-stamp: <2011-09-02 10:30:37 (hauspie)>
 
 */
 #include <rflpc17xx/debug.h>
@@ -44,6 +44,8 @@
 #include "mbed_debug.h"
 
 #define MAX_ARP_ENTRY 10
+
+#define DUMP_CACHE
 
 typedef struct
 {
@@ -60,7 +62,7 @@ void _dump_arp_cache()
 {
     int i;
     RFLPC_ASSERT_STACK();
-    MBED_DEBUG("ARP CACHE\r\n");
+    MBED_DEBUG("ARP CACHE DUMP\r\n");
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
     {
 	if (_arp_table[i].ip != 0)
@@ -81,7 +83,7 @@ void _dump_arp_cache()
 	    MBED_DEBUG("%d: empty\r\n", i);
 
     }
-    MBED_DEBUG("END ARP CACHE\r\n");
+    MBED_DEBUG("END ARP CACHE DUMP\r\n");
 }
 
 void arp_add_mac(uint32_t ipv4, EthAddr *mac)
@@ -91,16 +93,23 @@ void arp_add_mac(uint32_t ipv4, EthAddr *mac)
     {
 	if (_arp_table[i].ip == ipv4 || _arp_table[i].ip == 0)
 	{
-	    _arp_table[i].ip = ipv4;
 	    _arp_table[i].mac = *mac;
-	    _dump_arp_cache();
+	    if (_arp_table[i].ip == 0)
+	    {
+		_arp_table[i].ip = ipv4;
+#ifdef DUMP_CACHE
+		_dump_arp_cache();
+#endif
+	    }
 	    return;
 	}
     }
     /* every entry is used, remove the first one (TODO: really use timestamps ! :) ) */
     _arp_table[0].ip = ipv4;
     _arp_table[i].mac = *mac;
+#ifdef DUMP_CACHE
     _dump_arp_cache();
+#endif
 }
 
 int arp_get_mac(uint32_t ipv4, EthAddr *mac)
