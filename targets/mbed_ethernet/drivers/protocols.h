@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-02 11:07:57 (hauspie)>
+  Time-stamp: <2011-09-07 09:54:53 (mickey)>
 */
 #ifndef __PROTOCOLS_H__
 #define __PROTOCOLS_H__
@@ -154,6 +154,21 @@ void proto_arp_mangle(ArpHead *ah, uint8_t *data);
 
 void proto_ip_demangle(IpHead *ih, const uint8_t *data);
 void proto_ip_mangle(IpHead *ih, uint8_t *data);
+
+static inline uint32_t proto_ip_get_dst(uint8_t *data)
+{
+    int idx = 16;
+    uint32_t ip;
+    GET_FOUR(ip, data, idx);
+    return ip;
+}
+static inline uint32_t proto_ip_get_src(uint8_t *data)
+{
+    int idx = 12;
+    uint32_t ip;
+    GET_FOUR(ip, data, idx);
+    return ip;
+}
 
 void proto_icmp_demangle(IcmpHead *ih, const uint8_t *data);
 void proto_icmp_mangle(IcmpHead *ih, uint8_t *data);

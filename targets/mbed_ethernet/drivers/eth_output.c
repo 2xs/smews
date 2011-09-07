@@ -35,23 +35,114 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-02 11:08:21 (hauspie)>
+  Time-stamp: <2011-09-07 10:08:57 (mickey)>
 */
 #include <stdint.h>
+#include <string.h> /* memcpy */
+
+#include <rflpc17xx/drivers/ethernet.h>
+
+#include "hardware.h"
+#include "target.h"
+#include "mbed_debug.h"
+#include "protocols.h"
+#include "arp_cache.h"
+
+uint8_t *current_tx_frame = NULL;
+uint32_t current_tx_frame_idx = 0;
 
 void mbed_eth_prepare_output(uint32_t size)
 {
-    
+    rfEthDescriptor *d;
+    rfEthTxStatus *s;
+    if (current_tx_frame != NULL)
+    {
+	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
+	return;
+    }
+    if (size + PROTO_MAC_HLEN > TX_BUFFER_SIZE)
+    {
+	MBED_DEBUG("Trying to send a %d bytes packet. Dropping\r\n", size);
+	return;
+    }
+    if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
+    {
+	MBED_DEBUG("No more output descriptor available\r\n");
+	return;
+    }
+    current_tx_frame = d->packet;
+    current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
 }
 
 void mbed_eth_put_byte(uint8_t byte)
 {
+    if (current_tx_frame == NULL)
+    {
+	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
+	return;
+    }
+    if (current_tx_frame_idx >= TX_BUFFER_SIZE)
+    {
+	MBED_DEBUG("Trying to add byte %02x (%c) and output buffer is full\r\n", byte, byte);
+	return;
+    }
+/*    MBED_DEBUG("O: %02x (%c)\r\n", byte, byte);*/
+    current_tx_frame[current_tx_frame_idx++] = byte;
 }
 
 void mbed_eth_put_nbytes(uint8_t *bytes, uint32_t n)
 {
+    if (current_tx_frame == NULL)
+    {
+	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
+	return;
+    }
+    if (current_tx_frame_idx + n >= TX_BUFFER_SIZE)
+    {
+	MBED_DEBUG("Trying to add %d bytes and output buffer is full\r\n", n);
+	return;
+    }
+    memcpy(current_tx_frame + current_tx_frame_idx, bytes, n);
+    current_tx_frame_idx += n;
 }
 
 void mbed_eth_output_done()
 {
+    EthHead eth;
+    rfEthDescriptor *d;
+    rfEthTxStatus *s;
+    uint32_t ip;
+    if (current_tx_frame == NULL)
+    {
+	MBED_DEBUG("Trying to send packet before preparing it\r\n");
+	return;
+    }
+    if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
+    {
+	MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
+	current_tx_frame = NULL;
+	current_tx_frame_idx = 0;
+	return;
+    }
+    eth.src = local_eth_addr;
+    ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
+    if (!arp_get_mac(ip, &eth.dst))
+    {
+	MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n", 
+		   ip & 0xFF, 
+		   (ip >> 8) & 0xFF,
+		   (ip >> 16) & 0xFF,
+		   (ip >> 24) & 0xFF
+	    );
+	current_tx_frame = NULL;
+	current_tx_frame_idx = 0;
+	return;
+    }
+    eth.type = PROTO_IP;
+    proto_eth_mangle(&eth, current_tx_frame);
+    rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control); /* send control word (size + send options) */
+    rflpc_eth_done_process_tx_packet(); /* send packet */
+    current_tx_frame = NULL;
+    current_tx_frame_idx = 0;
+    MBED_DEBUG("Done sending packet\r\n");
 }
