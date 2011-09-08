@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-07 10:06:56 (mickey)>
+  Time-stamp: <2011-09-08 17:38:54 (hauspie)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -49,9 +49,13 @@
 
 
 /* These are information on the current frame read by smews */
-uint8_t *current_rx_frame = NULL;
-uint32_t current_rx_frame_size = 0;
-uint32_t current_rx_frame_idx = 0;
+const volatile uint8_t *current_rx_frame = NULL;
+volatile uint32_t current_rx_frame_size = 0;
+volatile uint32_t current_rx_frame_idx = 0;
+
+uint8_t _arp_reply_buffer[PROTO_MAC_HLEN + PROTO_ARP_HLEN];
+
+volatile int byte_count = 0;
 
 uint8_t mbed_eth_get_byte()
 {
@@ -63,14 +67,18 @@ uint8_t mbed_eth_get_byte()
     }
 
     byte = current_rx_frame[current_rx_frame_idx++];
+    ++byte_count;
     if (current_rx_frame_idx >= current_rx_frame_size)
     {
 	current_rx_frame = NULL;
 	current_rx_frame_size = 0;
 	current_rx_frame_idx = 0;
 	rflpc_eth_done_process_rx_packet();
+	MBED_DEBUG("%d bytes sent to smews\r\n", byte_count);
+	byte_count = 0;
+	if (rflpc_eth_rx_available()) /* If packet have been received but not yet handled, for IRQ generation */
+	    rflpc_eth_irq_trigger(RFLPC_ETH_IRQ_EN_RX_DONE);
     }
-/*    MBED_DEBUG("I: %02x (%c) %d/%d\r\n", byte, byte, current_rx_frame_idx, current_rx_frame_size);*/
     return byte;
 }
 
@@ -112,9 +120,10 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 	arp_send.target_mac = arp_rcv.sender_mac;
 	arp_send.target_ip = arp_rcv.sender_ip;
     
-	proto_eth_mangle(eth, d->packet);
-	proto_arp_mangle(&arp_send, d->packet + PROTO_MAC_HLEN);
-	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control);
+	proto_eth_mangle(eth, _arp_reply_buffer);
+	proto_arp_mangle(&arp_send, _arp_reply_buffer + PROTO_MAC_HLEN);
+	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control, 0);
+	d->packet = _arp_reply_buffer;
 	/* send packet */
 	rflpc_eth_done_process_tx_packet();
     }
@@ -141,10 +150,10 @@ int mbed_process_input(const uint8_t *packet, int size)
     /* update ARP cache */
     arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
     if (packet == current_rx_frame)
-	return; /* already processing this packet */
+	return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
 
     current_rx_frame = packet;
-    current_rx_frame_size = size - 4; /* -4 because of the MAC CRC at the end */
+    current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;
     current_rx_frame_idx = PROTO_MAC_HLEN; /* idx points to the first IP byte */
     return ETH_INPUT_KEEP_PACKET; /* do not get the packet back to the driver,
 				   * keep it while smews process it. The packet

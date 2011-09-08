@@ -35,22 +35,59 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-08-31 16:36:42 (hauspie)>
+  Time-stamp: <2011-09-08 15:40:20 (hauspie)>
 */
 #ifndef __MBED_DEBUG_H__
 #define __MBED_DEBUG_H__
 
 #include <rflpc17xx/drivers/ethernet.h>
 
-#define MBED_DUMP_BYTES(ptr, c) do {					\
-	int i; for (i = 0 ; i < (c) ; ++i)				\
-	       {							\
-		   if (i % 16 == 0)					\
-		       printf("\r\n");					\
-		   printf("%02x ", (ptr)[i]);				\
-	       }							\
-	printf("\r\n");							\
-    } while(0)
+
+static inline void dump_bytes(const void *ptr, int count)
+{
+    uint8_t *bytes = (uint8_t*)ptr;
+    int i,j, last_line = count - count % 16;
+    for (i = 0 ; i < count / 16 ; ++i)
+    {
+	for (j = 0 ; j < 16 ; ++j)
+	{
+	    printf("%02x ", bytes[i*16+j]);
+	    if (j == 7)
+		printf(" ");
+	}
+	printf("\t");
+	for (j = 0 ; j < 16 ; ++j)
+	{
+	    uint8_t byte = bytes[i*16+j];
+	    printf("%c", (byte >= 32 && byte < 127) ? byte : '.');
+	    if (j == 7)
+		printf(" ");
+	}
+	printf("\r\n");
+    }
+    if (count % 16 == 0)
+	return;
+    for (j = 0 ; j < 16 ; ++j)
+    {
+	if (j < count % 16)
+	    printf("%02x ", bytes[last_line + j]);
+	else
+	    printf("   ");
+	if (j == 7)
+	    printf(" ");
+    }
+    printf("\t");
+    for (j = 0 ; j < 16 ; ++j)
+    {
+	uint8_t byte = bytes[(last_line % 16) + j];
+	printf("%c", (byte >= 32 && byte < 127) ? byte : '.');
+	if (j == 7)
+	    printf(" ");
+    }
+    printf("\r\n");
+}
+
+#define MBED_DUMP_BYTES dump_bytes
 
 
 #define MBED_DEBUG printf

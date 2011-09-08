@@ -33,6 +33,10 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
+#ifdef RFLPC_PLATFORM_MBED
+#include <string.h> /* memcpy */
+#endif
+
 #include "coroutines.h"
 #include "output.h"
 #include "connections.h"
@@ -89,7 +93,7 @@ void cr_run(struct coroutine_t *coroutine
 			if(type == cor_type_post_out)
 				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);
 			else if(type == cor_type_post_in)
-				current_cr->func.func_post_in(current_cr->params.in.content_type,current_cr->params.in.part_number,current_cr->params.in.filename,&current_cr->params.in.post_data);
+			    current_cr->func.func_post_in(current_cr->params.in.content_type,current_cr->params.in.part_number,current_cr->params.in.filename,&current_cr->params.in.post_data);
 			else
 #endif
 				current_cr->func.func_get(current_cr->params.args);
