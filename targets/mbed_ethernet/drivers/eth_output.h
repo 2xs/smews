@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-08 16:56:09 (hauspie)>
+  Time-stamp: <2011-09-09 12:52:33 (hauspie)>
 */
 #ifndef __ETH_OUTPUT_H__
 #define __ETH_OUTPUT_H__

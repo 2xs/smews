@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-08 17:38:54 (hauspie)>
+  Time-stamp: <2011-09-09 14:46:43 (hauspie)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -49,7 +49,7 @@
 
 
 /* These are information on the current frame read by smews */
-const volatile uint8_t *current_rx_frame = NULL;
+const uint8_t * volatile current_rx_frame = NULL;
 volatile uint32_t current_rx_frame_size = 0;
 volatile uint32_t current_rx_frame_idx = 0;
 
@@ -74,7 +74,6 @@ uint8_t mbed_eth_get_byte()
 	current_rx_frame_size = 0;
 	current_rx_frame_idx = 0;
 	rflpc_eth_done_process_rx_packet();
-	MBED_DEBUG("%d bytes sent to smews\r\n", byte_count);
 	byte_count = 0;
 	if (rflpc_eth_rx_available()) /* If packet have been received but not yet handled, for IRQ generation */
 	    rflpc_eth_irq_trigger(RFLPC_ETH_IRQ_EN_RX_DONE);

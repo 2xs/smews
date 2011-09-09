@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-08 17:26:38 (hauspie)>
+  Time-stamp: <2011-09-09 14:06:55 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -48,85 +48,28 @@
 #include "mbed_debug.h"
 #include "protocols.h"
 #include "arp_cache.h"
+#include "memory.h"
 
-
-typedef struct
-{
-    uint8_t in_use;
-    uint8_t buffer[TX_BUFFER_SIZE];
-} output_buffer_t;
-
-
-#define OUTPUT_BUFFER_COUNT TX_DESCRIPTORS
-
-output_buffer_t _output_buffers[OUTPUT_BUFFER_COUNT];
-
-
-output_buffer_t *current_tx_frame = NULL;
-uint32_t current_tx_frame_idx = 0;
-
-volatile int get_count = 0;
-volatile int release_count = 0;
-
-output_buffer_t *get_free_output_buffer(uint32_t size)
-{
-    int i;
-    output_buffer_t *b = NULL;
-    rflpc_irq_global_disable();
-    for (i = 0 ; i < OUTPUT_BUFFER_COUNT ; ++i)
-    {
-	if (!_output_buffers[i].in_use)
-	{
-	    _output_buffers[i].in_use = 1;
-	    b = _output_buffers + i;
-	    break;
-	}
-    }
-    rflpc_irq_global_enable();
-    return b;
-}
-
-void release_output_buffer(output_buffer_t *buffer)
-{
-    rflpc_irq_global_disable();
-    release_count++;
-    buffer->in_use = 0;
-    rflpc_irq_global_enable();
-}
-
-void release_output_buffer_from_packet(uint8_t *packet)
-{
-    output_buffer_t *b = (output_buffer_t *) (packet - (_output_buffers[0].buffer - (uint8_t*) &_output_buffers[0]));
-    release_output_buffer(b);
-}
-
-void dump_output_buffers()
-{
-    int i;
-    for (i = 0 ; i < OUTPUT_BUFFER_COUNT ; ++i)
-    {
-	MBED_DEBUG("%p: %c, ", &_output_buffers[i], _output_buffers[i].in_use ? 'o' : '.');
-    }
-    MBED_DEBUG(" (%d/%d) \r\n", get_count, release_count);
-}
-
+uint8_t  * volatile current_tx_frame = NULL;
+volatile uint32_t current_tx_frame_idx = 0;
+volatile uint32_t current_tx_frame_size = 0;
 
 void mbed_eth_prepare_output(uint32_t size)
 {
+    int alloc_count = 0;
     if (current_tx_frame != NULL)
     {
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
     }
-    if (size + PROTO_MAC_HLEN > TX_BUFFER_SIZE)
-    {
-	MBED_DEBUG("Trying to send a %d bytes packet. Dropping\r\n", size);
-	return;
-    }
     /* Wait for previous packets to be sent */
-    while ((current_tx_frame = get_free_output_buffer(size)) == NULL);
-    get_count++;
+    while ((current_tx_frame = (uint8_t*) mem_alloc(size + PROTO_MAC_HLEN)) == NULL)
+    {
+	if ((alloc_count++ % 1000) == 0)
+	    MBED_DEBUG("No more memory for output buffer, keep trying\r\n");
+    }
     current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
+    current_tx_frame_size = size + PROTO_MAC_HLEN;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
@@ -136,13 +79,13 @@ void mbed_eth_put_byte(uint8_t byte)
 	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
 	return;
     }
-    if (current_tx_frame_idx >= TX_BUFFER_SIZE)
+    if (current_tx_frame_idx >= current_tx_frame_size)
     {
 	MBED_DEBUG("Trying to add byte %02x (%c) and output buffer is full\r\n", byte, byte);
 	return;
     }
 /*    MBED_DEBUG("O: %02x (%c)\r\n", byte, byte);*/
-    current_tx_frame->buffer[current_tx_frame_idx++] = byte;
+    current_tx_frame[current_tx_frame_idx++] = byte;
 }
 
 void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
@@ -152,12 +95,12 @@ void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
 	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
 	return;
     }
-    if (current_tx_frame_idx + n >= TX_BUFFER_SIZE)
+    if (current_tx_frame_idx + n > current_tx_frame_size)
     {
-	MBED_DEBUG("Trying to add %d bytes and output buffer is full\r\n", n);
+	MBED_DEBUG("Trying to add %d bytes and output buffer is full (%d/%d)\r\n", n, current_tx_frame_idx, current_tx_frame_size);
 	return;
     }
-    memcpy(current_tx_frame->buffer + current_tx_frame_idx, bytes, n);
+    memcpy(current_tx_frame + current_tx_frame_idx, bytes, n);
     current_tx_frame_idx += n;
 }
 
@@ -167,14 +110,15 @@ void mbed_eth_output_done()
     rfEthDescriptor *d;
     rfEthTxStatus *s;
     uint32_t ip;
+    
+
     if (current_tx_frame == NULL)
     {
 	MBED_DEBUG("Trying to send packet before preparing it\r\n");
 	return;
     }
-
     eth.src = local_eth_addr;
-    ip = proto_ip_get_dst(current_tx_frame->buffer + PROTO_MAC_HLEN);
+    ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
     if (!arp_get_mac(ip, &eth.dst))
     {
 	MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n", 
@@ -183,25 +127,25 @@ void mbed_eth_output_done()
 		   (ip >> 16) & 0xFF,
 		   (ip >> 24) & 0xFF
 	    );
-	release_output_buffer(current_tx_frame);
+	mem_free(current_tx_frame, current_tx_frame_size);
 	current_tx_frame = NULL;
 	current_tx_frame_idx = 0;
 	return;
     }
     eth.type = PROTO_IP;
-    proto_eth_mangle(&eth, current_tx_frame->buffer);
+    proto_eth_mangle(&eth, current_tx_frame);
 
 
     if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
     {
 	MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
-	release_output_buffer(current_tx_frame);
+	mem_free(current_tx_frame, current_tx_frame_size);
 	current_tx_frame = NULL;
 	current_tx_frame_idx = 0;
 	return;
     }
 /* send control word (size + send options) and request interrupt */
-    d->packet = current_tx_frame->buffer;
+    d->packet = current_tx_frame;
     s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
 						* handler to check ALL
 						* descriptors for packets as
@@ -211,7 +155,6 @@ void mbed_eth_output_done()
 						* this magic AND packet is not
 						* NULL, it has to be freed */
     rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control, 1);
-
     rflpc_eth_done_process_tx_packet(); /* send packet */
     current_tx_frame = NULL;
     current_tx_frame_idx = 0;

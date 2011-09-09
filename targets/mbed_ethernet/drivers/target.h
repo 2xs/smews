@@ -167,13 +167,15 @@ typedef char int8_t;
 /* Ethernet configuration */
 /* Number of frame descriptors for reception. For each descriptor, 
  * 16 bytes will be needed */
-#define RX_DESCRIPTORS 3
-/* Size of the reception buffers. One buffer will be needed per reception descriptor */
+#define RX_DESCRIPTORS 8
+/* Size of the reception buffers. One buffer will be needed per reception descriptor 
+   The buffers will be store in the external SRAM. So 32K of RAM is available ONLY for this buffers
+ */
 #define RX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH
 /* Size of the transmission buffer. */
 #define TX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH
 /* Number of frame descriptors for transmission. For each descriptor,
  * 12 bytes will be needed */
-#define TX_DESCRIPTORS 3
+#define TX_DESCRIPTORS 20
 
 #endif /* __TARGET_H__ */

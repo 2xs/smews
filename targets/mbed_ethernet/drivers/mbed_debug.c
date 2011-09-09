@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-08 17:36:27 (hauspie)>
+  Time-stamp: <2011-09-09 14:38:25 (hauspie)>
 */
 
 
@@ -50,7 +50,9 @@ void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents)
 {
     RFLPC_ASSERT_STACK();
     EthHead eth;
+
     proto_eth_demangle(&eth, d->packet);
+
 
     printf("= %02x:%02x:%02x:%02x:%02x:%02x -> ", 
 	   eth.src.addr[0], 
