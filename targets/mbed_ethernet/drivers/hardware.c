@@ -35,13 +35,14 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-09 14:46:00 (hauspie)>
+  Time-stamp: <2011-09-14 16:22:40 (hauspie)>
 */
 
 /* RFLPC includes */
 #include <rflpc17xx/drivers/uart.h>
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/drivers/rit.h>
+#include <rflpc17xx/drivers/timer.h>
 #include <rflpc17xx/debug.h>
 #include <rflpc17xx/printf.h>
 
@@ -82,12 +83,30 @@ int putchar(int c)
     return c;
 }
 
+int mbed_garbage_buffers()
+{
+    int i;
+    int collected = 0;
+  /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
+    for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
+    {
+	if (_tx_descriptors[i].packet == _arp_reply_buffer) /* this one is static */
+	    continue;
+	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
+	{
+	    mem_free(_tx_descriptors[i].packet, _tx_descriptors[i].control & 0x7FF);
+	    _tx_descriptors[i].packet = NULL;
+	    collected++;
+	}
+    }
+    return collected;
+ }
+
 RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
     rfEthDescriptor *d;
     rfEthRxStatus *s;
-    int i;
-	
+ 	
     rflpc_irq_global_disable();
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
     {
@@ -100,18 +119,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 		break;
 	}
     }
-
-    /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
-    for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
-    {
-	if (_tx_descriptors[i].packet == _arp_reply_buffer) /* this one is static */
-	    continue;
-	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
-	{
-	    mem_free(_tx_descriptors[i].packet, _tx_descriptors[i].control & 0x7FF);
-	    _tx_descriptors[i].packet = NULL;
-	}
-    }
+    mbed_garbage_buffers();
     rflpc_eth_irq_clear(rflpc_eth_irq_get_status());
     rflpc_irq_global_enable();
 
@@ -133,6 +141,21 @@ RFLPC_IRQ_HANDLER _uart_irq()
 	    }
 	    rflpc_eth_dump_internals();
 	    break;
+	case 'c':
+	    MBED_DEBUG("Forcing output buffer collection\r\n");
+	    MBED_DEBUG("%d collected\r\n", mbed_garbage_buffers());
+	    break;
+	case 's':
+	    MBED_DEBUG("Emmergency stop!\r\n");
+	    MBED_DEBUG("Memory left: %d bytes\r\n", get_free_mem());
+	    MBED_DEBUG("RxDescriptor: %p\r\n", _rx_descriptors);
+	    MBED_DEBUG("TxDescriptor: %p\r\n", _tx_descriptors);
+	    for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
+	    {
+		MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
+	    }
+	    rflpc_eth_dump_internals();
+	    while (1){}
 	default:
 	    break;
     }
@@ -160,6 +183,15 @@ static void _init_buffers()
 EthAddr local_eth_addr;
 void mbed_eth_hardware_init(void)
 {
+    /* Configure and start the timer. Timer 0 will be used for timestamping */
+    rflpc_timer_enable(RFLPC_TIMER0);
+    /* Clock the timer with the slower clock possible. Enough for millisecond precision */
+    rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
+    /* Set the pre scale register so that timer counter is incremented every 1ms */
+    rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
+    /* Start the timer */
+    rflpc_timer_start(RFLPC_TIMER0);
+
     printf(" #####                                          #     # ######  ####### ######\r\n");
     printf("#     #  #    #  ######  #    #   ####          ##   ## #     # #       #     #\r\n");
     printf("#        ##  ##  #       #    #  #              # # # # #     # #       #     #\r\n");
@@ -187,5 +219,6 @@ void mbed_eth_hardware_init(void)
     while (!rflpc_eth_link_state());
     printf(" done! Link is up\r\n");
     printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
+    printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
     rflpc_uart0_set_rx_callback(_uart_irq);
 }

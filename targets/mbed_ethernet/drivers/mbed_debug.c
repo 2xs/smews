@@ -35,11 +35,11 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-09 14:38:25 (hauspie)>
+  Time-stamp: <2011-09-14 17:09:14 (hauspie)>
 */
 
 
-
+#ifdef MBED_DEBUG_MODE
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/debug.h>
 
@@ -132,3 +132,4 @@ void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents)
     if (dump_contents)
 	MBED_DUMP_BYTES(d->packet, rflpc_eth_get_packet_size(s->status_info));
 }
+#endif

@@ -53,6 +53,7 @@ typedef char int8_t;
 
 /* Target specific includes */
 #include <rflpc17xx/drivers/leds.h>
+#include <rflpc17xx/drivers/timer.h>
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/drivers/eth_const.h>
 #include <rflpc17xx/nxp/core_cm3.h>
@@ -74,7 +75,7 @@ typedef char int8_t;
 /* Stops the hardware */
 #define HARDWARE_STOP
 /* Returns the time in milliseconds */
-#define TIME_MILLIS 0
+#define TIME_MILLIS mbed_get_time()
 /* Return 1 if data can be read */
 #define DEV_DATA_TO_READ mbed_eth_byte_available()
 /* Reads one byte */
@@ -142,18 +143,13 @@ typedef char int8_t;
 /* Context switching */
 
 /* save the stack pointer in sp[0] (and possibly a frame pointer in sp[1]) */
-#define BACKUP_CTX(sp) do {(sp)[0] = (void*)__get_MSP();	\
-	printf("Backing up sp (%p)\n\r", (sp)[0]);	\
-    } while(0)
+#define BACKUP_CTX(sp) do {(sp)[0] = (void*)__get_MSP();} while(0)
 /* restore the stack pointer from sp[0] (and possibly a frame pointer from sp[1]) */
-#define RESTORE_CTX(sp) do {						\
-	printf("Restoring sp (%p)\n\r", (sp)[0]);			\
-	__set_MSP((uint32_t)(sp)[0]);					\
-    } while(0)
+#define RESTORE_CTX(sp) do { __set_MSP((uint32_t)(sp)[0]); } while(0)
 /* push all registers that must not be modified by any function call */
-#define PUSHREGS do { printf("Pushing regs\r\n"); asm("push {r4-r11, lr}"); } while(0)
+#define PUSHREGS do { asm("push {r4-r11, lr}"); } while(0)
 /* pop all registers that must not be modified by any function call */
-#define POPREGS do { printf("Poping regs\r\n"); asm("pop {r4-r11, lr}"); } while (0)
+#define POPREGS do { asm("pop {r4-r11, lr}"); } while (0)
 
 /* Smews configuration */
 

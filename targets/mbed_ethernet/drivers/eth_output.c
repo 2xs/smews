@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-09 14:06:55 (hauspie)>
+  Time-stamp: <2011-09-14 17:05:27 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -62,11 +62,14 @@ void mbed_eth_prepare_output(uint32_t size)
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
     }
-    /* Wait for previous packets to be sent */
+    /* allocated memory for output buffer */
     while ((current_tx_frame = (uint8_t*) mem_alloc(size + PROTO_MAC_HLEN)) == NULL)
     {
 	if ((alloc_count++ % 1000) == 0)
-	    MBED_DEBUG("No more memory for output buffer, keep trying\r\n");
+	{
+	    MBED_DEBUG("No more memory (%d left) for %d bytes output buffer, keep trying\r\n", get_free_mem(), size + PROTO_MAC_HLEN);
+	    MBED_DEBUG("%d collected, %d bytes available\r\n", mbed_garbage_buffers(), get_free_mem());
+	}
     }
     current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
     current_tx_frame_size = size + PROTO_MAC_HLEN;

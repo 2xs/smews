@@ -35,14 +35,14 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-08 15:40:20 (hauspie)>
+  Time-stamp: <2011-09-14 17:08:54 (hauspie)>
 */
 #ifndef __MBED_DEBUG_H__
 #define __MBED_DEBUG_H__
 
 #include <rflpc17xx/drivers/ethernet.h>
 
-
+#ifdef MBED_DEBUG_MODE
 static inline void dump_bytes(const void *ptr, int count)
 {
     uint8_t *bytes = (uint8_t*)ptr;
@@ -88,11 +88,18 @@ static inline void dump_bytes(const void *ptr, int count)
 }
 
 #define MBED_DUMP_BYTES dump_bytes
-
-
 #define MBED_DEBUG printf
 
 extern void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents);
+#else
+static inline void dummy_dump_bytes(const void *ptr, int count){}
+static inline void dummy_debug(const char *f, ...){}
+static inline void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents){}
+
+#define MBED_DUMP_BYTES dummy_dump_bytes
+#define MBED_DEBUG dummy_debug
+
+#endif
 
 #endif
 

@@ -35,11 +35,12 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-30
-  Time-stamp: <2011-09-08 14:01:50 (hauspie)>
+  Time-stamp: <2011-09-14 15:34:11 (hauspie)>
 
 */
 #include <rflpc17xx/debug.h>
 #include "protocols.h"
+#include "hardware.h"
 
 #include "mbed_debug.h"
 
@@ -50,6 +51,7 @@
 typedef struct
 {
     uint32_t ip;
+    uint32_t timestamp;
     EthAddr mac;
     /* TODO, add a timestamp to choose the couple to delete from cache */
 } ArpEntry;
@@ -67,7 +69,7 @@ void _dump_arp_cache()
     {
 	if (_arp_table[i].ip != 0)
 	{
-	    MBED_DEBUG("%d: %02x:%02x:%02x:%02x:%02x:%02x -> %d.%d.%d.%d\r\n", i,
+	    MBED_DEBUG("%d: %02x:%02x:%02x:%02x:%02x:%02x -> %d.%d.%d.%d (ts: %d ms)\r\n", i,
 		       _arp_table[i].mac.addr[0],
 		       _arp_table[i].mac.addr[1],
 		       _arp_table[i].mac.addr[2],
@@ -77,7 +79,7 @@ void _dump_arp_cache()
 		       GET_BYTE(&_arp_table[i].ip, 3),
 		       GET_BYTE(&_arp_table[i].ip, 2),
 		       GET_BYTE(&_arp_table[i].ip, 1),
-		       GET_BYTE(&_arp_table[i].ip, 0));
+		       GET_BYTE(&_arp_table[i].ip, 0), mbed_get_time());
 	}
 	else
 	    MBED_DEBUG("%d: empty\r\n", i);
@@ -88,12 +90,22 @@ void _dump_arp_cache()
 
 void arp_add_mac(uint32_t ipv4, EthAddr *mac)
 {
-    int i;
+    int i, min_time_idx = 0;
+    uint32_t min_time;
+    
+    min_time = _arp_table[0].timestamp;
+
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
     {
+	if (_arp_table[i].timestamp < min_time)
+	{
+	    min_time = _arp_table[i].timestamp;
+	    min_time_idx = i;
+	}
 	if (_arp_table[i].ip == ipv4 || _arp_table[i].ip == 0)
 	{
 	    _arp_table[i].mac = *mac;
+	    _arp_table[i].timestamp = mbed_get_time();
 	    if (_arp_table[i].ip == 0)
 	    {
 		_arp_table[i].ip = ipv4;
@@ -104,9 +116,9 @@ void arp_add_mac(uint32_t ipv4, EthAddr *mac)
 	    return;
 	}
     }
-    /* every entry is used, remove the first one (TODO: really use timestamps ! :) ) */
-    _arp_table[0].ip = ipv4;
-    _arp_table[0].mac = *mac;
+    /* every entry is used, remove the oldest one */
+    _arp_table[min_time_idx].ip = ipv4;
+    _arp_table[min_time_idx].mac = *mac;
 #ifdef DUMP_CACHE
     _dump_arp_cache();
 #endif
