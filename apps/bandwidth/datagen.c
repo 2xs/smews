@@ -34,7 +34,7 @@
 */
 /*
 <generator>
-        <handlers doGet="doGet"/>
+        <handlers init="init_datagen" doGet="get_datagen"/>
 	<properties persistence="volatile" />
 	<args>
 	        <arg name="size" type="uint16" />
@@ -44,19 +44,30 @@
 #include "mbed_debug.h"
 
 
-static char doGet(struct args_t *args)
+static char array[1024];
+
+static char init_datagen(void)
+{
+    int i,j;
+    for (i = 0,j=32 ; i < 1024 ; ++i,++j)
+    {
+	if (j == 126)
+	    j = 32;
+	switch (i % 80)
+	{
+	    case 0: array[i] = '\r'; --j; break;
+	    case 1: array[i] = '\n'; --j; break;
+	    default: array[i] = j;
+	}
+    }
+    array[1023] = 0;
+    return 1;
+}
+
+static char get_datagen(struct args_t *args)
 {
     uint32_t i = 0;
-
-    
-    out_str("Output of ");
-    out_uint(args->size);
-    out_str(" numbers\n");
-    while (i < args->size)
-    {
-	out_uint(i);
-	out_str("\n");
-	++i;
-    }
+    while (i++ < args->size)
+	out_str(array);
     return 1;
 }

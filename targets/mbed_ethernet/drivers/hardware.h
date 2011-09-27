@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-14 16:04:00 (hauspie)>
+  Time-stamp: <2011-09-27 15:28:01 (hauspie)>
 */
 #ifndef __HARDWARE_H__
 #define __HARDWARE_H__
@@ -57,6 +57,6 @@ extern EthAddr local_eth_addr;
 #define mbed_get_time() rflpc_timer_get_counter(RFLPC_TIMER0)
 
 extern void mbed_eth_hardware_init(void);
-extern int mbed_garbage_buffers();
+extern void mbed_eth_garbage_tx_buffers();
 
 #endif

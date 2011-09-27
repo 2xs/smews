@@ -171,9 +171,9 @@ typedef char int8_t;
 /* Size of the transmission buffer. */
 #define TX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH
 
-#define TX_BUFFER_COUNT 5
+#define TX_BUFFER_COUNT 10
 /* Number of frame descriptors for transmission. For each descriptor,
  * 12 bytes will be needed */
-#define TX_DESCRIPTORS 10
+#define TX_DESCRIPTORS 20
 
 #endif /* __TARGET_H__ */
