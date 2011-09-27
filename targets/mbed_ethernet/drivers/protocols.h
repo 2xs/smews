@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-08 15:30:07 (hauspie)>
+  Time-stamp: <2011-09-27 17:45:58 (hauspie)>
 */
 #ifndef __PROTOCOLS_H__
 #define __PROTOCOLS_H__
@@ -183,5 +183,15 @@ void proto_icmp_mangle(IcmpHead *ih, uint8_t *data);
 
 /* 16 bits checksum */
 uint16_t checksum(uint8_t *buffer, unsigned int bytes_count);
+
+static inline int ethaddr_equal(EthAddr *a1, EthAddr *a2)
+{
+    return a1->addr[0] == a2->addr[0] &&
+	a1->addr[1] == a2->addr[1] &&
+	a1->addr[2] == a2->addr[2] &&
+	a1->addr[3] == a2->addr[3] &&
+	a1->addr[4] == a2->addr[4] &&
+	a1->addr[5] == a2->addr[5];
+}
 
 #endif

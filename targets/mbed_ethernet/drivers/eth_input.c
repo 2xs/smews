@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-09 14:46:43 (hauspie)>
+  Time-stamp: <2011-09-27 18:00:23 (hauspie)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -130,9 +130,25 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
     arp_add_mac(arp_rcv.sender_ip, &arp_rcv.sender_mac);
 }
 
+uint32_t last_mesure_time = 0;
+uint32_t bytes_received = 0;
+
 int mbed_process_input(const uint8_t *packet, int size)
 {
     EthHead eth;
+    uint32_t current_time = TIME_MILLIS;
+
+    if (last_mesure_time == 0)
+	last_mesure_time = current_time;
+
+    bytes_received += size;
+
+    if (current_time - last_mesure_time > 5000)
+    {
+	MBED_DEBUG("Received packets at %d bps rate\r\n", (bytes_received*8000 / (current_time - last_mesure_time)));
+	bytes_received = 0;
+	last_mesure_time = current_time;
+    }
 
     proto_eth_demangle(&eth, packet);
 
@@ -141,13 +157,17 @@ int mbed_process_input(const uint8_t *packet, int size)
 	mbed_process_arp(&eth, packet, size);
 	return ETH_INPUT_FREE_PACKET;
     }
+
+    if (!ethaddr_equal(&eth.dst, &local_eth_addr)) /* not for me */
+	return ETH_INPUT_FREE_PACKET;
+
     if (eth.type != PROTO_IP)
 	return ETH_INPUT_FREE_PACKET; /* drop packet */
 
 
     /* IP Packet received */
     /* update ARP cache */
-    arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
+    /*arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);*/
     if (packet == current_rx_frame)
 	return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
 
