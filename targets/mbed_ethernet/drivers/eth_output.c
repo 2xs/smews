@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-14 17:05:27 (hauspie)>
+  Time-stamp: <2011-09-27 13:57:00 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -48,11 +48,14 @@
 #include "mbed_debug.h"
 #include "protocols.h"
 #include "arp_cache.h"
-#include "memory.h"
+#include "out_buffers.h"
 
 uint8_t  * volatile current_tx_frame = NULL;
 volatile uint32_t current_tx_frame_idx = 0;
 volatile uint32_t current_tx_frame_size = 0;
+
+
+
 
 void mbed_eth_prepare_output(uint32_t size)
 {
@@ -63,13 +66,10 @@ void mbed_eth_prepare_output(uint32_t size)
 	return;
     }
     /* allocated memory for output buffer */
-    while ((current_tx_frame = (uint8_t*) mem_alloc(size + PROTO_MAC_HLEN)) == NULL)
+    while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL)
     {
-	if ((alloc_count++ % 1000) == 0)
-	{
-	    MBED_DEBUG("No more memory (%d left) for %d bytes output buffer, keep trying\r\n", get_free_mem(), size + PROTO_MAC_HLEN);
-	    MBED_DEBUG("%d collected, %d bytes available\r\n", mbed_garbage_buffers(), get_free_mem());
-	}
+	if ((alloc_count++ % 10000000) == 0)
+	    MBED_DEBUG("No more tx buffers left keep trying\r\n");
     }
     current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
     current_tx_frame_size = size + PROTO_MAC_HLEN;
@@ -130,7 +130,7 @@ void mbed_eth_output_done()
 		   (ip >> 16) & 0xFF,
 		   (ip >> 24) & 0xFF
 	    );
-	mem_free(current_tx_frame, current_tx_frame_size);
+	mbed_eth_release_tx_buffer(current_tx_frame);
 	current_tx_frame = NULL;
 	current_tx_frame_idx = 0;
 	return;
@@ -142,7 +142,7 @@ void mbed_eth_output_done()
     if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
     {
 	MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
-	mem_free(current_tx_frame, current_tx_frame_size);
+	mbed_eth_release_tx_buffer(current_tx_frame);
 	current_tx_frame = NULL;
 	current_tx_frame_idx = 0;
 	return;
@@ -154,7 +154,7 @@ void mbed_eth_output_done()
 						* descriptors for packets as
 						* this status word is
 						* overwriten when a packet is
-						* sent. This, if status is not
+						* sent. Then, if status is not
 						* this magic AND packet is not
 						* NULL, it has to be freed */
     rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control, 1);
