@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-27 15:37:03 (hauspie)>
+  Time-stamp: <2011-09-27 17:10:30 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -171,6 +171,8 @@ static void _init_buffers()
 EthAddr local_eth_addr;
 void mbed_eth_hardware_init(void)
 {
+    MBED_DEBUG("%p\r\n", SCB->VTOR);
+
     /* Configure and start the timer. Timer 0 will be used for timestamping */
     rflpc_timer_enable(RFLPC_TIMER0);
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
