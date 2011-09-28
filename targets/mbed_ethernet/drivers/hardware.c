@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-27 17:49:36 (hauspie)>
+  Time-stamp: <2011-09-28 12:34:06 (mickey)>
 */
 
 /* RFLPC includes */
@@ -165,7 +165,7 @@ static void _init_buffers()
     rflpc_eth_set_tx_base_addresses(_tx_descriptors, _tx_status, TX_DESCRIPTORS);
     rflpc_eth_set_rx_base_addresses(_rx_descriptors, _rx_status, RX_DESCRIPTORS);
     rflpc_eth_set_irq_handler(_eth_irq_handler);
-    rflpc_eth_irq_enable_set(RFLPC_ETH_IRQ_EN_RX_DONE);
+    rflpc_eth_irq_enable_set(RFLPC_ETH_IRQ_EN_RX_DONE | RFLPC_ETH_IRQ_EN_TX_DONE);
 }
 
 EthAddr local_eth_addr;

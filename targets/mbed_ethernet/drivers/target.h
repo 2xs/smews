@@ -99,13 +99,13 @@ typedef char int8_t;
 /* Smews states */
 
 /* Called by the kernel when starting to wait for data */
-#define SMEWS_WAITING rflpc_led_val(RFLPC_LED_1)
+#define SMEWS_WAITING 
 /* Called by the kernel when starting to receive data */
-#define SMEWS_RECEIVING rflpc_led_val(RFLPC_LED_2)
+#define SMEWS_RECEIVING 
 /* Called by the kernel when starting to send data */
-#define SMEWS_SENDING rflpc_led_val(RFLPC_LED_3)
+#define SMEWS_SENDING 
 /* Called by the kernel when ending to send data */
-#define SMEWS_ENDING rflpc_led_val(RFLPC_LED_4)
+#define SMEWS_ENDING 
 
 /* Cons variables macros */
 
@@ -154,7 +154,7 @@ typedef char int8_t;
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
-#define OUTPUT_BUFFER_SIZE 1300
+#define OUTPUT_BUFFER_SIZE 1200
 /* size of the shared stack used by all dynamic content generators */
 #define STACK_SIZE 8192
 /* size of the dynamic memory allocator pool */

@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-27 18:00:23 (hauspie)>
+  Time-stamp: <2011-09-28 12:41:37 (mickey)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -70,12 +70,13 @@ uint8_t mbed_eth_get_byte()
     ++byte_count;
     if (current_rx_frame_idx >= current_rx_frame_size)
     {
+	rflpc_led_clr(RFLPC_LED_2);
 	current_rx_frame = NULL;
 	current_rx_frame_size = 0;
 	current_rx_frame_idx = 0;
 	rflpc_eth_done_process_rx_packet();
 	byte_count = 0;
-	if (rflpc_eth_rx_available()) /* If packet have been received but not yet handled, for IRQ generation */
+	if (rflpc_eth_rx_available()) /* If packet have been received but not yet handled, force IRQ generation */
 	    rflpc_eth_irq_trigger(RFLPC_ETH_IRQ_EN_RX_DONE);
     }
     return byte;
@@ -130,25 +131,9 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
     arp_add_mac(arp_rcv.sender_ip, &arp_rcv.sender_mac);
 }
 
-uint32_t last_mesure_time = 0;
-uint32_t bytes_received = 0;
-
 int mbed_process_input(const uint8_t *packet, int size)
 {
     EthHead eth;
-    uint32_t current_time = TIME_MILLIS;
-
-    if (last_mesure_time == 0)
-	last_mesure_time = current_time;
-
-    bytes_received += size;
-
-    if (current_time - last_mesure_time > 5000)
-    {
-	MBED_DEBUG("Received packets at %d bps rate\r\n", (bytes_received*8000 / (current_time - last_mesure_time)));
-	bytes_received = 0;
-	last_mesure_time = current_time;
-    }
 
     proto_eth_demangle(&eth, packet);
 
@@ -167,10 +152,11 @@ int mbed_process_input(const uint8_t *packet, int size)
 
     /* IP Packet received */
     /* update ARP cache */
-    /*arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);*/
+    arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
     if (packet == current_rx_frame)
 	return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
 
+    rflpc_led_set(RFLPC_LED_2);
     current_rx_frame = packet;
     current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;
     current_rx_frame_idx = PROTO_MAC_HLEN; /* idx points to the first IP byte */
