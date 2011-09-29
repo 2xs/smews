@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-27 15:37:42 (hauspie)>
+  Time-stamp: <2011-09-29 12:55:14 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -59,7 +59,6 @@ volatile uint32_t current_tx_frame_size = 0;
 
 void mbed_eth_prepare_output(uint32_t size)
 {
-    int alloc_count = 0;
     if (current_tx_frame != NULL)
     {
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");

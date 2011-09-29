@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-30
-  Time-stamp: <2011-09-14 15:34:11 (hauspie)>
+  Time-stamp: <2011-09-29 10:29:55 (hauspie)>
 
 */
 #include <rflpc17xx/debug.h>
@@ -46,7 +46,7 @@
 
 #define MAX_ARP_ENTRY 10
 
-#define DUMP_CACHE
+/*#define DUMP_CACHE*/
 
 typedef struct
 {
@@ -63,7 +63,6 @@ ArpEntry _arp_table[MAX_ARP_ENTRY];
 void _dump_arp_cache()
 {
     int i;
-    RFLPC_ASSERT_STACK();
     MBED_DEBUG("ARP CACHE DUMP\r\n");
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
     {

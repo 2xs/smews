@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-29 10:24:59 (hauspie)>
+  Time-stamp: <2011-09-29 12:55:40 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -53,6 +53,7 @@
 /* Mbed port includes */
 #include "target.h"
 #include "mbed_debug.h"
+#include "debug_console.h"
 #include "eth_input.h"
 #include "protocols.h"
 #include "out_buffers.h"
@@ -75,7 +76,6 @@ uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out
 int putchar(int c)
 {
     static int uart_init = 0;
-    RFLPC_ASSERT_STACK();
     if (!uart_init)
     {
 	rflpc_uart0_init();
@@ -127,34 +127,14 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 RFLPC_IRQ_HANDLER _uart_irq()
 {
     char c = rflpc_uart0_getchar();
-    int i;
-    switch (c)
-    {
-	case 'd':
-	case 's':
-	    MBED_DEBUG("Memory left: %d bytes\r\n", get_free_mem());
-	    MBED_DEBUG("RxDescriptor: %p\r\n", _rx_descriptors);
-	    MBED_DEBUG("TxDescriptor: %p\r\n", _tx_descriptors);
-	    mbed_eth_dump_tx_buffer_status();
-	    for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
-	    {
-		MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
-	    }
-	    rflpc_eth_dump_internals();
-	    if (c == 's')
-	    {
-		MBED_DEBUG("Emergency stop\r\n");
-		while (1){}
-	    }
-	default:
-	    break;
-    }
+#ifdef MBED_USE_CONSOLE
+    mbed_console_add_char(c);
+#endif
 }
 
 static void _init_buffers()
 {
     int i;
-    RFLPC_ASSERT_STACK();
     for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
     {
 	_rx_descriptors[i].packet = _rx_buffers + RX_BUFFER_SIZE*i;
@@ -171,8 +151,6 @@ static void _init_buffers()
 EthAddr local_eth_addr;
 void mbed_eth_hardware_init(void)
 {
-    MBED_DEBUG("%p\r\n", SCB->VTOR);
-
     /* Configure and start the timer. Timer 0 will be used for timestamping */
     rflpc_timer_enable(RFLPC_TIMER0);
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
@@ -213,5 +191,6 @@ void mbed_eth_hardware_init(void)
     printf(" done! Link is up\r\n");
     printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
+    mbed_console_prompt();
     rflpc_uart0_set_rx_callback(_uart_irq);
 }
