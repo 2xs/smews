@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2011, Michael Hauspie
-* 
+*
 * Author e-mail: michael.hauspie@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -42,6 +42,7 @@
 
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/interrupt.h>
+#include <rflpc17xx/profiling.h>
 
 #include "hardware.h"
 #include "target.h"
@@ -54,7 +55,8 @@ uint8_t  * volatile current_tx_frame = NULL;
 volatile uint32_t current_tx_frame_idx = 0;
 volatile uint32_t current_tx_frame_size = 0;
 
-
+RFLPC_PROFILE_DECLARE_COUNTER(tx_copy);
+RFLPC_PROFILE_DECLARE_COUNTER(tx_eth);
 
 
 void mbed_eth_prepare_output(uint32_t size)
@@ -72,34 +74,41 @@ void mbed_eth_prepare_output(uint32_t size)
 
 void mbed_eth_put_byte(uint8_t byte)
 {
+   RFLPC_PROFILE_START_COUNTER(tx_copy, RFLPC_TIMER1);
     if (current_tx_frame == NULL)
     {
 	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
+        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 	return;
     }
     if (current_tx_frame_idx >= current_tx_frame_size)
     {
 	MBED_DEBUG("Trying to add byte %02x (%c) and output buffer is full\r\n", byte, byte);
+        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 	return;
     }
-/*    MBED_DEBUG("O: %02x (%c)\r\n", byte, byte);*/
     current_tx_frame[current_tx_frame_idx++] = byte;
+    RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 }
 
 void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
 {
+   RFLPC_PROFILE_START_COUNTER(tx_copy, RFLPC_TIMER1);
     if (current_tx_frame == NULL)
     {
 	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
+        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 	return;
     }
     if (current_tx_frame_idx + n > current_tx_frame_size)
     {
 	MBED_DEBUG("Trying to add %d bytes and output buffer is full (%d/%d)\r\n", n, current_tx_frame_idx, current_tx_frame_size);
+        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 	return;
     }
     memcpy(current_tx_frame + current_tx_frame_idx, bytes, n);
     current_tx_frame_idx += n;
+    RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 }
 
 void mbed_eth_output_done()
@@ -108,19 +117,21 @@ void mbed_eth_output_done()
     rfEthDescriptor *d;
     rfEthTxStatus *s;
     uint32_t ip;
-    
+
+    RFLPC_PROFILE_START_COUNTER(tx_eth, RFLPC_TIMER1);
 
     if (current_tx_frame == NULL)
     {
 	MBED_DEBUG("Trying to send packet before preparing it\r\n");
+        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
 	return;
     }
     eth.src = local_eth_addr;
     ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
     if (!arp_get_mac(ip, &eth.dst))
     {
-	MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n", 
-		   ip & 0xFF, 
+	MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
+		   ip & 0xFF,
 		   (ip >> 8) & 0xFF,
 		   (ip >> 16) & 0xFF,
 		   (ip >> 24) & 0xFF
@@ -128,6 +139,7 @@ void mbed_eth_output_done()
 	mbed_eth_release_tx_buffer(current_tx_frame);
 	current_tx_frame = NULL;
 	current_tx_frame_idx = 0;
+        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
 	return;
     }
     eth.type = PROTO_IP;
@@ -140,6 +152,7 @@ void mbed_eth_output_done()
 	mbed_eth_release_tx_buffer(current_tx_frame);
 	current_tx_frame = NULL;
 	current_tx_frame_idx = 0;
+        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
 	return;
     }
 /* send control word (size + send options) and request interrupt */
@@ -156,4 +169,5 @@ void mbed_eth_output_done()
     rflpc_eth_done_process_tx_packet(); /* send packet */
     current_tx_frame = NULL;
     current_tx_frame_idx = 0;
+    RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
 }

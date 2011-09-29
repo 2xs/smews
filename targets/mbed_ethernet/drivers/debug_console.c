@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2011, Michael Hauspie
-* 
+*
 * Author e-mail: michael.hauspie@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -43,10 +43,15 @@
 
 
 #include <rflpc17xx/drivers/ethernet.h>
+#include <rflpc17xx/profiling.h>
 #include "target.h"
 #include "out_buffers.h"
 #define CONSOLE_BUFFER_SIZE 64
 
+
+RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(tx_copy);
+RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(tx_eth);
+RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(rx_copy);
 
 int get_free_mem();
 
@@ -63,6 +68,7 @@ void mbed_console_help(char *args);
 void mbed_console_tx_state(char *args);
 void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
+void mbed_console_profile(char *args);
 void mbed_console_parse_command();
 
 #define CONSOLE_COMMAND(command, help) {#command, mbed_console_##command, help}
@@ -72,6 +78,7 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(tx_state, "Dump the state of TX buffers"),
     CONSOLE_COMMAND(eth_state, "Dump the state of ethernet device"),
     CONSOLE_COMMAND(mem_state, "Dump the state of memory"),
+    CONSOLE_COMMAND(profile, "Show profile info"),
 };
 
 static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
@@ -79,6 +86,15 @@ static int _console_command_count = sizeof(_console_commands) / sizeof(_console_
 static char _console_buffer[CONSOLE_BUFFER_SIZE];
 static int _console_buffer_idx;
 
+#define PRINT_PROFILE(counter) printf(#counter" : %d\r\n", RFLPC_PROFILE_GET_TOTAL(counter));
+
+void mbed_console_profile(char *args)
+{
+   printf("Totals\r\n");
+   PRINT_PROFILE(tx_copy);
+   PRINT_PROFILE(tx_eth);
+   PRINT_PROFILE(rx_copy);
+}
 
 void mbed_console_help(char *args)
 {

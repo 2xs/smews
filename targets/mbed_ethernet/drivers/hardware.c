@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2011, Michael Hauspie
-* 
+*
 * Author e-mail: michael.hauspie@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -45,6 +45,7 @@
 #include <rflpc17xx/drivers/timer.h>
 #include <rflpc17xx/debug.h>
 #include <rflpc17xx/printf.h>
+#include <rflpc17xx/profiling.h>
 
 /* Smews core includes */
 #include "memory.h"
@@ -106,7 +107,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
     rfEthDescriptor *d;
     rfEthRxStatus *s;
     int i = 0;
- 	
+
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
     {
 	/* Process all pending packets, but limit to the number of descriptor
@@ -153,6 +154,7 @@ void mbed_eth_hardware_init(void)
 {
     /* Configure and start the timer. Timer 0 will be used for timestamping */
     rflpc_timer_enable(RFLPC_TIMER0);
+    RFLPC_PROFILE_INIT(RFLPC_TIMER1);
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
     rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
     /* Set the pre scale register so that timer counter is incremented every 1ms */
