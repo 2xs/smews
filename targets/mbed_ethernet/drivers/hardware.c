@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-28 12:34:06 (mickey)>
+  Time-stamp: <2011-09-29 10:24:59 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -105,23 +105,23 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
     rfEthDescriptor *d;
     rfEthRxStatus *s;
+    int i = 0;
  	
-    rflpc_irq_global_disable();
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
     {
-    	while (rflpc_eth_get_current_rx_packet_descriptor(&d, &s))
+	/* Process all pending packets, but limit to the number of descriptor
+	 * to avoid beeing stuck in handler because of packet flood */
+    	while (rflpc_eth_get_current_rx_packet_descriptor(&d, &s) && i++ < TX_DESCRIPTORS)
     	{
-	    /*mbed_dump_packet(d, s, 0);*/
 	    if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
 		rflpc_eth_done_process_rx_packet();
 	    else
 		break;
 	}
     }
-    mbed_eth_garbage_tx_buffers();
+    if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_TX_DONE)
+	mbed_eth_garbage_tx_buffers();
     rflpc_eth_irq_clear(rflpc_eth_irq_get_status());
-    rflpc_irq_global_enable();
-
 }
 
 RFLPC_IRQ_HANDLER _uart_irq()

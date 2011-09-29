@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-28 12:41:37 (mickey)>
+  Time-stamp: <2011-09-29 10:02:00 (hauspie)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -70,7 +70,6 @@ uint8_t mbed_eth_get_byte()
     ++byte_count;
     if (current_rx_frame_idx >= current_rx_frame_size)
     {
-	rflpc_led_clr(RFLPC_LED_2);
 	current_rx_frame = NULL;
 	current_rx_frame_size = 0;
 	current_rx_frame_idx = 0;
@@ -156,7 +155,6 @@ int mbed_process_input(const uint8_t *packet, int size)
     if (packet == current_rx_frame)
 	return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
 
-    rflpc_led_set(RFLPC_LED_2);
     current_rx_frame = packet;
     current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;
     current_rx_frame_idx = PROTO_MAC_HLEN; /* idx points to the first IP byte */
