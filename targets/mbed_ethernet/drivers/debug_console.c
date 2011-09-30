@@ -44,6 +44,7 @@
 
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/profiling.h>
+#include <rflpc17xx/printf.h>
 #include "target.h"
 #include "out_buffers.h"
 #define CONSOLE_BUFFER_SIZE 64
