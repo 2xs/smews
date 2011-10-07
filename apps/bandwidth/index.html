@@ -27,7 +27,7 @@
                     speed = Math.round(speed*100)/100;
                     $('#dlspeed').html('<b>' + speed + ' Mb/s (Dynamic)</b>');
                     $('#dltime').html((Math.round((bytes*100 / 1024) / 1024)/100) + ' MB transfered in ' + diff + ' s (Dynamic)');
-                    $('#dlbar').css('width', Math.floor(speed * 30)+'px');
+                    $('#dlbar').css('width', Math.floor(speed * 15)+'px');
                 },
                 complete: function(xhr, textStatus) {
                    TestStaticDownload();
@@ -37,7 +37,7 @@
 
         function TestStaticDownload() {
 
-           $('#dltimestatic').html('Testing static content<img src="busy.gif">');
+           $('#dlspeedstatic').html('Testing static content<img src="busy.gif">');
            static_total = 0;
            static_total_time = 0;
            static_finish_count = 0;
@@ -70,7 +70,7 @@
           speed = (static_total / static_total_time) / 1024 / 1024 * 8;
           speed = Math.round(speed*100)/100;
           $('#dlspeedstatic').html('<b>' + speed + ' Mb/s (Static)</b>');
-          $('#dlbarstatic').css('width', Math.floor(speed * 30)+'px');
+          $('#dlbarstatic').css('width', Math.floor(speed * 15)+'px');
           $('#dltimestatic').html((Math.round((static_total*100 / 1024) / 1024)/100) + ' MB transfered in ' + static_total_time + ' s (static)');
        }
 
@@ -85,7 +85,7 @@
         Download speed:<br />
         <img id="dlbar" src="bar.gif" style="width: 1px; height: 10px;"> <span id="dlspeed">Testing dynamic content<img src="busy.gif"></span><br />
         <img id="dlbarstatic" src="bar.gif" style="width: 1px; height: 10px;"><span id="dlspeedstatic"></span><br />
-        <img src="bar.gif" width="300" height="10"> 10 Mb/s
+        <img src="bar.gif" width="150" height="10"> 10 Mb/s
     </p>
     <p id="dltime">
     </p>
