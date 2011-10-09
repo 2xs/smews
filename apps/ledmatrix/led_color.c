@@ -34,7 +34,7 @@
 */
 /*
 <generator>
-        <handlers init="init_led" doGet="get_led"/>
+        <handlers init="init_led" doGet="get_led_color"/>
 	<properties persistence="idempotent" />
 	<args>
 	        <arg name="color" type="str" size="7"/>
@@ -43,11 +43,13 @@
  */
 
 #include <rflpc17xx/rflpc17xx.h>
+#include "scroller.h"
+#include "led_common.h"
 
-#define SPI_WRITE(val) rflpc_spi_write(RFLPC_SPI1, (val))
-#define SPI_ACTIVATE_LED rflpc_gpio_clr_pin(0,6)
-#define SPI_DEACTIVATE_LED rflpc_gpio_set_pin(0,6)
-#define SPI_WAIT_QUEUE_EMPTY while (!rflpc_spi_tx_fifo_empty(RFLPC_SPI1))
+#define SPI_WRITE(val) rflpc_spi_write(RFLPC_SPI0, (val))
+#define SPI_ACTIVATE_LED rflpc_gpio_clr_pin(0,16)
+#define SPI_DEACTIVATE_LED rflpc_gpio_set_pin(0,16)
+#define SPI_WAIT_QUEUE_EMPTY while (!rflpc_spi_tx_fifo_empty(RFLPC_SPI0))
 
 #define SPI_INIT do { \
    int spi_peripheral_clock = rflpc_clock_get_system_clock() / 8; \
@@ -56,10 +58,10 @@
    while (needed_divider / serial_clock_rate_divider > 254) \
       serial_clock_rate_divider++; \
    needed_divider /= serial_clock_rate_divider; \
-   rflpc_spi_init_master(RFLPC_SPI1, RFLPC_CCLK_8, needed_divider, serial_clock_rate_divider, 8);\
-   rflpc_gpio_use_pin(0, 6);\
-   rflpc_gpio_set_pin_mode_output(0,6);\
-   rflpc_gpio_set_pin(0,6);\
+   rflpc_spi_init_master(RFLPC_SPI0, RFLPC_CCLK_8, needed_divider, serial_clock_rate_divider, 8);\
+   rflpc_gpio_use_pin(0, 16);\
+   rflpc_gpio_set_pin_mode_output(0,16);\
+   rflpc_gpio_set_pin(0,16);\
    }while(0);
 
 #define INIT_WAIT do { \
@@ -73,24 +75,13 @@
 
 static uint8_t back_buffer[64];
 
-static inline uint8_t htoi(char hexa)
-{
-   if (hexa >= '0' && hexa <= '9')
-      return hexa - '0';
-   if (hexa >= 'a' && hexa <= 'f')
-      return hexa - 'a';
-   if (hexa >= 'A' && hexa <= 'F')
-      return hexa - 'A';
-   return 0;
-}
-
 uint8_t str_to_color(const char *color)
 {
    uint8_t r, g, b;
    r = ((htoi(color[0])*16 + htoi(color[1])) >> 5) & 0x7;
    g = ((htoi(color[2])*16 + htoi(color[3])) >> 5) & 0x7;
-   b = ((htoi(color[4])*16 + htoi(color[5])) >> 5) & 0x7;
-   return (r << 6) | (g << 3) | b;
+   b = ((htoi(color[4])*16 + htoi(color[5])) >> 6) & 0x3;
+   return (r << 5) | (g << 2) | b;
 }
 
 void led_matrix_display_buffer(uint8_t *buffer)
@@ -108,26 +99,34 @@ void led_matrix_display_buffer(uint8_t *buffer)
    SPI_DEACTIVATE_LED;
 }
 
+static void do_display()
+{
+    int i;
+    for (i = 0 ; i < 64 ; ++i)
+	back_buffer[i] = 0;
+    display_text(back_buffer, text, position, color);
+    led_matrix_display_buffer(back_buffer);
+    position++;
+    if (position == text_size*8)
+	position = -8; /* reset scroll */
+}
+
 static char init_led(void)
 {
    INIT_WAIT;
    SPI_INIT;
-   uint8_t color = str_to_color("FFFFFF");
-   for (i = 0 ; i < 64 ; ++i)
-      back_buffer[i] = color;
-   led_matrix_display_buffer(back_buffer);
+   color = str_to_color("FFFFFF");
+   position = 0;
+   strcpy(text, "Smews: Smart & Mobile Embedded Web Server");
+   text_size = strlen("Smews: Smart & Mobile Embedded Web Server");
+   do_display();
+   set_timer(&do_display, 100);
    return 1;
 }
 
 
-static char get_led(struct args_t *args)
+static char get_led_color(struct args_t *args)
 {
-   int i;
-   uint8_t color = str_to_color(args->color);
-   for (i = 0 ; i < 64 ; ++i)
-   {
-      back_buffer[i] = color;
-   }
-   led_matrix_display_buffer(back_buffer);
+   color = str_to_color(args->color);
    return 1;
 }
