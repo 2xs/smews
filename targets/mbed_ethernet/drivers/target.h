@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2011, Michael Hauspie
-* 
+*
 * Author e-mail: michael.hauspie@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -92,20 +92,20 @@ typedef char int8_t;
 /* Writes n bytes starting from ptr */
 #define DEV_PUTN(ptr,n) mbed_eth_put_nbytes((ptr), (n))
 /* Writes n bytes starting from ptr (for const data) */
-#define DEV_PUTN_CONST(ptr,n) mbed_eth_put_nbytes((ptr), (n))
+#define DEV_PUTN_CONST(ptr,n) mbed_eth_put_const_nbytes((ptr), (n))
 /* Passive wait for a device input. Must return after a given time */
 #define DEV_WAIT
 
 /* Smews states */
 
 /* Called by the kernel when starting to wait for data */
-#define SMEWS_WAITING 
+#define SMEWS_WAITING
 /* Called by the kernel when starting to receive data */
-#define SMEWS_RECEIVING 
+#define SMEWS_RECEIVING
 /* Called by the kernel when starting to send data */
-#define SMEWS_SENDING 
+#define SMEWS_SENDING
 /* Called by the kernel when ending to send data */
-#define SMEWS_ENDING 
+#define SMEWS_ENDING
 
 /* Cons variables macros */
 
@@ -161,10 +161,10 @@ typedef char int8_t;
 #define ALLOC_SIZE 16384
 
 /* Ethernet configuration */
-/* Number of frame descriptors for reception. For each descriptor, 
+/* Number of frame descriptors for reception. For each descriptor,
  * 16 bytes will be needed */
 #define RX_DESCRIPTORS 8
-/* Size of the reception buffers. One buffer will be needed per reception descriptor 
+/* Size of the reception buffers. One buffer will be needed per reception descriptor
    The buffers will be store in the external SRAM. So 32K of RAM is available ONLY for this buffers
  */
 #define RX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH

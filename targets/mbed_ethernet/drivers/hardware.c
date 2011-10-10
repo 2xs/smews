@@ -92,7 +92,7 @@ void mbed_eth_garbage_tx_buffers()
     /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
     for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
     {
-	if (_tx_descriptors[i].packet == _arp_reply_buffer) /* this one is static */
+	if (!mbed_eth_is_releasable_buffer(_tx_descriptors[i].packet)) /* static buffers */
 	    continue;
 	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
 	{

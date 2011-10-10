@@ -126,7 +126,7 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 
 	proto_eth_mangle(eth, _arp_reply_buffer);
 	proto_arp_mangle(&arp_send, _arp_reply_buffer + PROTO_MAC_HLEN);
-	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control, 0);
+	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control, 0, 1);
 	d->packet = _arp_reply_buffer;
 	/* send packet */
 	rflpc_eth_done_process_tx_packet();

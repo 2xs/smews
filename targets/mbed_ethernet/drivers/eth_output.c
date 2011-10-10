@@ -54,10 +54,41 @@
 uint8_t  * volatile current_tx_frame = NULL;
 volatile uint32_t current_tx_frame_idx = 0;
 volatile uint32_t current_tx_frame_size = 0;
+volatile int current_tx_frame_header_filled = 0;
+volatile uint32_t bytes_to_sent = 0;
 
 RFLPC_PROFILE_DECLARE_COUNTER(tx_copy);
 RFLPC_PROFILE_DECLARE_COUNTER(tx_eth);
 
+int mbed_eth_fill_header()
+{
+   EthHead eth;
+   uint32_t ip;
+   eth.src = local_eth_addr;
+   /* Get the IP from the current frame */
+   ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
+   if (!arp_get_mac(ip, &eth.dst))
+   {
+        MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
+                   ip & 0xFF,
+                   (ip >> 8) & 0xFF,
+                   (ip >> 16) & 0xFF,
+                   (ip >> 24) & 0xFF);
+      return 0;
+   }
+   eth.type = PROTO_IP;
+   proto_eth_mangle(&eth, current_tx_frame);
+   current_tx_frame_header_filled = 1;
+   return 1;
+}
+
+inline void mbed_eth_check_and_fill_header()
+{
+   if (current_tx_frame_header_filled)
+      return;
+   if (current_tx_frame_idx >= PROTO_MAC_HLEN + PROTO_IP_HLEN)
+      mbed_eth_fill_header();
+}
 
 void mbed_eth_prepare_output(uint32_t size)
 {
@@ -70,6 +101,7 @@ void mbed_eth_prepare_output(uint32_t size)
     while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
     current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
     current_tx_frame_size = size + PROTO_MAC_HLEN;
+    bytes_to_sent = size + PROTO_MAC_HLEN;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
@@ -111,63 +143,89 @@ void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
     RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 }
 
+int mbed_eth_send_fragment(const uint8_t *data, uint32_t size, int last)
+{
+   rfEthDescriptor *d;
+   rfEthTxStatus *s;
+
+   if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
+   {
+      MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
+      return 0;
+   }
+/* send control word (size + send options) and request interrupt */
+    d->packet = (uint8_t *)data;
+    s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
+                                                * handler to check ALL
+                                                * descriptors for packets as
+                                                * this status word is
+                                                * overwriten when a packet is
+                                                * sent. Then, if status is not
+                                                * this magic AND packet is not
+                                                * NULL, it has to be freed */
+    rflpc_eth_set_tx_control_word(size, &d->control, 1, last);
+    rflpc_eth_done_process_tx_packet(); /* send packet */
+
+   return 1;
+}
+
 void mbed_eth_output_done()
 {
-    EthHead eth;
-    rfEthDescriptor *d;
-    rfEthTxStatus *s;
-    uint32_t ip;
-
     RFLPC_PROFILE_START_COUNTER(tx_eth, RFLPC_TIMER1);
 
-    if (current_tx_frame == NULL)
+    if (current_tx_frame == NULL) /* Pointer can be NULL if put_const_nbytes has sent the last bytes */
     {
-	MBED_DEBUG("Trying to send packet before preparing it\r\n");
         RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
 	return;
     }
-    eth.src = local_eth_addr;
-    ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
-    if (!arp_get_mac(ip, &eth.dst))
-    {
-	MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
-		   ip & 0xFF,
-		   (ip >> 8) & 0xFF,
-		   (ip >> 16) & 0xFF,
-		   (ip >> 24) & 0xFF
-	    );
-	mbed_eth_release_tx_buffer(current_tx_frame);
-	current_tx_frame = NULL;
-	current_tx_frame_idx = 0;
-        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
-	return;
-    }
-    eth.type = PROTO_IP;
-    proto_eth_mangle(&eth, current_tx_frame);
 
+   mbed_eth_check_and_fill_header();
 
-    if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
-    {
-	MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
-	mbed_eth_release_tx_buffer(current_tx_frame);
-	current_tx_frame = NULL;
-	current_tx_frame_idx = 0;
-        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
-	return;
-    }
-/* send control word (size + send options) and request interrupt */
-    d->packet = current_tx_frame;
-    s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
-						* handler to check ALL
-						* descriptors for packets as
-						* this status word is
-						* overwriten when a packet is
-						* sent. Then, if status is not
-						* this magic AND packet is not
-						* NULL, it has to be freed */
-    rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control, 1);
-    rflpc_eth_done_process_tx_packet(); /* send packet */
-    current_tx_frame = NULL;
-    current_tx_frame_idx = 0;
-    RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
+   if (mbed_eth_send_fragment(current_tx_frame, current_tx_frame_idx, 1) == -1)
+      mbed_eth_release_tx_buffer(current_tx_frame);
+   current_tx_frame = NULL;
+   current_tx_frame_idx = 0;
+   current_tx_frame_header_filled = 0;
+   RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
+}
+
+void mbed_eth_put_const_nbytes(const void *bytes, uint32_t n)
+{
+   //if (n <= 100) /* use multi descriptors only if it is worth */
+   {
+      mbed_eth_put_nbytes(bytes, n);
+      return;
+   }
+   /* A big fragment can be sent directly.
+    * First, send what has already been prepared
+    */
+   /* fill ethernet header if needed */
+   mbed_eth_check_and_fill_header();
+   /* send current fragment */
+   if (!mbed_eth_send_fragment(current_tx_frame, current_tx_frame_idx, 0))
+   {
+      /* drop if fragment can not be sent */
+      mbed_eth_release_tx_buffer(current_tx_frame);
+      current_tx_frame = NULL;
+      current_tx_frame_idx = 0;
+      current_tx_frame_header_filled = 0;
+      return;
+   }
+   /* some bytes have been sent, report */
+   bytes_to_sent -= current_tx_frame_idx;
+   /* Fragment is now given to the DMA, prepare the const fragment */
+   bytes_to_sent -= n;
+   mbed_eth_send_fragment(bytes, n, (bytes_to_sent == 0) ? 1 : 0); /* last fragment bit is set if needed */
+   if (bytes_to_sent == 0) /* done with the packet */
+   {
+      current_tx_frame = NULL;
+      current_tx_frame_header_filled = 0;
+   }
+   else
+   {
+      /* if there is still data to send, allocate a new buffer */
+      while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
+   }
+   current_tx_frame_size = bytes_to_sent;
+   current_tx_frame_idx = 0;
 }
