@@ -31,10 +31,11 @@ fi
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
 make mrproper >& /dev/null
-if ! make >& $TMP_LOG_FILE
+if ! make -C rflpc17xx >& $TMP_LOG_FILE
 then
     cat $TMP_LOG_FILE 1>&2
     echo "Failed to compile rflpc!" 1>&2
+    rm -f $TMP_LOG_FILE
     exit 1
 fi
 rm -rf $TMP_LOG_FILE

@@ -36,6 +36,7 @@
 
 char text[128];
 uint8_t color;
+char color_text[10];
 volatile int position;
 int text_size;
 
