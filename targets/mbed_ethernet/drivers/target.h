@@ -156,9 +156,9 @@ typedef char int8_t;
 /* size of the buffer used to generate dynamic content */
 #define OUTPUT_BUFFER_SIZE 1200
 /* size of the shared stack used by all dynamic content generators */
-#define STACK_SIZE 8192
+#define STACK_SIZE 1024
 /* size of the dynamic memory allocator pool */
-#define ALLOC_SIZE 16384
+#define ALLOC_SIZE 4096
 
 /* Ethernet configuration */
 /* Number of frame descriptors for reception. For each descriptor,
@@ -175,5 +175,10 @@ typedef char int8_t;
 /* Number of frame descriptors for transmission. For each descriptor,
  * 12 bytes will be needed */
 #define TX_DESCRIPTORS 20
+/* Maximum number of fragment that we can use to create one ethernet frame. Must less than the number of descriptos */
+#define TX_MAX_FRAGMENTS 10
+
+/* This indicates a threshold from which a DEV_PUTN_CONST will be implemented by a multi-fragment frame using the ethernet controller gather DMA */
+#define PUTN_BYTES_CONST_DMA_THRESHOLD 100
 
 #endif /* __TARGET_H__ */

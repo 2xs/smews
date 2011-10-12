@@ -92,12 +92,12 @@ void mbed_eth_garbage_tx_buffers()
     /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
     for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
     {
-	if (!mbed_eth_is_releasable_buffer(_tx_descriptors[i].packet)) /* static buffers */
-	    continue;
 	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
 	{
-	    mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
-	    _tx_descriptors[i].packet = NULL;
+           MBED_DEBUG("%d, %p: control: %0x, status: %0x\r\n", i, _tx_descriptors[i].packet, _tx_descriptors[i].control, _tx_status[i].status_info);
+           if (mbed_eth_is_releasable_buffer(_tx_descriptors[i].packet)) /* static buffers */
+               mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
+	   _tx_descriptors[i].packet = NULL;
 	}
     }
 }
@@ -114,7 +114,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 	 * to avoid beeing stuck in handler because of packet flood */
     	while (rflpc_eth_get_current_rx_packet_descriptor(&d, &s) && i++ < TX_DESCRIPTORS)
     	{
-	    if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
+            if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
 		rflpc_eth_done_process_rx_packet();
 	    else
 		break;
@@ -150,6 +150,10 @@ static void _init_buffers()
 }
 
 EthAddr local_eth_addr;
+extern char _data_start;
+extern char _data_end;
+extern char _bss_start;
+extern char _bss_end;
 void mbed_eth_hardware_init(void)
 {
     /* Configure and start the timer. Timer 0 will be used for timestamping */
@@ -173,6 +177,12 @@ void mbed_eth_hardware_init(void)
     printf("#     #  #    #  #       ##  ##  #    #         #     # #     # #       #     #\r\n");
     printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
     printf("\r\n");
+
+    printf(".data  size: %d\r\n", &_data_end - &_data_start);
+    printf(".bss   size: %d\r\n", &_bss_end - &_bss_start);
+    printf(".stack size: %d\r\n", RFLPC_STACK_SIZE);
+    printf("Total: %d\r\n", (&_data_end - &_data_start) + (&_bss_end - &_bss_start) + RFLPC_STACK_SIZE);
+
 
 
     /* Set the MAC addr from the local ip */

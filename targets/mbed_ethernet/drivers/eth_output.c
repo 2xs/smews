@@ -51,23 +51,50 @@
 #include "arp_cache.h"
 #include "out_buffers.h"
 
-uint8_t  * volatile current_tx_frame = NULL;
-volatile uint32_t current_tx_frame_idx = 0;
-volatile uint32_t current_tx_frame_size = 0;
-volatile int current_tx_frame_header_filled = 0;
-volatile uint32_t bytes_to_sent = 0;
 
-RFLPC_PROFILE_DECLARE_COUNTER(tx_copy);
-RFLPC_PROFILE_DECLARE_COUNTER(tx_eth);
-
-int mbed_eth_fill_header()
+/** This structure holds a frame fragment.
+ *  This will be used to use DMA has gather
+ * device to create ethernet frame from multiple fragment */
+typedef struct
 {
-   EthHead eth;
-   uint32_t ip;
-   eth.src = local_eth_addr;
-   /* Get the IP from the current frame */
-   ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
-   if (!arp_get_mac(ip, &eth.dst))
+   uint8_t *ptr;
+   uint32_t size;
+} fragment_gather_t;
+
+/** This structure holds the buffer where the actual fragment data will be stored */
+typedef struct
+{
+   uint8_t *ptr;
+   uint32_t fragment_idx;
+   uint32_t byte_idx;
+} fragment_buffer_t;
+
+fragment_gather_t fragments[TX_MAX_FRAGMENTS];
+fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0,0,0,0 by the start routine */
+
+/** This will be used to store the precomputed Ethernet header.
+ * Then, only the dst address will have to be modified for each frame
+ */
+uint8_t ethernet_header[PROTO_MAC_HLEN];
+
+int mbed_eth_fill_header(uint32_t ip)
+{
+   static int first = 1;
+   EthAddr dst_addr;
+   int idx;
+
+   if (first)
+   {
+      idx = 6;
+      /* First frame sent, create the ethernet header */
+      /* Source Address */
+      PUT_MAC(ethernet_header, idx, local_eth_addr.addr);
+      /* Type */
+      PUT_TWO(ethernet_header, idx, PROTO_IP);
+      first = 0;
+   }
+
+   if (!arp_get_mac(ip, &dst_addr))
    {
         MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
                    ip & 0xFF,
@@ -76,79 +103,18 @@ int mbed_eth_fill_header()
                    (ip >> 24) & 0xFF);
       return 0;
    }
-   eth.type = PROTO_IP;
-   proto_eth_mangle(&eth, current_tx_frame);
-   current_tx_frame_header_filled = 1;
+   idx = 0;
+   /* Put the destination addre in the frame header */
+   PUT_MAC(ethernet_header, idx, dst_addr.addr);
    return 1;
 }
 
-inline void mbed_eth_check_and_fill_header()
-{
-   if (current_tx_frame_header_filled)
-      return;
-   if (current_tx_frame_idx >= PROTO_MAC_HLEN + PROTO_IP_HLEN)
-      mbed_eth_fill_header();
-}
-
-void mbed_eth_prepare_output(uint32_t size)
-{
-    if (current_tx_frame != NULL)
-    {
-	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
-	return;
-    }
-    /* allocated memory for output buffer */
-    while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
-    current_tx_frame_size = size + PROTO_MAC_HLEN;
-    bytes_to_sent = size + PROTO_MAC_HLEN;
-}
-
-void mbed_eth_put_byte(uint8_t byte)
-{
-   RFLPC_PROFILE_START_COUNTER(tx_copy, RFLPC_TIMER1);
-    if (current_tx_frame == NULL)
-    {
-	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-	return;
-    }
-    if (current_tx_frame_idx >= current_tx_frame_size)
-    {
-	MBED_DEBUG("Trying to add byte %02x (%c) and output buffer is full\r\n", byte, byte);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-	return;
-    }
-    current_tx_frame[current_tx_frame_idx++] = byte;
-    RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-}
-
-void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
-{
-   RFLPC_PROFILE_START_COUNTER(tx_copy, RFLPC_TIMER1);
-    if (current_tx_frame == NULL)
-    {
-	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-	return;
-    }
-    if (current_tx_frame_idx + n > current_tx_frame_size)
-    {
-	MBED_DEBUG("Trying to add %d bytes and output buffer is full (%d/%d)\r\n", n, current_tx_frame_idx, current_tx_frame_size);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-	return;
-    }
-    memcpy(current_tx_frame + current_tx_frame_idx, bytes, n);
-    current_tx_frame_idx += n;
-    RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-}
-
-int mbed_eth_send_fragment(const uint8_t *data, uint32_t size, int last)
+int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int last)
 {
    rfEthDescriptor *d;
    rfEthTxStatus *s;
 
-   if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
+   if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, idx))
    {
       MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
       return 0;
@@ -163,69 +129,95 @@ int mbed_eth_send_fragment(const uint8_t *data, uint32_t size, int last)
                                                 * sent. Then, if status is not
                                                 * this magic AND packet is not
                                                 * NULL, it has to be freed */
-    rflpc_eth_set_tx_control_word(size, &d->control, 1, last);
-    rflpc_eth_done_process_tx_packet(); /* send packet */
-
+    rflpc_eth_set_tx_control_word(size, &d->control, last, last);
+    MBED_DEBUG("Fragment of %d bytes prepared. Idx: %d, last: %d, %p\r\n", size, idx, last, data);
    return 1;
 }
 
-void mbed_eth_output_done()
+void mbed_eth_prepare_output(uint32_t size)
 {
-    RFLPC_PROFILE_START_COUNTER(tx_eth, RFLPC_TIMER1);
-
-    if (current_tx_frame == NULL) /* Pointer can be NULL if put_const_nbytes has sent the last bytes */
+    if (current_buffer.ptr != NULL)
     {
-        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
+	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
     }
+    /* allocated memory for output buffer */
+    while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
+    current_buffer.byte_idx = 0;
+    current_buffer.fragment_idx = 0;
+    fragments[0].ptr = current_buffer.ptr;
+    fragments[0].size = 0;
+}
 
-   mbed_eth_check_and_fill_header();
+void mbed_eth_put_byte(uint8_t byte)
+{
+    if (current_buffer.ptr == NULL)
+    {
+	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
+	return;
+    }
+    fragment_gather_t *fragment = &fragments[current_buffer.fragment_idx];
+    fragment->ptr[fragment->size++] = byte;
+    current_buffer.byte_idx++;
+}
 
-   if (mbed_eth_send_fragment(current_tx_frame, current_tx_frame_idx, 1) == -1)
-      mbed_eth_release_tx_buffer(current_tx_frame);
-   current_tx_frame = NULL;
-   current_tx_frame_idx = 0;
-   current_tx_frame_header_filled = 0;
-   RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
+void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
+{
+    if (current_buffer.ptr == NULL)
+    {
+	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
+	return;
+    }
+    fragment_gather_t *fragment = &fragments[current_buffer.fragment_idx];
+    memcpy(fragment->ptr + fragment->size, bytes, n);
+    fragment->size += n;
+    current_buffer.byte_idx += n;
 }
 
 void mbed_eth_put_const_nbytes(const void *bytes, uint32_t n)
 {
-   //if (n <= 100) /* use multi descriptors only if it is worth */
+   /* Check if it is worth to user gather DMA for this const fragment or if we reach the maximum fragment count*/
+   //if (n < PUTN_BYTES_CONST_DMA_THRESHOLD || (current_buffer.fragment_idx + 2 >= TX_MAX_FRAGMENTS))
    {
       mbed_eth_put_nbytes(bytes, n);
       return;
    }
-   /* A big fragment can be sent directly.
-    * First, send what has already been prepared
-    */
-   /* fill ethernet header if needed */
-   mbed_eth_check_and_fill_header();
-   /* send current fragment */
-   if (!mbed_eth_send_fragment(current_tx_frame, current_tx_frame_idx, 0))
+   /* The previous fragment is finished, skip to next */
+   if (fragments[current_buffer.fragment_idx].size != 0) /* Test if the previous fragment was a const fragment */
+      current_buffer.fragment_idx++;
+   /* Create a fragment with the current const ptr */
+   fragments[current_buffer.fragment_idx].ptr = (uint8_t*)bytes;
+   fragments[current_buffer.fragment_idx].size = n;
+   /* Prepare next fragment */
+   current_buffer.fragment_idx++;
+   fragments[current_buffer.fragment_idx].ptr = current_buffer.ptr + current_buffer.byte_idx;
+   fragments[current_buffer.fragment_idx].size = 0;
+}
+
+void mbed_eth_output_done()
+{
+   /* Generate frame from fragment using gather DMA */
+   /* First get the DST IP to fill the DST MAC address */
+   uint32_t ip = proto_ip_get_dst(current_buffer.ptr);
+   /* Fill the ethernet header */
+   mbed_eth_fill_header(ip);
+   /* Fragments are ready to be handed to the DMA */
+   int i = 0;
+   /* first, ethernet header */
+   mbed_eth_prepare_fragment(ethernet_header, PROTO_MAC_HLEN, 0, 0);
+   /* Now, the payload */
+   while ((i+1) < TX_MAX_FRAGMENTS &&  fragments[i+1].size != 0)
    {
-      /* drop if fragment can not be sent */
-      mbed_eth_release_tx_buffer(current_tx_frame);
-      current_tx_frame = NULL;
-      current_tx_frame_idx = 0;
-      current_tx_frame_header_filled = 0;
-      return;
+      /* non last fragments */
+      mbed_eth_prepare_fragment(fragments[i].ptr, fragments[i].size, i+1, 0);
+      ++i;
    }
-   /* some bytes have been sent, report */
-   bytes_to_sent -= current_tx_frame_idx;
-   /* Fragment is now given to the DMA, prepare the const fragment */
-   bytes_to_sent -= n;
-   mbed_eth_send_fragment(bytes, n, (bytes_to_sent == 0) ? 1 : 0); /* last fragment bit is set if needed */
-   if (bytes_to_sent == 0) /* done with the packet */
-   {
-      current_tx_frame = NULL;
-      current_tx_frame_header_filled = 0;
-   }
-   else
-   {
-      /* if there is still data to send, allocate a new buffer */
-      while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-   }
-   current_tx_frame_size = bytes_to_sent;
-   current_tx_frame_idx = 0;
+   /* last fragment */
+   mbed_eth_prepare_fragment(fragments[i].ptr, fragments[i].size, i+1, 1);
+   /* Done, give all fragments to ethernet DMA */
+   rflpc_eth_done_process_tx_packet(i+2); /* i + 2 descriptors */
+   MBED_DEBUG("Sending %d fragments\r\n", i+2);
+   current_buffer.ptr = 0;
+   current_buffer.fragment_idx = 0;
+   current_buffer.byte_idx = 0;
 }

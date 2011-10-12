@@ -50,10 +50,6 @@
 #define CONSOLE_BUFFER_SIZE 64
 
 
-RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(tx_copy);
-RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(tx_eth);
-RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(rx_copy);
-
 int get_free_mem();
 
 
@@ -91,10 +87,10 @@ static int _console_buffer_idx;
 
 void mbed_console_profile(char *args)
 {
-   printf("Totals\r\n");
+   /*printf("Totals\r\n");
    PRINT_PROFILE(tx_copy);
    PRINT_PROFILE(tx_eth);
-   PRINT_PROFILE(rx_copy);
+   PRINT_PROFILE(rx_copy);*/
 }
 
 void mbed_console_help(char *args)

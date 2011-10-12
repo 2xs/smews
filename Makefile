@@ -1,10 +1,10 @@
-IPADDR=134.206.11.3
-#IPADDR=192.168.100.200
+#IPADDR=134.206.11.3
+IPADDR=192.168.100.200
 TARGET=mbed_ethernet
 APPS=:welcome,ledmatrix #,bandwidth
 PROGRAM_CMD=cp bin/mbed_ethernet/smews.bin /media/MBED
 
 all:
-	scons ipaddr=$(IPADDR) target=$(TARGET) apps=$(APPS) > /dev/null && $(PROGRAM_CMD) && sync
+	scons ipaddr=$(IPADDR) target=$(TARGET) apps=$(APPS) && $(PROGRAM_CMD) && sync
 clean:
 	scons -c
