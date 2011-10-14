@@ -103,6 +103,8 @@ static inline void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int du
 
 #endif
 
+#define MBED_ASSERT(cond) do {if (!cond) printf("%s(%d): Assertion %s failed\r\n", __FUNCTION__, __LINE__, #cond);}while(0)
+
 #endif
 
 

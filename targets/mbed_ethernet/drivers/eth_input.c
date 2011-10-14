@@ -88,7 +88,9 @@ uint8_t mbed_eth_get_byte()
 
 int mbed_eth_byte_available()
 {
-    return current_rx_frame != NULL;
+   if (current_rx_frame == NULL && rflpc_eth_rx_available()) /* No frame but something has been received */
+      rflpc_eth_irq_trigger(RFLPC_ETH_IRQ_EN_RX_DONE);
+   return current_rx_frame != NULL;
 }
 
 void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
@@ -139,6 +141,10 @@ int mbed_process_input(const uint8_t *packet, int size)
 {
     EthHead eth;
 
+    MBED_ASSERT(packet);
+   if (packet == current_rx_frame)
+        return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
+
     proto_eth_demangle(&eth, packet);
 
     if (eth.type == PROTO_ARP)
@@ -157,8 +163,6 @@ int mbed_process_input(const uint8_t *packet, int size)
     /* IP Packet received */
     /* update ARP cache */
     arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
-    if (packet == current_rx_frame)
-	return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
 
     current_rx_frame = packet;
     current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;

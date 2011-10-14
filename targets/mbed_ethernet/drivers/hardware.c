@@ -60,15 +60,14 @@
 #include "out_buffers.h"
 
 /* transmission descriptors */
-rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((aligned(4)));
+rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception descriptors */
-rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
+rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* transmission status */
-rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((aligned(4)));;
+rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception status */
-rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
-
+rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* Reception buffers */
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
@@ -94,7 +93,6 @@ void mbed_eth_garbage_tx_buffers()
     {
 	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
 	{
-           MBED_DEBUG("%d, %p: control: %0x, status: %0x\r\n", i, _tx_descriptors[i].packet, _tx_descriptors[i].control, _tx_status[i].status_info);
            if (mbed_eth_is_releasable_buffer(_tx_descriptors[i].packet)) /* static buffers */
                mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
 	   _tx_descriptors[i].packet = NULL;
@@ -201,6 +199,12 @@ void mbed_eth_hardware_init(void)
 
     while (!rflpc_eth_link_state());
     printf(" done! Link is up\r\n");
+    printf("My MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", local_eth_addr.addr[0],
+           local_eth_addr.addr[1],
+           local_eth_addr.addr[2],
+           local_eth_addr.addr[3],
+           local_eth_addr.addr[4],
+           local_eth_addr.addr[5]);
     printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
     mbed_console_prompt();

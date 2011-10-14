@@ -45,8 +45,10 @@
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/profiling.h>
 #include <rflpc17xx/printf.h>
+#include <rflpc17xx/debug.h>
 #include "target.h"
 #include "out_buffers.h"
+#include "mbed_debug.h"
 #define CONSOLE_BUFFER_SIZE 64
 
 
@@ -56,6 +58,7 @@ int get_free_mem();
 typedef struct
 {
     const char *command;
+    const char *shortcut;
     void (*handler)(char *args);
     const char *help_message;
 } console_command_t;
@@ -63,19 +66,23 @@ typedef struct
 
 void mbed_console_help(char *args);
 void mbed_console_tx_state(char *args);
+void mbed_console_rx_state(char *args);
 void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
 void mbed_console_profile(char *args);
+void mbed_console_stack_dump(char *args);
 void mbed_console_parse_command();
 
-#define CONSOLE_COMMAND(command, help) {#command, mbed_console_##command, help}
+#define CONSOLE_COMMAND(command, shortcut, help) {#command, shortcut, mbed_console_##command, help}
 
 console_command_t _console_commands[] = {
-    CONSOLE_COMMAND(help, "Display this help message"),
-    CONSOLE_COMMAND(tx_state, "Dump the state of TX buffers"),
-    CONSOLE_COMMAND(eth_state, "Dump the state of ethernet device"),
-    CONSOLE_COMMAND(mem_state, "Dump the state of memory"),
-    CONSOLE_COMMAND(profile, "Show profile info"),
+    CONSOLE_COMMAND(help,"h", "Display this help message"),
+    CONSOLE_COMMAND(tx_state, "ts", "Dump the state of TX buffers"),
+    CONSOLE_COMMAND(rx_state, "rs", "Dump the state of the RX buffers"),
+    CONSOLE_COMMAND(eth_state, "es", "Dump the state of ethernet device"),
+    CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
+    CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),
+    CONSOLE_COMMAND(profile, "p", "Show profile info"),
 };
 
 static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
@@ -97,11 +104,37 @@ void mbed_console_help(char *args)
 {
     int i;
     for (i = 0 ; i < _console_command_count ; ++i)
-	printf("\t- %s : %s\r\n", _console_commands[i].command, _console_commands[i].help_message);
+	printf("\t- %s (%s) : %s\r\n", _console_commands[i].command, _console_commands[i].shortcut, _console_commands[i].help_message);
 }
 void mbed_console_tx_state(char *args)
 {
     mbed_eth_dump_tx_buffer_status();
+}
+
+/* extern variable, needed for rx state */
+extern const uint8_t * volatile current_rx_frame;
+extern volatile uint32_t current_rx_frame_size;
+extern volatile uint32_t current_rx_frame_idx;
+
+void mbed_console_rx_state(char *args)
+{
+   printf("Rx frame ptr: %p\r\n", current_rx_frame);
+   printf("Rx frame idx: %d\r\n", current_rx_frame_idx);
+   printf("Rx frame size: %d\r\n", current_rx_frame_size);
+   if (current_rx_frame)
+   {
+      MBED_DUMP_BYTES(current_rx_frame, current_rx_frame_size);
+   }
+   printf("Dumping rx descriptors\r\n");
+   rfEthDescriptor *d = (rfEthDescriptor*)LPC_EMAC->RxDescriptor;
+   rfEthRxStatus *s = (rfEthRxStatus*)LPC_EMAC->RxStatus;
+   int i;
+   for (i = 0 ; i <= LPC_EMAC->RxDescriptorNumber ; ++i)
+   {
+      printf("Descriptor %d: packet: %p, status: %0x\r\n", i, d[i].packet, s[i].status_info);
+      if (d[i].packet)
+         MBED_DUMP_BYTES(d[i].packet, rflpc_eth_get_packet_size(s[i].status_info));
+   }
 }
 void mbed_console_eth_state(char *args)
 {
@@ -112,6 +145,38 @@ void mbed_console_mem_state(char *args)
     printf("%d bytes free\r\n", get_free_mem());
 }
 
+void mbed_console_stack_dump(char *args)
+{
+   uint32_t *mstack =(uint32_t*) __get_MSP();
+   int i;
+   /* As this function is called from an interrupt handler, we will look for 0xFFFFFFF9 to find the exception frame.
+    * This value is the value of the LR which is pushed in the interrupt handler. The frame exception frame is just after.
+    * It includes
+    * R0-R3,R12
+    * Return Address
+    * PSR
+    * LR
+    * ...
+    */
+   for (i = 0 ; i < 32 ; ++i)
+   {
+      if (mstack[i] == 0xFFFFFFF9)
+      {
+         ++i;
+         printf("Current PC: %p\r\n", mstack[i+5]);
+         /* Dump from here */
+         int j;
+         for (j = 0 ; j < 128 ; ++j)
+         {
+            if (j % 16 == 0)
+               printf("\n\r%p: ", ((uint8_t*)(mstack+i))  + j);
+            printf("%02x ", ((uint8_t*)(mstack+i))[j]);
+         }
+         printf("\n\r");
+         break;
+      }
+   }
+}
 
 void mbed_console_prompt()
 {
@@ -125,6 +190,15 @@ void mbed_console_add_char(char c)
 	printf("%c", c);
     else
 	printf("\r\n");
+    if (c == '\b') /* backspace */
+    {
+       if (_console_buffer_idx)
+       {
+         --_console_buffer_idx;
+         printf(" \b");
+       }
+       return;
+    }
     if (c == '\r' || _console_buffer_idx == (CONSOLE_BUFFER_SIZE - 1))
     {
 	_console_buffer[_console_buffer_idx] = '\0';
@@ -164,7 +238,7 @@ void mbed_console_parse_command()
     }
     for (i = 0 ; i < _console_command_count ; ++i)
     {
-	if (mbed_console_strcmp(_console_buffer, _console_commands[i].command) == 0)
+	if (mbed_console_strcmp(_console_buffer, _console_commands[i].command) == 0 || mbed_console_strcmp(_console_buffer, _console_commands[i].shortcut) == 0)
 	{
 	    _console_commands[i].handler(args);
 	    return;

@@ -92,7 +92,7 @@ typedef char int8_t;
 /* Writes n bytes starting from ptr */
 #define DEV_PUTN(ptr,n) mbed_eth_put_nbytes((ptr), (n))
 /* Writes n bytes starting from ptr (for const data) */
-#define DEV_PUTN_CONST(ptr,n) mbed_eth_put_const_nbytes((ptr), (n))
+#define DEV_PUTN_CONST(ptr,n) mbed_eth_put_nbytes((ptr), (n))
 /* Passive wait for a device input. Must return after a given time */
 #define DEV_WAIT
 

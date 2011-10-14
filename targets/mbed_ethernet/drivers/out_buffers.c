@@ -51,7 +51,11 @@ out_buffer_t  _tx_buffers[TX_BUFFER_COUNT] __attribute__ ((section(".out_ram")))
 
 int mbed_eth_is_releasable_buffer(void *p)
 {
-   return (((uint8_t*)p >= _tx_buffers[0].buff) && ((uint8_t*)p <= (_tx_buffers[TX_BUFFER_COUNT-1].buff)));
+   int i;
+   for (i = 0 ; i < TX_BUFFER_COUNT ; ++i)
+      if (p == (void*)_tx_buffers[i].buff)
+         return 1;
+   return 0;
 }
 
 /* needed because the out_ram section is not zeroed at the start */

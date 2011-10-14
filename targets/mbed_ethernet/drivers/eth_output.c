@@ -114,11 +114,9 @@ int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int l
    rfEthDescriptor *d;
    rfEthTxStatus *s;
 
-   if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, idx))
-   {
-      MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
-      return 0;
-   }
+   /* Wait for a descriptor to be available for this fragment */
+   while (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, idx));
+
 /* send control word (size + send options) and request interrupt */
     d->packet = (uint8_t *)data;
     s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
@@ -130,7 +128,6 @@ int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int l
                                                 * this magic AND packet is not
                                                 * NULL, it has to be freed */
     rflpc_eth_set_tx_control_word(size, &d->control, last, last);
-    MBED_DEBUG("Fragment of %d bytes prepared. Idx: %d, last: %d, %p\r\n", size, idx, last, data);
    return 1;
 }
 
@@ -147,6 +144,7 @@ void mbed_eth_prepare_output(uint32_t size)
     current_buffer.fragment_idx = 0;
     fragments[0].ptr = current_buffer.ptr;
     fragments[0].size = 0;
+    fragments[1].size = 0;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
@@ -192,6 +190,8 @@ void mbed_eth_put_const_nbytes(const void *bytes, uint32_t n)
    current_buffer.fragment_idx++;
    fragments[current_buffer.fragment_idx].ptr = current_buffer.ptr + current_buffer.byte_idx;
    fragments[current_buffer.fragment_idx].size = 0;
+   if (current_buffer.fragment_idx+1 < TX_MAX_FRAGMENTS)
+      fragments[current_buffer.fragment_idx+1].size = 0;
 }
 
 void mbed_eth_output_done()
@@ -216,7 +216,6 @@ void mbed_eth_output_done()
    mbed_eth_prepare_fragment(fragments[i].ptr, fragments[i].size, i+1, 1);
    /* Done, give all fragments to ethernet DMA */
    rflpc_eth_done_process_tx_packet(i+2); /* i + 2 descriptors */
-   MBED_DEBUG("Sending %d fragments\r\n", i+2);
    current_buffer.ptr = 0;
    current_buffer.fragment_idx = 0;
    current_buffer.byte_idx = 0;

@@ -1,7 +1,7 @@
 #IPADDR=134.206.11.3
 IPADDR=192.168.100.200
 TARGET=mbed_ethernet
-APPS=:welcome,ledmatrix #,bandwidth
+APPS=:welcome,bandwidth
 PROGRAM_CMD=cp bin/mbed_ethernet/smews.bin /media/MBED
 
 all:
