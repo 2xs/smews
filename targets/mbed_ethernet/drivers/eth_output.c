@@ -54,24 +54,14 @@
 #include "out_buffers.h"
 
 
-/** This structure holds a frame fragment.
- *  This will be used to use DMA has gather
- * device to create ethernet frame from multiple fragment */
-typedef struct
-{
-   uint8_t *ptr;
-   uint32_t size;
-} fragment_gather_t;
-
 /** This structure holds the buffer where the actual fragment data will be stored */
 typedef struct
 {
    uint8_t *ptr;
-   uint32_t fragment_idx;
+   uint32_t size;
 } fragment_buffer_t;
 
-fragment_gather_t fragments[TX_MAX_FRAGMENTS];
-fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0,0,0,0 by the start routine */
+fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0 by the start routine */
 
 /** This will be used to store the precomputed Ethernet header.
  * Then, only the dst address will have to be modified for each frame
@@ -118,9 +108,9 @@ int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int l
    /* Wait for a descriptor to be available for this fragment */
    while (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, idx));
 
-/* send control word (size + send options) and request interrupt */
-    d->packet = (uint8_t *)data;
-    s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
+   /* send control word (size + send options) and request interrupt */
+   d->packet = (uint8_t *)data;
+   s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
                                                 * handler to check ALL
                                                 * descriptors for packets as
                                                 * this status word is
@@ -139,12 +129,10 @@ void mbed_eth_prepare_output(uint32_t size)
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
     }
+    rflpc_irq_global_disable();
     /* allocated memory for output buffer */
     while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_buffer.fragment_idx = 0;
-    fragments[0].ptr = current_buffer.ptr;
-    fragments[0].size = 0;
-    fragments[1].size = 0;
+    current_buffer.size = 0;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
@@ -154,8 +142,8 @@ void mbed_eth_put_byte(uint8_t byte)
 	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
 	return;
     }
-    fragment_gather_t *fragment = &fragments[current_buffer.fragment_idx];
-    fragment->ptr[fragment->size++] = byte;
+    current_buffer.ptr[current_buffer.size] = byte;
+    current_buffer.size++;
 }
 
 /* Use the GPDMA to copy the buffer */
@@ -183,35 +171,29 @@ void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
 	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
 	return;
     }
-    fragment_gather_t *fragment = &fragments[current_buffer.fragment_idx];
-    memcpy_dma(fragment->ptr + fragment->size, bytes, n);
-    fragment->size += n;
+    if (n >= DMA_THRESHOLD)
+       memcpy_dma(current_buffer.ptr + current_buffer.size, bytes, n);
+    else
+       memcpy(current_buffer.ptr + current_buffer.size, bytes, n);
+    current_buffer.size += n;
 }
 
 void mbed_eth_output_done()
 {
    /* Generate frame from fragment using gather DMA */
    /* First get the DST IP to fill the DST MAC address */
-   uint32_t ip = proto_ip_get_dst(fragments[0].ptr);
+   uint32_t ip = proto_ip_get_dst(current_buffer.ptr);
    /* Fill the ethernet header */
    mbed_eth_fill_header(ip);
 
-   /* Fragments are ready to be handed to the DMA */
-   int i = 0;
    /* first, ethernet header */
    mbed_eth_prepare_fragment(ethernet_header, PROTO_MAC_HLEN, 0, 0);
    /* Now, the payload */
-   while ((i+1) < TX_MAX_FRAGMENTS &&  fragments[i+1].size != 0)
-   {
-      /* non last fragments */
-      mbed_eth_prepare_fragment(fragments[i].ptr, fragments[i].size, i+1, 0);
-      ++i;
-   }
-   /* last fragment */
-   mbed_eth_prepare_fragment(fragments[i].ptr, fragments[i].size, i+1, 1);
+   mbed_eth_prepare_fragment(current_buffer.ptr, current_buffer.size, 1, 1);
 
    /* Done, give all fragments to ethernet DMA */
-   rflpc_eth_done_process_tx_packet(i+2); /* i + 2 descriptors */
+   rflpc_eth_done_process_tx_packet(2); /* 2 descriptors */
    current_buffer.ptr = 0;
-   current_buffer.fragment_idx = 0;
+   current_buffer.size = 0;
+   rflpc_irq_global_enable();
 }

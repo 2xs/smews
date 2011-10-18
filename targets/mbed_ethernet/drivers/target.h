@@ -179,6 +179,6 @@ typedef char int8_t;
 #define TX_MAX_FRAGMENTS 10
 
 /* This indicates a threshold from which a DEV_PUTN_CONST will be implemented by a multi-fragment frame using the ethernet controller gather DMA */
-#define PUTN_BYTES_CONST_DMA_THRESHOLD 100
+#define DMA_THRESHOLD 64
 
 #endif /* __TARGET_H__ */

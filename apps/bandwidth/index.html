@@ -43,7 +43,7 @@
            static_finish_count = 0;
            start = new Date().getTime();
 
-           for (i = 0 ; i < 200 ; ++i)
+           for (i = 0 ; i < 300 ; ++i)
            {
             $.ajax({
                 type: "GET",
@@ -54,7 +54,7 @@
                 },
                 complete: function(xhr, textStatus) {
                    static_finish_count++;
-                   if (static_finish_count == 99)
+                   if (static_finish_count == 299)
                    {
                       end = new Date().getTime();
                       static_total_time = (end - start)/1000;

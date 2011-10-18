@@ -45,7 +45,7 @@ extern void mbed_eth_init_tx_buffers();
 
 extern uint8_t *mbed_eth_get_tx_buffer();
 extern void mbed_eth_release_tx_buffer(uint8_t *buffer);
-extern int mbed_eth_is_releasable_buffer(void *p);
+extern int mbed_eth_is_releasable_buffer(const void *p);
 
 
 #ifdef MBED_DEBUG_MODE

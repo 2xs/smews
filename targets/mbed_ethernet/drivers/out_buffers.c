@@ -49,11 +49,11 @@ typedef struct
 /* transmission buffers */
 out_buffer_t  _tx_buffers[TX_BUFFER_COUNT] __attribute__ ((section(".out_ram")));;
 
-int mbed_eth_is_releasable_buffer(void *p)
+int mbed_eth_is_releasable_buffer(const void *p)
 {
    int i;
    for (i = 0 ; i < TX_BUFFER_COUNT ; ++i)
-      if (p == (void*)_tx_buffers[i].buff)
+      if (p == (const void*)_tx_buffers[i].buff)
          return 1;
    return 0;
 }
