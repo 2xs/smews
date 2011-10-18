@@ -43,6 +43,8 @@
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/interrupt.h>
 #include <rflpc17xx/profiling.h>
+#include <rflpc17xx/drivers/dma.h>
+
 
 #include "hardware.h"
 #include "target.h"
@@ -66,7 +68,6 @@ typedef struct
 {
    uint8_t *ptr;
    uint32_t fragment_idx;
-   uint32_t byte_idx;
 } fragment_buffer_t;
 
 fragment_gather_t fragments[TX_MAX_FRAGMENTS];
@@ -140,7 +141,6 @@ void mbed_eth_prepare_output(uint32_t size)
     }
     /* allocated memory for output buffer */
     while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_buffer.byte_idx = 0;
     current_buffer.fragment_idx = 0;
     fragments[0].ptr = current_buffer.ptr;
     fragments[0].size = 0;
@@ -156,7 +156,24 @@ void mbed_eth_put_byte(uint8_t byte)
     }
     fragment_gather_t *fragment = &fragments[current_buffer.fragment_idx];
     fragment->ptr[fragment->size++] = byte;
-    current_buffer.byte_idx++;
+}
+
+/* Use the GPDMA to copy the buffer */
+static void memcpy_dma(void *dest, const void *src, uint32_t size)
+{
+   rflpc_dma_channel_t channel = RFLPC_DMAC0;
+
+   /* Wait for a DMA channel to become ready */
+   while (!rflpc_dma_channel_ready(channel))
+   {
+      if (channel == RFLPC_DMAC7)
+         channel = RFLPC_DMAC0;
+      else
+         channel++;
+   }
+   /* A channel is ready, launch the dma */
+   if (!rflpc_dma_start(channel, dest, src, size))
+      MBED_DEBUG("DMA Channel %d was supposed to be ready, but was not!\r\n", channel);
 }
 
 void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
@@ -167,40 +184,18 @@ void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
 	return;
     }
     fragment_gather_t *fragment = &fragments[current_buffer.fragment_idx];
-    memcpy(fragment->ptr + fragment->size, bytes, n);
+    memcpy_dma(fragment->ptr + fragment->size, bytes, n);
     fragment->size += n;
-    current_buffer.byte_idx += n;
-}
-
-void mbed_eth_put_const_nbytes(const void *bytes, uint32_t n)
-{
-   /* Check if it is worth to user gather DMA for this const fragment or if we reach the maximum fragment count*/
-   //if (n < PUTN_BYTES_CONST_DMA_THRESHOLD || (current_buffer.fragment_idx + 2 >= TX_MAX_FRAGMENTS))
-   {
-      mbed_eth_put_nbytes(bytes, n);
-      return;
-   }
-   /* The previous fragment is finished, skip to next */
-   if (fragments[current_buffer.fragment_idx].size != 0) /* Test if the previous fragment was a const fragment */
-      current_buffer.fragment_idx++;
-   /* Create a fragment with the current const ptr */
-   fragments[current_buffer.fragment_idx].ptr = (uint8_t*)bytes;
-   fragments[current_buffer.fragment_idx].size = n;
-   /* Prepare next fragment */
-   current_buffer.fragment_idx++;
-   fragments[current_buffer.fragment_idx].ptr = current_buffer.ptr + current_buffer.byte_idx;
-   fragments[current_buffer.fragment_idx].size = 0;
-   if (current_buffer.fragment_idx+1 < TX_MAX_FRAGMENTS)
-      fragments[current_buffer.fragment_idx+1].size = 0;
 }
 
 void mbed_eth_output_done()
 {
    /* Generate frame from fragment using gather DMA */
    /* First get the DST IP to fill the DST MAC address */
-   uint32_t ip = proto_ip_get_dst(current_buffer.ptr);
+   uint32_t ip = proto_ip_get_dst(fragments[0].ptr);
    /* Fill the ethernet header */
    mbed_eth_fill_header(ip);
+
    /* Fragments are ready to be handed to the DMA */
    int i = 0;
    /* first, ethernet header */
@@ -214,9 +209,9 @@ void mbed_eth_output_done()
    }
    /* last fragment */
    mbed_eth_prepare_fragment(fragments[i].ptr, fragments[i].size, i+1, 1);
+
    /* Done, give all fragments to ethernet DMA */
    rflpc_eth_done_process_tx_packet(i+2); /* i + 2 descriptors */
    current_buffer.ptr = 0;
    current_buffer.fragment_idx = 0;
-   current_buffer.byte_idx = 0;
 }

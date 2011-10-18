@@ -39,13 +39,8 @@
 */
 
 /* RFLPC includes */
-#include <rflpc17xx/drivers/uart.h>
-#include <rflpc17xx/drivers/ethernet.h>
-#include <rflpc17xx/drivers/rit.h>
-#include <rflpc17xx/drivers/timer.h>
-#include <rflpc17xx/debug.h>
-#include <rflpc17xx/printf.h>
-#include <rflpc17xx/profiling.h>
+#include <rflpc17xx/rflpc17xx.h>
+
 
 /* Smews core includes */
 #include "memory.h"
@@ -163,6 +158,9 @@ void mbed_eth_hardware_init(void)
     rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
     /* Start the timer */
     rflpc_timer_start(RFLPC_TIMER0);
+    /* Init the GDMA */
+    rflpc_dma_init();
+
 
     /* Init output buffers */
     mbed_eth_init_tx_buffers();
