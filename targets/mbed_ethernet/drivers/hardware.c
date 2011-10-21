@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-08-30 17:44:18 (hauspie)>
+  Time-stamp: <2011-08-31 13:50:47 (hauspie)>
 */
 #include <rflpc17xx/drivers/uart.h>
 #include <rflpc17xx/drivers/ethernet.h>
@@ -62,6 +62,7 @@ static rfEthRxStatus   _rx_status[RX_DESCRIPTORS];
 int putchar(int c)
 {
     static int uart_init = 0;
+    RFLPC_ASSERT_STACK();
     if (!uart_init)
     {
 	rflpc_uart0_init();
@@ -75,7 +76,8 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
     rfEthDescriptor *d;
     rfEthRxStatus *s;
-
+    RFLPC_ASSERT_STACK();
+    MBED_DEBUG("%p %p\r\n", &d, &s);
     /* int i; */
     /* for (i = 0 ; i < RX_DESCRIPTORS ; ++i) */
     /* { */
@@ -97,6 +99,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 static void _init_rx()
 {
     int i;
+    RFLPC_ASSERT_STACK();
     for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
     {
 	_rx_descriptors[i].packet = (uint8_t*) mem_alloc(RX_BUFFER_SIZE);
@@ -110,11 +113,13 @@ static void _init_rx()
 
 RFLPC_IRQ_HANDLER _rit_handler()
 {
+    RFLPC_ASSERT_STACK();
     rflpc_rit_clear_pending_interrupt();
 }
 
 void mbed_eth_hardware_init(void)
 {
+    RFLPC_ASSERT_STACK();
     RFLPC_DUMP_STACK();
     rflpc_eth_init();
     while (!rflpc_eth_link_state());

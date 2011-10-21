@@ -35,10 +35,11 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-14
-  Time-stamp: <2011-08-30 17:52:32 (hauspie)>
+  Time-stamp: <2011-08-31 13:47:07 (hauspie)>
 
 */
 #include <rflpc17xx/drivers/ethernet.h>
+#include <rflpc17xx/debug.h>
 
 #include "eth.h"
 #include "connections.h" /* for local_ip_addr */
@@ -115,6 +116,7 @@ typedef struct
 void proto_eth_demangle(EthHead *eh, const uint8_t *data)
 {
     int idx = 0;
+    RFLPC_ASSERT_STACK();
     /* Dst Address */
     GET_MAC(eh->dst.addr, data, idx);
     /* Source Address */
@@ -125,6 +127,7 @@ void proto_eth_demangle(EthHead *eh, const uint8_t *data)
 void proto_eth_mangle(EthHead *eh, uint8_t *data)
 {
     int idx = 0;
+    RFLPC_ASSERT_STACK();
     /* Dst Address */
     PUT_MAC(data, idx, eh->dst.addr);
     /* Source Address */
@@ -136,6 +139,7 @@ void proto_eth_mangle(EthHead *eh, uint8_t *data)
 void proto_arp_demangle(ArpHead *ah, const uint8_t *data)
 {
     int idx = 0;
+    RFLPC_ASSERT_STACK();
     /* hardware type */
     GET_TWO(ah->hard_type, data, idx);
     /* protocol type */
@@ -156,6 +160,7 @@ void proto_arp_demangle(ArpHead *ah, const uint8_t *data)
 void proto_arp_mangle(ArpHead *ah, uint8_t *data)
 {
     int idx = 0;
+    RFLPC_ASSERT_STACK();
     PUT_TWO(data, idx, ah->hard_type);
     PUT_TWO(data, idx, ah->protocol_type);
     data[idx++] = ah->hlen;
@@ -173,6 +178,7 @@ void proto_arp_mangle(ArpHead *ah, uint8_t *data)
 uint32_t get_ip(uint8_t *frame, int offset)
 {
     uint32_t ip;
+    RFLPC_ASSERT_STACK();
     int idx = PROTO_MAC_HLEN + offset;
     GET_FOUR(ip, frame, idx);
     return ip;
@@ -184,6 +190,7 @@ int transmit_buffer(void *buffer, uint32_t size)
 {
     rfEthDescriptor *txd;
     rfEthTxStatus *txs;
+    RFLPC_ASSERT_STACK();
     if (!rflpc_eth_get_current_tx_packet_descriptor(&txd, &txs))
     {
 	MBED_DEBUG("no more transmit descriptor\r\n");
@@ -208,7 +215,8 @@ int transmit_buffer(void *buffer, uint32_t size)
 
 static void _dump_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 {
-    printf("= %p %p %p %x ",d, s, d->packet, d->control);
+    RFLPC_ASSERT_STACK();
+    printf("= %p %p %p %x (%p)",d, s, d->packet, d->control, &d->control);
     if (s->status_info & (1 << 18))
 	printf("cf ");
     else
@@ -260,8 +268,9 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
     /* check if packet is ARP */
     EthHead eth;
 
+    RFLPC_ASSERT_STACK();
 
-    MBED_DEBUG("Received new packet\r\n");
+    MBED_DEBUG("Received new packet %p\r\n", &eth);
     _dump_packet(d, s);
 	
 
@@ -297,7 +306,7 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 	arp_add_mac(arp_send.target_ip, &arp_send.target_mac);
 
 	/* @bug: If this function is called, the last rx descriptor is overwritten by something... */
-	proto_eth_mangle(&eth, _arp_answer_buffer);
+	/* proto_eth_mangle(&eth, _arp_answer_buffer);*/
 	/* proto_arp_mangle(&arp_send, _arp_answer_buffer + PROTO_MAC_HLEN); */
 	/* transmit_buffer(_arp_answer_buffer, PROTO_MAC_HLEN + PROTO_ARP_HLEN); */
 	/* send packet */
@@ -328,6 +337,7 @@ void process_rx_packet(rfEthDescriptor *d, rfEthRxStatus *s)
 
 void eth_prepare_output(int n)
 {
+    RFLPC_ASSERT_STACK();
     current_eth_tx_frame = mem_alloc(n + PROTO_MAC_HLEN);
     current_eth_tx_frame_size = n + PROTO_MAC_HLEN;
     current_eth_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx to the first payload byte */
@@ -336,6 +346,8 @@ void eth_prepare_output(int n)
 void eth_send_current_frame()
 {
     EthHead eth;
+
+    RFLPC_ASSERT_STACK();
 
     eth.type = PROTO_IP;
     if (!arp_get_mac(get_ip(current_eth_tx_frame, DST_IP_OFFSET), &eth.dst))
