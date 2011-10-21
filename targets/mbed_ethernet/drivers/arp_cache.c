@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-30
-  Time-stamp: <2011-09-02 10:30:37 (hauspie)>
+  Time-stamp: <2011-09-08 14:01:50 (hauspie)>
 
 */
 #include <rflpc17xx/debug.h>
@@ -106,7 +106,7 @@ void arp_add_mac(uint32_t ipv4, EthAddr *mac)
     }
     /* every entry is used, remove the first one (TODO: really use timestamps ! :) ) */
     _arp_table[0].ip = ipv4;
-    _arp_table[i].mac = *mac;
+    _arp_table[0].mac = *mac;
 #ifdef DUMP_CACHE
     _dump_arp_cache();
 #endif

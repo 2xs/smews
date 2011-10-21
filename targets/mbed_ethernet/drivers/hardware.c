@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-07 08:54:23 (mickey)>
+  Time-stamp: <2011-09-08 17:26:42 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -66,8 +66,6 @@ rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((aligned(4)));;
 rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
 
 
-/* Transmission buffers */
-uint8_t _tx_buffers[TX_DESCRIPTORS*TX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
 /* Reception buffers */
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
 
@@ -93,16 +91,29 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
     {
-	rflpc_eth_irq_disable(RFLPC_ETH_IRQ_EN_RX_DONE);
     	if (rflpc_eth_get_current_rx_packet_descriptor(&d, &s))
     	{
-/*	    mbed_dump_packet(d, s, 0);*/
+	    mbed_dump_packet(d, s, 0);
 	    if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
 		rflpc_eth_done_process_rx_packet();
-    	}
-	rflpc_eth_irq_enable(RFLPC_ETH_IRQ_EN_RX_DONE);
+	}
+	rflpc_eth_irq_clear(RFLPC_ETH_IRQ_EN_RX_DONE);
     }
-    rflpc_eth_irq_clear(rflpc_eth_irq_get_status());
+
+    if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_TX_DONE) /* packet sent */
+    {
+	int i;
+	for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
+	{
+	    if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
+	    {
+		release_output_buffer_from_packet(_tx_descriptors[i].packet);
+		_tx_descriptors[i].packet = NULL;
+	    }
+	}
+	rflpc_eth_irq_clear(RFLPC_ETH_IRQ_EN_TX_DONE);
+    }
+
 }
 
 RFLPC_IRQ_HANDLER _uart_irq()
@@ -118,6 +129,7 @@ RFLPC_IRQ_HANDLER _uart_irq()
 	    {
 		MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
 	    }
+	    dump_output_buffers();
 	    rflpc_eth_dump_internals();
 	    break;
 	default:
@@ -136,7 +148,7 @@ static void _init_buffers()
     }
     for (i = 0 ; i < TX_DESCRIPTORS ; ++i)
     {
-	_tx_descriptors[i].packet = _tx_buffers + TX_BUFFER_SIZE*i;
+	_tx_descriptors[i].packet = NULL;
     }
     rflpc_eth_set_tx_base_addresses(_tx_descriptors, _tx_status, TX_DESCRIPTORS);
     rflpc_eth_set_rx_base_addresses(_rx_descriptors, _rx_status, RX_DESCRIPTORS);

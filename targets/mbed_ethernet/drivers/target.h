@@ -142,13 +142,13 @@ typedef char int8_t;
 /* Context switching */
 
 /* save the stack pointer in sp[0] (and possibly a frame pointer in sp[1]) */
-#define BACKUP_CTX(sp) do {(sp)[0] = __get_MSP();	\
+#define BACKUP_CTX(sp) do {(sp)[0] = (void*)__get_MSP();	\
 	printf("Backing up sp (%p)\n\r", (sp)[0]);	\
     } while(0)
 /* restore the stack pointer from sp[0] (and possibly a frame pointer from sp[1]) */
 #define RESTORE_CTX(sp) do {						\
 	printf("Restoring sp (%p)\n\r", (sp)[0]);			\
-	__set_MSP((sp)[0]);						\
+	__set_MSP((uint32_t)(sp)[0]);					\
     } while(0)
 /* push all registers that must not be modified by any function call */
 #define PUSHREGS do { printf("Pushing regs\r\n"); asm("push {r4-r11, lr}"); } while(0)

@@ -35,14 +35,21 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-07 09:59:40 (mickey)>
+  Time-stamp: <2011-09-08 16:56:09 (hauspie)>
 */
 #ifndef __ETH_OUTPUT_H__
 #define __ETH_OUTPUT_H__
 
+#include <stdint.h>
+
+#define PACKET_BEEING_SENT_MAGIC 0xFACADE00
+
+extern void release_output_buffer_from_packet(uint8_t *packet);
+extern void dump_output_buffers();
+
 extern void mbed_eth_prepare_output(uint32_t size);
 extern void mbed_eth_put_byte(uint8_t byte);
-extern void mbed_eth_put_nbytes(uint8_t *bytes, uint32_t n);
+extern void mbed_eth_put_nbytes(const void *bytes, uint32_t n);
 extern void mbed_eth_output_done();
 
 #endif

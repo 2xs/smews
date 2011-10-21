@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-08-31 16:37:48 (hauspie)>
+  Time-stamp: <2011-09-08 17:36:27 (hauspie)>
 */
 
 
@@ -44,11 +44,47 @@
 #include <rflpc17xx/debug.h>
 
 #include "mbed_debug.h"
+#include "protocols.h"
 
 void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents)
 {
     RFLPC_ASSERT_STACK();
-    printf("= %p %p %p %x (%p)",d, s, d->packet, d->control, &d->control);
+    EthHead eth;
+    proto_eth_demangle(&eth, d->packet);
+
+    printf("= %02x:%02x:%02x:%02x:%02x:%02x -> ", 
+	   eth.src.addr[0], 
+	   eth.src.addr[1], 
+	   eth.src.addr[2], 
+	   eth.src.addr[3], 
+	   eth.src.addr[4], 
+	   eth.src.addr[5]);
+
+    printf("%02x:%02x:%02x:%02x:%02x:%02x : ", 
+	   eth.dst.addr[0], 
+	   eth.dst.addr[1], 
+	   eth.dst.addr[2], 
+	   eth.dst.addr[3], 
+	   eth.dst.addr[4], 
+	   eth.dst.addr[5]);
+	   
+    if (eth.type == PROTO_IP)
+    {
+	uint32_t src = proto_ip_get_src(d->packet + PROTO_MAC_HLEN);
+	uint32_t dst = proto_ip_get_dst(d->packet + PROTO_MAC_HLEN);;
+	printf("IP %d.%d.%d.%d -> ", 
+	       (src >> 24) & 0xFF,
+	       (src >> 16) & 0xFF,
+	       (src >> 8) & 0xFF,
+	       (src) & 0xFF);
+	printf("%d.%d.%d.%d ", 
+	       (dst >> 24) & 0xFF,
+	       (dst >> 16) & 0xFF,
+	       (dst >> 8) & 0xFF,
+	       (dst) & 0xFF);
+	printf("%d bytes ", proto_ip_get_size(d->packet + PROTO_MAC_HLEN));
+    }
+
     if (s->status_info & (1 << 18))
 	printf("cf ");
     else
