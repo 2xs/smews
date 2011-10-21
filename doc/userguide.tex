@@ -105,6 +105,7 @@ In order to work with Smews, you will need:
 	  \item \emph{for target MicaZ and Funcard7} you will need: \verb+gcc-avr+  (4.3 or above) and \verb+avr-libc+ packages;
 	  \item \emph{for target MSP430} you will need the following packages: \verb+binutils-msp430+, \verb+msp430-libc+, \verb+gcc-msp430+. These packages can be found in \verb+deb+ \url{http://wyper.ca/debian/} \verb+i686+ repository;
 	  \item \emph{for target GBA} you will need: DevKitAdvance (\url{http://devkitadv.sourceforge.net/});
+	  \item \emph{for target MBED} you will need: \verb+arm-none-eabi-gcc+. This version of gcc can be built using the script available at (\url{https://github.com/esden/summon-arm-toolchain}). For the ethernet version of the mbed port, you will also need rflpc library. This library can be automatically downloaded and compiled by running the \verb!summon-rflpc! script in the \verb!targets/mbed_ethernet! folder.
 	\end{itemize}
   \item Python version 2.5 or above;
   \item SCons version 0.96 or above.
@@ -148,6 +149,10 @@ The Funcard7 smart card is based on a 8-bits AVR processor at 4 MHz. Communicati
 \paragraph{GBA}
 
 The Game Boy Advance is based on a 32-bits Arm7 processor at 16 Mhz. Communications are done over a serial line by using the SLIP protocol.
+
+\paragraph{MBED}
+
+The MBED platform is a popular prototyping board based on the LPC1768 SoC by NXP. It includes an ARM Cortex-M3 32bits processor at 100Mhz as well as an ethernet mac 100Mbps full duplex. Smews as been ported to this platform using SLIP and ethernet. Note that before compiling for the \verb+mbed_ethernet+ target, you have to run the \verb+targets/mbed_ethernet/summon-rflpc+ script.
 
 \paragraph{Linux}
 
