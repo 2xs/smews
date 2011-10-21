@@ -43,7 +43,9 @@
 
 #include "protocols.h"
 
-extern void arp_add_mac(uint32_t ipv4, EthAddr *mac);
-extern int arp_get_mac(uint32_t ipv4, EthAddr *mac);
+extern void mbed_arp_add_mac(uint32_t ipv4, EthAddr *mac);
+extern int mbed_arp_get_mac(uint32_t ipv4, EthAddr *mac);
+
+extern void mbed_arp_dump();
 
 #endif

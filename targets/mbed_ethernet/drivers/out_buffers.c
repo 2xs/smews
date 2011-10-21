@@ -39,6 +39,8 @@
 */
 #include "target.h"
 
+#include <rflpc17xx/printf.h>
+
 typedef struct
 {
     uint8_t buff[TX_BUFFER_SIZE];
@@ -86,16 +88,13 @@ void mbed_eth_release_tx_buffer(uint8_t *buffer)
     obuf->in_use = 0;
 }
 
-#ifdef MBED_DEBUG_MODE
-#include "mbed_debug.h"
 void mbed_eth_dump_tx_buffer_status()
 {
     int i;
-    MBED_DEBUG("TX BUFFER DUMP\r\n");
+    printf("TX buffers state\r\n");
     for (i = 0 ; i < TX_BUFFER_COUNT ; ++i)
     {
-	MBED_DEBUG("%s", _tx_buffers[i].in_use ? "X" : ".");
+	printf("%s", _tx_buffers[i].in_use ? "X" : ".");
     }
-    MBED_DEBUG("\r\nEND BUFFER DUMP\r\n");
+    printf("\r\n");
 }
-#endif

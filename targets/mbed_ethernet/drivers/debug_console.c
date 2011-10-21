@@ -69,7 +69,7 @@ void mbed_console_tx_state(char *args);
 void mbed_console_rx_state(char *args);
 void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
-void mbed_console_profile(char *args);
+void mbed_console_arp_state(char *args);
 void mbed_console_stack_dump(char *args);
 void mbed_console_parse_command();
 
@@ -81,8 +81,8 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(rx_state, "rs", "Dump the state of the RX buffers"),
     CONSOLE_COMMAND(eth_state, "es", "Dump the state of ethernet device"),
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
-    CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),
-    CONSOLE_COMMAND(profile, "p", "Show profile info"),
+    CONSOLE_COMMAND(arp_state, "as", "Dump the state of arp resolve table"),
+    CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),    
 };
 
 static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
@@ -90,22 +90,20 @@ static int _console_command_count = sizeof(_console_commands) / sizeof(_console_
 static char _console_buffer[CONSOLE_BUFFER_SIZE];
 static int _console_buffer_idx;
 
-#define PRINT_PROFILE(counter) printf(#counter" : %d\r\n", RFLPC_PROFILE_GET_TOTAL(counter));
-
-void mbed_console_profile(char *args)
-{
-   /*printf("Totals\r\n");
-   PRINT_PROFILE(tx_copy);
-   PRINT_PROFILE(tx_eth);
-   PRINT_PROFILE(rx_copy);*/
-}
-
 void mbed_console_help(char *args)
 {
     int i;
     for (i = 0 ; i < _console_command_count ; ++i)
 	printf("\t- %s (%s) : %s\r\n", _console_commands[i].command, _console_commands[i].shortcut, _console_commands[i].help_message);
 }
+
+extern void mbed_eth_dump_tx_buffer_status();
+
+void mbed_console_arp_state(char *args)
+{
+  
+}
+
 void mbed_console_tx_state(char *args)
 {
     mbed_eth_dump_tx_buffer_status();

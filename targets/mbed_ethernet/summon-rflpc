@@ -9,7 +9,8 @@
 #
 
 RFLPC_REPOSITORY="git://github.com/mickeymtp/rflpc.git"
-LOCAL_FOLDER="rflpc"
+LOCAL_FOLDER="`cd \`dirname $0\` && pwd`/rflpc"
+
 
 if [ -d $LOCAL_FOLDER ]
 then

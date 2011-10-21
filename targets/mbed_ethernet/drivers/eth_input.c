@@ -48,8 +48,6 @@
 #include "hardware.h"
 #include "arp_cache.h"
 
-RFLPC_PROFILE_DECLARE_COUNTER(rx_copy);
-
 /* These are information on the current frame read by smews */
 const uint8_t * volatile current_rx_frame = NULL;
 volatile uint32_t current_rx_frame_size = 0;
@@ -62,11 +60,9 @@ volatile int byte_count = 0;
 uint8_t mbed_eth_get_byte()
 {
     uint8_t byte;
-    RFLPC_PROFILE_START_COUNTER(rx_copy, RFLPC_TIMER1);
     if (current_rx_frame == NULL)
     {
 	MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
-        RFLPC_PROFILE_STOP_COUNTER(rx_copy, RFLPC_TIMER1);
 	return 0;
     }
 
@@ -82,7 +78,6 @@ uint8_t mbed_eth_get_byte()
 	if (rflpc_eth_rx_available()) /* If packet have been received but not yet handled, force IRQ generation */
 	    rflpc_eth_irq_trigger(RFLPC_ETH_IRQ_EN_RX_DONE);
     }
-    RFLPC_PROFILE_STOP_COUNTER(rx_copy, RFLPC_TIMER1);
     return byte;
 }
 
@@ -136,7 +131,7 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 	rflpc_eth_done_process_tx_packet(1);
     }
     /* record entry in arp cache */
-    arp_add_mac(arp_rcv.sender_ip, &arp_rcv.sender_mac);
+    mbed_arp_add_mac(arp_rcv.sender_ip, &arp_rcv.sender_mac);
 }
 
 int mbed_process_input(const uint8_t *packet, int size)
@@ -155,7 +150,7 @@ int mbed_process_input(const uint8_t *packet, int size)
 	return ETH_INPUT_FREE_PACKET;
     }
 
-    if (!ethaddr_equal(&eth.dst, &local_eth_addr)) /* not for me */
+    if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
 	return ETH_INPUT_FREE_PACKET;
 
     if (eth.type != PROTO_IP)
@@ -164,7 +159,7 @@ int mbed_process_input(const uint8_t *packet, int size)
 
     /* IP Packet received */
     /* update ARP cache */
-    arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
+    mbed_arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
 
     current_rx_frame = packet;
     current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;

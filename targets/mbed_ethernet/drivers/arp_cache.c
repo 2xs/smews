@@ -61,15 +61,15 @@ ArpEntry _arp_table[MAX_ARP_ENTRY];
 
 #define GET_BYTE(ptr,i) (((uint8_t*)(ptr))[i])
 
-void _dump_arp_cache()
+void mbed_arp_dump()
 {
     int i;
-    MBED_DEBUG("ARP CACHE DUMP\r\n");
+    printf("ARP CACHE DUMP\r\n");
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
     {
 	if (_arp_table[i].ip != 0)
 	{
-	    MBED_DEBUG("%d: %02x:%02x:%02x:%02x:%02x:%02x -> %d.%d.%d.%d (ts: %d ms)\r\n", i,
+	    printf("%d: %02x:%02x:%02x:%02x:%02x:%02x -> %d.%d.%d.%d (ts: %d ms)\r\n", i,
 		       _arp_table[i].mac.addr[0],
 		       _arp_table[i].mac.addr[1],
 		       _arp_table[i].mac.addr[2],
@@ -82,13 +82,13 @@ void _dump_arp_cache()
 		       GET_BYTE(&_arp_table[i].ip, 0), mbed_get_time());
 	}
 	else
-	    MBED_DEBUG("%d: empty\r\n", i);
+	    printf("%d: empty\r\n", i);
 
     }
-    MBED_DEBUG("END ARP CACHE DUMP\r\n");
+    printf("END ARP CACHE DUMP\r\n");
 }
 
-void arp_add_mac(uint32_t ipv4, EthAddr *mac)
+void mbed_arp_add_mac(uint32_t ipv4, EthAddr *mac)
 {
     int i, min_time_idx = 0;
     uint32_t min_time;
@@ -110,7 +110,7 @@ void arp_add_mac(uint32_t ipv4, EthAddr *mac)
 	    {
 		_arp_table[i].ip = ipv4;
 #ifdef DUMP_CACHE
-		_dump_arp_cache();
+		mbed_dump_arp_cache();
 #endif
 	    }
 	    return;
@@ -120,11 +120,11 @@ void arp_add_mac(uint32_t ipv4, EthAddr *mac)
     _arp_table[min_time_idx].ip = ipv4;
     _arp_table[min_time_idx].mac = *mac;
 #ifdef DUMP_CACHE
-    _dump_arp_cache();
+    mbed_dump_arp_cache();
 #endif
 }
 
-int arp_get_mac(uint32_t ipv4, EthAddr *mac)
+int mbed_arp_get_mac(uint32_t ipv4, EthAddr *mac)
 {
     int i;
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)

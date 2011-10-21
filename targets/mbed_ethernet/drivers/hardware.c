@@ -150,8 +150,7 @@ extern char _bss_end;
 void mbed_eth_hardware_init(void)
 {
     /* Configure and start the timer. Timer 0 will be used for timestamping */
-    rflpc_timer_enable(RFLPC_TIMER0);
-    RFLPC_PROFILE_INIT(RFLPC_TIMER1);
+    rflpc_timer_enable(RFLPC_TIMER0);   
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
     rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
     /* Set the pre scale register so that timer counter is incremented every 1ms */

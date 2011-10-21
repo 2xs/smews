@@ -85,7 +85,7 @@ int mbed_eth_fill_header(uint32_t ip)
       first = 0;
    }
 
-   if (!arp_get_mac(ip, &dst_addr))
+   if (!mbed_arp_get_mac(ip, &dst_addr))
    {
         MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
                    ip & 0xFF,

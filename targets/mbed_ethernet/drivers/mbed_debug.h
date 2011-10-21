@@ -94,6 +94,8 @@ static inline void dump_bytes(const void *ptr, int count)
 
 extern void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents);
 #else
+#include <rflpc17xx/drivers/ethernet.h>
+
 static inline void dummy_dump_bytes(const void *ptr, int count){}
 static inline void dummy_debug(const char *f, ...){}
 static inline void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents){}
