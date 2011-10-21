@@ -33,30 +33,60 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 /*
-<generator>
-        <handlers doGet="doGet"/>
-	<properties persistence="volatile" />
-	<args>
-	        <arg name="size" type="uint16" />
-	</args>
-</generator>
- */
-#include "mbed_debug.h"
+  Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
+  Created: 2011-09-27
+  Time-stamp: <2011-09-27 13:55:31 (hauspie)>
+*/
+#include "target.h"
 
-
-static char doGet(struct args_t *args)
+typedef struct
 {
-    uint32_t i = 0;
-
+    uint8_t buff[TX_BUFFER_SIZE];
+    int in_use;
     
-    out_str("Output of ");
-    out_uint(args->size);
-    out_str(" numbers\n");
-    while (i < args->size)
-    {
-	out_uint(i);
-	out_str("\n");
-	++i;
-    }
-    return 1;
+} out_buffer_t;
+
+/* transmission buffers */
+out_buffer_t  _tx_buffers[TX_BUFFER_COUNT] __attribute__ ((section(".out_ram")));;
+
+/* needed because the out_ram section is not zeroed at the start */
+void mbed_eth_init_tx_buffers()
+{
+    int i;
+    for (i = 0 ; i < TX_BUFFER_COUNT ; ++i)
+	_tx_buffers[i].in_use = 0;
 }
+
+uint8_t *mbed_eth_get_tx_buffer()
+{
+    int i;
+    for (i = 0 ; i < TX_BUFFER_COUNT ; ++i)
+    {
+	if (!_tx_buffers[i].in_use)
+	{
+	    _tx_buffers[i].in_use = 1;
+	    return _tx_buffers[i].buff;
+	}
+    }
+    return NULL;
+}
+
+void mbed_eth_release_tx_buffer(uint8_t *buffer)
+{
+    out_buffer_t *obuf = (out_buffer_t*)buffer;
+    obuf->in_use = 0;
+}
+
+#ifdef MBED_DEBUG_MODE
+#include "mbed_debug.h"
+void mbed_eth_dump_tx_buffer_status()
+{
+    int i;
+    MBED_DEBUG("TX BUFFER DUMP\r\n");
+    for (i = 0 ; i < TX_BUFFER_COUNT ; ++i)
+    {
+	MBED_DEBUG("%s", _tx_buffers[i].in_use ? "X" : ".");
+    }
+    MBED_DEBUG("\r\nEND BUFFER DUMP\r\n");
+}
+#endif

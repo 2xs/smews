@@ -33,30 +33,23 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 /*
-<generator>
-        <handlers doGet="doGet"/>
-	<properties persistence="volatile" />
-	<args>
-	        <arg name="size" type="uint16" />
-	</args>
-</generator>
- */
-#include "mbed_debug.h"
+  Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
+  Created: 2011-09-27
+  Time-stamp: <2011-09-27 11:13:22 (hauspie)>
+*/
+#ifndef __MBED_OUT_BUFFERS_H__
+#define __MBED_OUT_BUFFERS_H__
+
+/* needed because the out_ram section is not zeroed at the start */
+extern void mbed_eth_init_tx_buffers();
+
+extern uint8_t *mbed_eth_get_tx_buffer();
+extern void mbed_eth_release_tx_buffer(uint8_t *buffer);
 
 
-static char doGet(struct args_t *args)
-{
-    uint32_t i = 0;
+#ifdef MBED_DEBUG_MODE
+extern void mbed_eth_dump_tx_buffer_status();
+#endif
 
-    
-    out_str("Output of ");
-    out_uint(args->size);
-    out_str(" numbers\n");
-    while (i < args->size)
-    {
-	out_uint(i);
-	out_str("\n");
-	++i;
-    }
-    return 1;
-}
+
+#endif

@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-14 16:22:40 (hauspie)>
+  Time-stamp: <2011-09-27 11:21:55 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -55,6 +55,7 @@
 #include "mbed_debug.h"
 #include "eth_input.h"
 #include "protocols.h"
+#include "out_buffers.h"
 
 /* transmission descriptors */
 rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((aligned(4)));
@@ -70,6 +71,7 @@ rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
 /* Reception buffers */
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
 
+
 int putchar(int c)
 {
     static int uart_init = 0;
@@ -83,24 +85,24 @@ int putchar(int c)
     return c;
 }
 
-int mbed_garbage_buffers()
+void mbed_eth_garbage_tx_buffers()
 {
     int i;
     int collected = 0;
-  /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
+    /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
     for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
     {
 	if (_tx_descriptors[i].packet == _arp_reply_buffer) /* this one is static */
 	    continue;
 	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
 	{
-	    mem_free(_tx_descriptors[i].packet, _tx_descriptors[i].control & 0x7FF);
+	    mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
 	    _tx_descriptors[i].packet = NULL;
 	    collected++;
 	}
     }
     return collected;
- }
+}
 
 RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
@@ -119,7 +121,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 		break;
 	}
     }
-    mbed_garbage_buffers();
+    mbed_eth_garbage_tx_buffers();
     rflpc_eth_irq_clear(rflpc_eth_irq_get_status());
     rflpc_irq_global_enable();
 
@@ -132,30 +134,21 @@ RFLPC_IRQ_HANDLER _uart_irq()
     switch (c)
     {
 	case 'd':
-	    MBED_DEBUG("Memory left: %d bytes\r\n", get_free_mem());
-	    MBED_DEBUG("RxDescriptor: %p\r\n", _rx_descriptors);
-	    MBED_DEBUG("TxDescriptor: %p\r\n", _tx_descriptors);
-	    for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
-	    {
-		MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
-	    }
-	    rflpc_eth_dump_internals();
-	    break;
-	case 'c':
-	    MBED_DEBUG("Forcing output buffer collection\r\n");
-	    MBED_DEBUG("%d collected\r\n", mbed_garbage_buffers());
-	    break;
 	case 's':
-	    MBED_DEBUG("Emmergency stop!\r\n");
 	    MBED_DEBUG("Memory left: %d bytes\r\n", get_free_mem());
 	    MBED_DEBUG("RxDescriptor: %p\r\n", _rx_descriptors);
 	    MBED_DEBUG("TxDescriptor: %p\r\n", _tx_descriptors);
+	    mbed_eth_dump_tx_buffer_status();
 	    for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
 	    {
 		MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
 	    }
 	    rflpc_eth_dump_internals();
-	    while (1){}
+	    if (c == 's')
+	    {
+		MBED_DEBUG("Emergency stop\r\n");
+		while (1){}
+	    }
 	default:
 	    break;
     }
@@ -171,9 +164,7 @@ static void _init_buffers()
 	_rx_descriptors[i].control = (RX_BUFFER_SIZE - 1) | (1 << 31); /* -1 encoding and enable irq generation on packet reception */
     }
     for (i = 0 ; i < TX_DESCRIPTORS ; ++i)
-    {
 	_tx_descriptors[i].packet = NULL;
-    }
     rflpc_eth_set_tx_base_addresses(_tx_descriptors, _tx_status, TX_DESCRIPTORS);
     rflpc_eth_set_rx_base_addresses(_rx_descriptors, _rx_status, RX_DESCRIPTORS);
     rflpc_eth_set_irq_handler(_eth_irq_handler);
@@ -191,6 +182,9 @@ void mbed_eth_hardware_init(void)
     rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
     /* Start the timer */
     rflpc_timer_start(RFLPC_TIMER0);
+
+    /* Init output buffers */
+    mbed_eth_init_tx_buffers();
 
     printf(" #####                                          #     # ######  ####### ######\r\n");
     printf("#     #  #    #  ######  #    #   ####          ##   ## #     # #       #     #\r\n");
