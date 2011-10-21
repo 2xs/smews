@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-08 17:26:42 (hauspie)>
+  Time-stamp: <2011-09-09 14:46:00 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -67,9 +67,7 @@ rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
 
 
 /* Reception buffers */
-uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((aligned(4)));;
-
-
+uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
 
 int putchar(int c)
 {
@@ -88,31 +86,34 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
     rfEthDescriptor *d;
     rfEthRxStatus *s;
-
+    int i;
+	
+    rflpc_irq_global_disable();
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
     {
-    	if (rflpc_eth_get_current_rx_packet_descriptor(&d, &s))
+    	while (rflpc_eth_get_current_rx_packet_descriptor(&d, &s))
     	{
-	    mbed_dump_packet(d, s, 0);
+	    /*mbed_dump_packet(d, s, 0);*/
 	    if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
 		rflpc_eth_done_process_rx_packet();
+	    else
+		break;
 	}
-	rflpc_eth_irq_clear(RFLPC_ETH_IRQ_EN_RX_DONE);
     }
 
-    if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_TX_DONE) /* packet sent */
+    /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
+    for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
     {
-	int i;
-	for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
+	if (_tx_descriptors[i].packet == _arp_reply_buffer) /* this one is static */
+	    continue;
+	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
 	{
-	    if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
-	    {
-		release_output_buffer_from_packet(_tx_descriptors[i].packet);
-		_tx_descriptors[i].packet = NULL;
-	    }
+	    mem_free(_tx_descriptors[i].packet, _tx_descriptors[i].control & 0x7FF);
+	    _tx_descriptors[i].packet = NULL;
 	}
-	rflpc_eth_irq_clear(RFLPC_ETH_IRQ_EN_TX_DONE);
     }
+    rflpc_eth_irq_clear(rflpc_eth_irq_get_status());
+    rflpc_irq_global_enable();
 
 }
 
@@ -123,13 +124,13 @@ RFLPC_IRQ_HANDLER _uart_irq()
     switch (c)
     {
 	case 'd':
+	    MBED_DEBUG("Memory left: %d bytes\r\n", get_free_mem());
 	    MBED_DEBUG("RxDescriptor: %p\r\n", _rx_descriptors);
 	    MBED_DEBUG("TxDescriptor: %p\r\n", _tx_descriptors);
 	    for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
 	    {
 		MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
 	    }
-	    dump_output_buffers();
 	    rflpc_eth_dump_internals();
 	    break;
 	default:

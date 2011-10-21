@@ -35,13 +35,13 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-02 10:40:23 (hauspie)>
+  Time-stamp: <2011-09-09 14:00:24 (hauspie)>
 */
 #ifndef __ETH_INPUT_H__
 #define __ETH_INPUT_H__
 
 #include <stdint.h>
-
+#include "protocols.h"
 
 #define ETH_INPUT_FREE_PACKET 0
 #define ETH_INPUT_KEEP_PACKET 1
@@ -66,5 +66,8 @@ extern uint8_t mbed_eth_get_byte();
  * @return 0 if no byte available
  */
 int mbed_eth_byte_available();
+
+extern uint8_t _arp_reply_buffer[PROTO_MAC_HLEN + PROTO_ARP_HLEN];
+
 
 #endif
