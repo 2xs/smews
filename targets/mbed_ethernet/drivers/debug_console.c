@@ -49,6 +49,8 @@
 #include "target.h"
 #include "out_buffers.h"
 #include "mbed_debug.h"
+#include "arp_cache.h"
+
 #define CONSOLE_BUFFER_SIZE 64
 
 
@@ -101,7 +103,7 @@ extern void mbed_eth_dump_tx_buffer_status();
 
 void mbed_console_arp_state(char *args)
 {
-  
+  mbed_arp_dump();
 }
 
 void mbed_console_tx_state(char *args)
