@@ -18,12 +18,31 @@ function changeColor(color)
                 }
             });
 }
+
+function changeText(text)
+{
+   $.ajax({
+                type: "GET",
+                url: "led_text?text="+text,
+                dataType: 'application/octet-stream',
+                success: function(msg) {
+                },
+                complete: function(xhr, textStatus) {
+                }
+            });
+
+}
+
 </script>
 </head>
 
 <body>
-<p>Select a color to use to clear the led matrix:</p>
+<p>Select a color to use:
 <input class="color" name="color" onchange="changeColor(this.color)">
+</p>
+<p>Select the text to display:
+<input size="64" class="text" name="text" onchange="changeText(this.value)" value="Smews: Smart & Mobile Embedded Web Server">
+</p>
 </body>
 
 </html>
