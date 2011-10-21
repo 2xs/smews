@@ -1,6 +1,6 @@
-# Copyright or c or Copr. 2008, Simon Duquennoy
+# Copyright or c or Copr. 2011, Michael Hauspie
 # 
-# Author e-mail: simon.duquennoy@lifl.fr
+# Author e-mail: michael.hauspie@lifl.fr
 # 
 # This software is a computer program whose purpose is to design an
 # efficient Web server for very-constrained embedded system.
@@ -35,9 +35,14 @@
 import os
 import sys
 
-Import('env binDir projectName elfName')
+Import('env binDir projectName elfName targetDir')
 
-env.Replace(CC = 'gcc')
-env.Replace(AS = 'as')
-env.Replace(AR = 'ar')
-env.Replace(RANLIB = 'ranlib')
+env.Replace(CC = 'arm-none-eabi-gcc')
+env.Replace(AS = 'arm-none-eabi-as')
+env.Replace(AR = 'arm-none-eabi-ar')
+env.Replace(RANLIB = 'arm-none-eabi-ranlib')
+env.Append(CCFLAGS = '-fno-strict-aliasing -I' + os.path.join(targetDir, 'rflpc') + ' -DRFLPC_PLATFORM_MBED')
+env.Append(LINKFLAGS = '-nostartfiles -static -L' + os.path.join(targetDir,'rflpc/rflpc17xx') + ' -lrflpc17xx -Wl,-T,' + os.path.join(targetDir,'rflpc/rflpc17xx/rflpc17xx.ld'))
+
+binaryName = projectName + '.bin'
+env.Command(binaryName, elfName, ['arm-none-eabi-objcopy -O binary -j .text -j .data $SOURCE $TARGET'])

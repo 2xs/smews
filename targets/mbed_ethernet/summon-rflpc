@@ -1,8 +1,15 @@
 #!/bin/bash
 
-RFLPC_REPOSITORY="git://github.com/mickeymtp/rflpc.git"
+# This script allows to clone and compile rflpc so that it can be used to
+# compile smews
+# 
+# Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
+# Created: 
+# Time-stamp: <2011-07-13 17:23:17 (hauspie)>
+#
 
-LOCAL_FOLDER="drivers/rflpc"
+RFLPC_REPOSITORY="git://github.com/mickeymtp/rflpc.git"
+LOCAL_FOLDER="rflpc"
 
 if [ -d $LOCAL_FOLDER ]
 then
@@ -23,10 +30,12 @@ fi
 
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
+make clean >& /dev/null
 if ! make >& $TMP_LOG_FILE
 then
     cat $TMP_LOG_FILE 1>&2
     echo "Failed to compile rflpc!" 1>&2
+    exit 1
 fi
 rm -rf $TMP_LOG_FILE
 echo "rflpc successfuly compiled"

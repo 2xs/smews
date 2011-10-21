@@ -1,7 +1,7 @@
 /*
-* Copyright or © or Copr. 2008, Simon Duquennoy
+* Copyright or © or Copr. 2008, Michael Hauspie
 * 
-* Author e-mail: simon.duquennoy@lifl.fr
+* Author e-mail: michael.hauspie@lifl.fr
 * 
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
@@ -39,15 +39,22 @@
 /* Other c and h target-specific files must be located in the drivers directory */
 
 /* Types definition */
-
+#include <stdint.h>
+/*
+  Already defined in stdint.h
 typedef unsigned int uint32_t;
 typedef int int32_t;
 typedef unsigned short uint16_t;
 typedef short int16_t;
 typedef unsigned char uint8_t;
 typedef char int8_t;
+*/
+
+/* NULL pointer */
+#define NULL ((void*)0)
 
 /* Target specific includes */
+#include <rflpc17xx/drivers/leds.h>
 
 /* Smews includes */
 
@@ -86,13 +93,13 @@ typedef char int8_t;
 /* Smews states */
 
 /* Called by the kernel when starting to wait for data */
-#define SMEWS_WAITING
+#define SMEWS_WAITING rflpc_led_val(RFLPC_LED_1)
 /* Called by the kernel when starting to receive data */
-#define SMEWS_RECEIVING
+#define SMEWS_RECEIVING rflpc_led_val(RFLPC_LED_2)
 /* Called by the kernel when starting to send data */
-#define SMEWS_SENDING
+#define SMEWS_SENDING rflpc_led_val(RFLPC_LED_3)
 /* Called by the kernel when ending to send data */
-#define SMEWS_ENDING
+#define SMEWS_ENDING rflpc_led_val(RFLPC_LED_4)
 
 /* Cons variables macros */
 
@@ -130,13 +137,13 @@ typedef char int8_t;
 /* Context switching */
 
 /* save the stack pointer in sp[0] (and possibly a frame pointer in sp[1]) */
-#define BACKUP_CTX(sp)
+#define BACKUP_CTX(sp) asm("mov %0, sp" : "=r"((sp)[0]));
 /* restore the stack pointer from sp[0] (and possibly a frame pointer from sp[1]) */
-#define RESTORE_CTX(sp)
+#define RESTORE_CTX(sp) asm("mov sp, %0" :: "r"((sp)[0]));
 /* push all registers that must not be modified by any function call */
-#define PUSHREGS
+#define PUSHREGS asm("push {r4-r11, lr}");
 /* pop all registers that must not be modified by any function call */
-#define POPREGS
+#define POPREGS asm("pop {r4-r11, lr}");
 
 /* Smews configuration */
 
