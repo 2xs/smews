@@ -154,9 +154,9 @@ typedef char int8_t;
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
-#define OUTPUT_BUFFER_SIZE 256
+#define OUTPUT_BUFFER_SIZE 1300
 /* size of the shared stack used by all dynamic content generators */
-#define STACK_SIZE 4096
+#define STACK_SIZE 8192
 /* size of the dynamic memory allocator pool */
 #define ALLOC_SIZE 16384
 
