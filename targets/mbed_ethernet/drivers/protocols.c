@@ -35,36 +35,11 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-08-31 14:29:59 (hauspie)>
+  Time-stamp: <2011-09-02 10:51:03 (hauspie)>
 */
 #include "protocols.h"
 
 
-#define GET_TWO(dst, src, idx) dst = src[idx++] << 8; dst |= src[idx++]
-#define GET_FOUR(dst, src, idx) dst = src[idx++] << 24; dst |= src[idx++] << 16; dst |= src[idx++] << 8; dst |= src[idx++]
-
-#define GET_MAC(dst, src, idx)			\
-    dst[0] = src[idx++];			\
-    dst[1] = src[idx++];			\
-    dst[2] = src[idx++];			\
-    dst[3] = src[idx++];			\
-    dst[4] = src[idx++];			\
-    dst[5] = src[idx++]
-
-
-#define PUT_TWO(dst, idx, src) dst[idx++] = (src >> 8) & 0xFF; dst[idx++] = src & 0xFF
-#define PUT_FOUR(dst, idx, src) dst[idx++] = (src >> 24) & 0xFF; dst[idx++] = (src >> 16) & 0xFF;dst[idx++] = (src >> 8) & 0xFF; dst[idx++] = src & 0xFF
-
-#define PUT_MAC(dst, idx, src)			\
-    dst[idx++] = src[0];			\
-    dst[idx++] = src[1];			\
-    dst[idx++] = src[2];			\
-    dst[idx++] = src[3];			\
-    dst[idx++] = src[4];			\
-    dst[idx++] = src[5]
-
-
-#define NTOHS(v) ((((v) >> 8)&0xFF) | (((v)&0xFF)<<8))
 
 uint16_t checksum(uint8_t *buffer, unsigned int bytes_count)
 {
