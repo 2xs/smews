@@ -50,14 +50,14 @@ typedef unsigned char uint8_t;
 typedef char int8_t;
 */
 
-/* NULL pointer */
-#define NULL ((void*)0)
 
 /* Target specific includes */
 #include <rflpc17xx/drivers/leds.h>
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/drivers/eth_const.h>
+#include <rflpc17xx/nxp/core_cm3.h>
 #include "hardware.h"
+#include "eth.h"
 
 /* Smews includes */
 
@@ -74,15 +74,15 @@ typedef char int8_t;
 /* Returns the time in milliseconds */
 #define TIME_MILLIS 0
 /* Return 1 if data can be read */
-#define DEV_DATA_TO_READ 0
+#define DEV_DATA_TO_READ eth_byte_available()
 /* Reads one byte */
-#define DEV_GET(c) {(c) = 0;}
+#define DEV_GET(c) {(c) = eth_get_next_byte();}
 /* Writes one byte */
-#define DEV_PUT(c)
+#define DEV_PUT(c) /*eth_add_byte((c))*/
 /* Preparation for sending n bytes */
-#define DEV_PREPARE_OUTPUT(n)
+#define DEV_PREPARE_OUTPUT(n) /*eth_prepare_output((n))*/
 /* End of output */
-#define DEV_OUTPUT_DONE
+#define DEV_OUTPUT_DONE /*eth_done_output()*/
 
 /* Optionnal Smews macros */
 
@@ -140,22 +140,27 @@ typedef char int8_t;
 /* Context switching */
 
 /* save the stack pointer in sp[0] (and possibly a frame pointer in sp[1]) */
-#define BACKUP_CTX(sp) asm("mov %0, sp" : "=r"((sp)[0]));
+#define BACKUP_CTX(sp) do {(sp)[0] = __get_MSP();	\
+	printf("Backing up sp (%p)\n\r", (sp)[0]);	\
+    } while(0)
 /* restore the stack pointer from sp[0] (and possibly a frame pointer from sp[1]) */
-#define RESTORE_CTX(sp) asm("mov sp, %0" :: "r"((sp)[0]));
+#define RESTORE_CTX(sp) do {						\
+	printf("Restoring sp (%p)\n\r", (sp)[0]);			\
+	__set_MSP((sp)[0]);						\
+    } while(0)
 /* push all registers that must not be modified by any function call */
-#define PUSHREGS asm("push {r4-r11, lr}");
+#define PUSHREGS do { printf("Pushing regs\r\n"); asm("push {r4-r11, lr}"); } while(0)
 /* pop all registers that must not be modified by any function call */
-#define POPREGS asm("pop {r4-r11, lr}");
+#define POPREGS do { printf("Poping regs\r\n"); asm("pop {r4-r11, lr}"); } while (0)
 
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
 #define OUTPUT_BUFFER_SIZE 256
 /* size of the shared stack used by all dynamic content generators */
-#define STACK_SIZE 512
+#define STACK_SIZE 4096
 /* size of the dynamic memory allocator pool */
-#define ALLOC_SIZE 8192
+#define ALLOC_SIZE 16384
 
 /* Ethernet configuration */
 /* Number of frame descriptors for reception. For each descriptor, 

@@ -34,16 +34,16 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-07-13
-  Time-stamp: <2011-08-30 09:31:41 (hauspie)>
+  Created: 2011-08-30
+  Time-stamp: <2011-08-30 11:23:23 (hauspie)>
+
 */
-#ifndef __HARDWARE_H__
-#define __HARDWARE_H__
+#ifndef __ARP_CACHE_H__
+#define __ARP_CACHE_H__
 
-/* NULL pointer */
-#define NULL ((void*)0)
+#include "eth.h"
 
-
-extern void mbed_eth_hardware_init(void);
+extern void arp_add_mac(uint32_t ipv4, EthAddr *mac);
+extern int arp_get_mac(uint32_t ipv4, EthAddr *mac);
 
 #endif
