@@ -41,7 +41,6 @@
 	</args>
 </generator>
  */
-#include "mbed_debug.h"
 
 
 static char array[1024];
