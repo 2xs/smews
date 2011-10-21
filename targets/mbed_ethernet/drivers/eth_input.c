@@ -105,7 +105,7 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
     if (arp_rcv.opcode == 1) /* ARP_REQUEST */
     {
 	/* generate reply */
-	if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
+	if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, 0))
 	{
 	    /* no more descriptor available */
 	    return;
@@ -126,10 +126,10 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 
 	proto_eth_mangle(eth, _arp_reply_buffer);
 	proto_arp_mangle(&arp_send, _arp_reply_buffer + PROTO_MAC_HLEN);
-	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control, 0);
+	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control, 0,1);
 	d->packet = _arp_reply_buffer;
 	/* send packet */
-	rflpc_eth_done_process_tx_packet();
+	rflpc_eth_done_process_tx_packet(1);
     }
     /* record entry in arp cache */
     arp_add_mac(arp_rcv.sender_ip, &arp_rcv.sender_mac);

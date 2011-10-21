@@ -146,7 +146,7 @@ void mbed_eth_output_done()
     proto_eth_mangle(&eth, current_tx_frame);
 
 
-    if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s))
+    if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s,0))
     {
 	MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
 	mbed_eth_release_tx_buffer(current_tx_frame);
@@ -165,8 +165,8 @@ void mbed_eth_output_done()
 						* sent. Then, if status is not
 						* this magic AND packet is not
 						* NULL, it has to be freed */
-    rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control, 1);
-    rflpc_eth_done_process_tx_packet(); /* send packet */
+    rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control, 1,1);
+    rflpc_eth_done_process_tx_packet(1); /* send packet */
     current_tx_frame = NULL;
     current_tx_frame_idx = 0;
     RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
