@@ -38,6 +38,10 @@
   Time-stamp: <2011-09-29 12:55:40 (hauspie)>
 */
 
+#ifdef IPV6
+#error "This target does not support IPv6 yet."
+#endif
+
 /* RFLPC includes */
 #include <rflpc17xx/rflpc17xx.h>
 
