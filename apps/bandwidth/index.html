@@ -6,6 +6,9 @@
     <script type="text/javascript">
         var start = 0;
         var end = 0;
+        var static_total = 0;
+        var static_total_time = 0;
+        var static_finish_count = 0;
         var binfile = '';
 
         function TestDownload() {
@@ -22,14 +25,54 @@
                     bytes = msg.length;
                     speed = (bytes / diff) / 1024 / 1024 * 8;
                     speed = Math.round(speed*100)/100;
-                    $('#dlspeed').html('<b>' + speed + ' Mb/s (You)</b>');
-                    $('#dltime').html((Math.round((bytes*100 / 1024) / 1024)/100) + ' MB transfered in ' + diff + ' s');
+                    $('#dlspeed').html('<b>' + speed + ' Mb/s (Dynamic)</b>');
+                    $('#dltime').html((Math.round((bytes*100 / 1024) / 1024)/100) + ' MB transfered in ' + diff + ' s (Dynamic)');
                     $('#dlbar').css('width', Math.floor(speed * 30)+'px');
                 },
                 complete: function(xhr, textStatus) {
+                   TestStaticDownload();
                 }
             });
         }
+
+        function TestStaticDownload() {
+
+           $('#dltimestatic').html('Testing static content<img src="busy.gif">');
+           static_total = 0;
+           static_total_time = 0;
+           static_finish_count = 0;
+           start = new Date().getTime();
+
+           for (i = 0 ; i < 200 ; ++i)
+           {
+            $.ajax({
+                type: "GET",
+                url: "bigfile",
+                dataType: 'application/octet-stream',
+                success: function(msg) {
+                    static_total += msg.length;
+                },
+                complete: function(xhr, textStatus) {
+                   static_finish_count++;
+                   if (static_finish_count == 99)
+                   {
+                      end = new Date().getTime();
+                      static_total_time = (end - start)/1000;
+                      computeMeasure();
+                   }
+                }
+            });
+           }
+        }
+
+       function computeMeasure()
+       {
+          speed = (static_total / static_total_time) / 1024 / 1024 * 8;
+          speed = Math.round(speed*100)/100;
+          $('#dlspeedstatic').html('<b>' + speed + ' Mb/s (Static)</b>');
+          $('#dlbarstatic').css('width', Math.floor(speed * 30)+'px');
+          $('#dltimestatic').html((Math.round((static_total*100 / 1024) / 1024)/100) + ' MB transfered in ' + static_total_time + ' s (static)');
+       }
 
         $(document).ready(function() {
             TestDownload();
@@ -39,11 +82,14 @@
 
 <body>
     <p>
-        Download speed:<br>
-        <img id="dlbar" src="bar.gif" style="width: 1px; height: 10px;"> <span id="dlspeed"><img src="busy.gif"></span><br>
+        Download speed:<br />
+        <img id="dlbar" src="bar.gif" style="width: 1px; height: 10px;"> <span id="dlspeed">Testing dynamic content<img src="busy.gif"></span><br />
+        <img id="dlbarstatic" src="bar.gif" style="width: 1px; height: 10px;"><span id="dlspeedstatic"></span><br />
         <img src="bar.gif" width="300" height="10"> 10 Mb/s
     </p>
     <p id="dltime">
+    </p>
+    <p id="dltimestatic">
     </p>
 </body>
 
