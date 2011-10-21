@@ -30,7 +30,7 @@ fi
 
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
-make clean >& /dev/null
+make mrproper >& /dev/null
 if ! make >& $TMP_LOG_FILE
 then
     cat $TMP_LOG_FILE 1>&2
