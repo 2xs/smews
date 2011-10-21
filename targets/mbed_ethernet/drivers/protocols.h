@@ -43,6 +43,7 @@
 
 
 #define PROTO_MAC_HLEN  14
+#define PROTO_IP_HLEN   20
 #define PROTO_ARP_HLEN  28
 #define PROTO_ICMP_HLEN  8
 #define PROTO_ICMP_CSUM_OFFSET 2

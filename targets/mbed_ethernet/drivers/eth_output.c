@@ -43,6 +43,8 @@
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/interrupt.h>
 #include <rflpc17xx/profiling.h>
+#include <rflpc17xx/drivers/dma.h>
+
 
 #include "hardware.h"
 #include "target.h"
@@ -51,123 +53,147 @@
 #include "arp_cache.h"
 #include "out_buffers.h"
 
-uint8_t  * volatile current_tx_frame = NULL;
-volatile uint32_t current_tx_frame_idx = 0;
-volatile uint32_t current_tx_frame_size = 0;
 
-RFLPC_PROFILE_DECLARE_COUNTER(tx_copy);
-RFLPC_PROFILE_DECLARE_COUNTER(tx_eth);
+/** This structure holds the buffer where the actual fragment data will be stored */
+typedef struct
+{
+   uint8_t *ptr;
+   uint32_t size;
+} fragment_buffer_t;
 
+fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0 by the start routine */
+
+/** This will be used to store the precomputed Ethernet header.
+ * Then, only the dst address will have to be modified for each frame
+ */
+uint8_t ethernet_header[PROTO_MAC_HLEN];
+
+int mbed_eth_fill_header(uint32_t ip)
+{
+   static int first = 1;
+   EthAddr dst_addr;
+   int idx;
+
+   if (first)
+   {
+      idx = 6;
+      /* First frame sent, create the ethernet header */
+      /* Source Address */
+      PUT_MAC(ethernet_header, idx, local_eth_addr.addr);
+      /* Type */
+      PUT_TWO(ethernet_header, idx, PROTO_IP);
+      first = 0;
+   }
+
+   if (!arp_get_mac(ip, &dst_addr))
+   {
+        MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
+                   ip & 0xFF,
+                   (ip >> 8) & 0xFF,
+                   (ip >> 16) & 0xFF,
+                   (ip >> 24) & 0xFF);
+      return 0;
+   }
+   idx = 0;
+   /* Put the destination addre in the frame header */
+   PUT_MAC(ethernet_header, idx, dst_addr.addr);
+   return 1;
+}
+
+int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int last)
+{
+   rfEthDescriptor *d;
+   rfEthTxStatus *s;
+
+   /* Wait for a descriptor to be available for this fragment */
+   while (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, idx));
+
+   /* send control word (size + send options) and request interrupt */
+   d->packet = (uint8_t *)data;
+   s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
+                                                * handler to check ALL
+                                                * descriptors for packets as
+                                                * this status word is
+                                                * overwriten when a packet is
+                                                * sent. Then, if status is not
+                                                * this magic AND packet is not
+                                                * NULL, it has to be freed */
+    rflpc_eth_set_tx_control_word(size, &d->control, last, last);
+   return 1;
+}
 
 void mbed_eth_prepare_output(uint32_t size)
 {
-    if (current_tx_frame != NULL)
+    if (current_buffer.ptr != NULL)
     {
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
     }
+    rflpc_irq_global_disable();
     /* allocated memory for output buffer */
-    while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
-    current_tx_frame_size = size + PROTO_MAC_HLEN;
+    while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
+    current_buffer.size = 0;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
 {
-   RFLPC_PROFILE_START_COUNTER(tx_copy, RFLPC_TIMER1);
-    if (current_tx_frame == NULL)
+    if (current_buffer.ptr == NULL)
     {
 	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 	return;
     }
-    if (current_tx_frame_idx >= current_tx_frame_size)
-    {
-	MBED_DEBUG("Trying to add byte %02x (%c) and output buffer is full\r\n", byte, byte);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-	return;
-    }
-    current_tx_frame[current_tx_frame_idx++] = byte;
-    RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
+    current_buffer.ptr[current_buffer.size] = byte;
+    current_buffer.size++;
+}
+
+/* Use the GPDMA to copy the buffer */
+static void memcpy_dma(void *dest, const void *src, uint32_t size)
+{
+   rflpc_dma_channel_t channel = RFLPC_DMAC0;
+
+   /* Wait for a DMA channel to become ready */
+   while (!rflpc_dma_channel_ready(channel))
+   {
+      if (channel == RFLPC_DMAC7)
+         channel = RFLPC_DMAC0;
+      else
+         channel++;
+   }
+   /* A channel is ready, launch the dma */
+   if (!rflpc_dma_start(channel, dest, src, size))
+      MBED_DEBUG("DMA Channel %d was supposed to be ready, but was not!\r\n", channel);
 }
 
 void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
 {
-   RFLPC_PROFILE_START_COUNTER(tx_copy, RFLPC_TIMER1);
-    if (current_tx_frame == NULL)
+    if (current_buffer.ptr == NULL)
     {
 	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
 	return;
     }
-    if (current_tx_frame_idx + n > current_tx_frame_size)
-    {
-	MBED_DEBUG("Trying to add %d bytes and output buffer is full (%d/%d)\r\n", n, current_tx_frame_idx, current_tx_frame_size);
-        RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
-	return;
-    }
-    memcpy(current_tx_frame + current_tx_frame_idx, bytes, n);
-    current_tx_frame_idx += n;
-    RFLPC_PROFILE_STOP_COUNTER(tx_copy, RFLPC_TIMER1);
+    if (n >= DMA_THRESHOLD)
+       memcpy_dma(current_buffer.ptr + current_buffer.size, bytes, n);
+    else
+       memcpy(current_buffer.ptr + current_buffer.size, bytes, n);
+    current_buffer.size += n;
 }
 
 void mbed_eth_output_done()
 {
-    EthHead eth;
-    rfEthDescriptor *d;
-    rfEthTxStatus *s;
-    uint32_t ip;
+   /* Generate frame from fragment using gather DMA */
+   /* First get the DST IP to fill the DST MAC address */
+   uint32_t ip = proto_ip_get_dst(current_buffer.ptr);
+   /* Fill the ethernet header */
+   mbed_eth_fill_header(ip);
 
-    RFLPC_PROFILE_START_COUNTER(tx_eth, RFLPC_TIMER1);
+   /* first, ethernet header */
+   mbed_eth_prepare_fragment(ethernet_header, PROTO_MAC_HLEN, 0, 0);
+   /* Now, the payload */
+   mbed_eth_prepare_fragment(current_buffer.ptr, current_buffer.size, 1, 1);
 
-    if (current_tx_frame == NULL)
-    {
-	MBED_DEBUG("Trying to send packet before preparing it\r\n");
-        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
-	return;
-    }
-    eth.src = local_eth_addr;
-    ip = proto_ip_get_dst(current_tx_frame + PROTO_MAC_HLEN);
-    if (!arp_get_mac(ip, &eth.dst))
-    {
-	MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
-		   ip & 0xFF,
-		   (ip >> 8) & 0xFF,
-		   (ip >> 16) & 0xFF,
-		   (ip >> 24) & 0xFF
-	    );
-	mbed_eth_release_tx_buffer(current_tx_frame);
-	current_tx_frame = NULL;
-	current_tx_frame_idx = 0;
-        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
-	return;
-    }
-    eth.type = PROTO_IP;
-    proto_eth_mangle(&eth, current_tx_frame);
-
-
-    if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s,0))
-    {
-	MBED_DEBUG("Failed to get current output descriptor, dropping\r\n");
-	mbed_eth_release_tx_buffer(current_tx_frame);
-	current_tx_frame = NULL;
-	current_tx_frame_idx = 0;
-        RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
-	return;
-    }
-/* send control word (size + send options) and request interrupt */
-    d->packet = current_tx_frame;
-    s->status_info = PACKET_BEEING_SENT_MAGIC; /* this will allow the interrupt
-						* handler to check ALL
-						* descriptors for packets as
-						* this status word is
-						* overwriten when a packet is
-						* sent. Then, if status is not
-						* this magic AND packet is not
-						* NULL, it has to be freed */
-    rflpc_eth_set_tx_control_word(current_tx_frame_idx, &d->control, 1,1);
-    rflpc_eth_done_process_tx_packet(1); /* send packet */
-    current_tx_frame = NULL;
-    current_tx_frame_idx = 0;
-    RFLPC_PROFILE_STOP_COUNTER(tx_eth, RFLPC_TIMER1);
+   /* Done, give all fragments to ethernet DMA */
+   rflpc_eth_done_process_tx_packet(2); /* 2 descriptors */
+   current_buffer.ptr = 0;
+   current_buffer.size = 0;
+   rflpc_irq_global_enable();
 }

@@ -39,13 +39,8 @@
 */
 
 /* RFLPC includes */
-#include <rflpc17xx/drivers/uart.h>
-#include <rflpc17xx/drivers/ethernet.h>
-#include <rflpc17xx/drivers/rit.h>
-#include <rflpc17xx/drivers/timer.h>
-#include <rflpc17xx/debug.h>
-#include <rflpc17xx/printf.h>
-#include <rflpc17xx/profiling.h>
+#include <rflpc17xx/rflpc17xx.h>
+
 
 /* Smews core includes */
 #include "memory.h"
@@ -60,15 +55,14 @@
 #include "out_buffers.h"
 
 /* transmission descriptors */
-rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((aligned(4)));
+rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception descriptors */
-rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
+rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* transmission status */
-rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((aligned(4)));;
+rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception status */
-rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((aligned(4)));;
-
+rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* Reception buffers */
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
@@ -92,12 +86,11 @@ void mbed_eth_garbage_tx_buffers()
     /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
     for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
     {
-	if (_tx_descriptors[i].packet == _arp_reply_buffer) /* this one is static */
-	    continue;
 	if (_tx_status[i].status_info != PACKET_BEEING_SENT_MAGIC && _tx_descriptors[i].packet != NULL)
 	{
-	    mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
-	    _tx_descriptors[i].packet = NULL;
+           if (mbed_eth_is_releasable_buffer(_tx_descriptors[i].packet)) /* static buffers */
+               mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
+	   _tx_descriptors[i].packet = NULL;
 	}
     }
 }
@@ -114,7 +107,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 	 * to avoid beeing stuck in handler because of packet flood */
     	while (rflpc_eth_get_current_rx_packet_descriptor(&d, &s) && i++ < TX_DESCRIPTORS)
     	{
-	    if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
+            if (mbed_process_input(d->packet, rflpc_eth_get_packet_size(s->status_info)) == ETH_INPUT_FREE_PACKET)
 		rflpc_eth_done_process_rx_packet();
 	    else
 		break;
@@ -150,6 +143,10 @@ static void _init_buffers()
 }
 
 EthAddr local_eth_addr;
+extern char _data_start;
+extern char _data_end;
+extern char _bss_start;
+extern char _bss_end;
 void mbed_eth_hardware_init(void)
 {
     /* Configure and start the timer. Timer 0 will be used for timestamping */
@@ -161,6 +158,9 @@ void mbed_eth_hardware_init(void)
     rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
     /* Start the timer */
     rflpc_timer_start(RFLPC_TIMER0);
+    /* Init the GDMA */
+    rflpc_dma_init();
+
 
     /* Init output buffers */
     mbed_eth_init_tx_buffers();
@@ -173,6 +173,12 @@ void mbed_eth_hardware_init(void)
     printf("#     #  #    #  #       ##  ##  #    #         #     # #     # #       #     #\r\n");
     printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
     printf("\r\n");
+
+    printf(".data  size: %d\r\n", &_data_end - &_data_start);
+    printf(".bss   size: %d\r\n", &_bss_end - &_bss_start);
+    printf(".stack size: %d\r\n", RFLPC_STACK_SIZE);
+    printf("Total: %d\r\n", (&_data_end - &_data_start) + (&_bss_end - &_bss_start) + RFLPC_STACK_SIZE);
+
 
 
     /* Set the MAC addr from the local ip */
@@ -191,6 +197,12 @@ void mbed_eth_hardware_init(void)
 
     while (!rflpc_eth_link_state());
     printf(" done! Link is up\r\n");
+    printf("My MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", local_eth_addr.addr[0],
+           local_eth_addr.addr[1],
+           local_eth_addr.addr[2],
+           local_eth_addr.addr[3],
+           local_eth_addr.addr[4],
+           local_eth_addr.addr[5]);
     printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
     mbed_console_prompt();
