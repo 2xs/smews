@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+<title>Smews LED matrix demo</title>
+<script type="text/javascript" src="jscolor/jscolor.js"></script>
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript">
+function changeColor(color)
+{
+   $.ajax({
+                type: "GET",
+                url: "led_color?color="+color,
+                dataType: 'application/octet-stream',
+                success: function(msg) {
+                },
+                complete: function(xhr, textStatus) {
+                }
+            });
+}
+</script>
+</head>
+
+<body>
+<p>Select a color to use to clear the led matrix:</p>
+<input class="color" name="color" onchange="changeColor(this.color)">
+</body>
+
+</html>
