@@ -37,6 +37,7 @@
 
 extern char text[128];
 extern uint8_t color;
+extern char color_text[10];
 extern int position;
 extern int text_size;
 

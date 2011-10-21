@@ -6,6 +6,7 @@
 <script type="text/javascript" src="jscolor/jscolor.js"></script>
 <script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript">
+
 function changeColor(color)
 {
    $.ajax({
@@ -32,7 +33,6 @@ function changeText(text)
             });
 
 }
-
 </script>
 </head>
 
@@ -41,8 +41,9 @@ function changeText(text)
 <input class="color" name="color" onchange="changeColor(this.color)">
 </p>
 <p>Select the text to display:
-<input size="64" class="text" name="text" onchange="changeText(this.value)" value="Smews: Smart & Mobile Embedded Web Server">
+<input size="64" id="text_select" type="text" name="text" onchange="changeText(this.value)" value="">
 </p>
+<p id="currentsettings"></p>
 </body>
 
 </html>

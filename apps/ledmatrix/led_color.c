@@ -45,11 +45,16 @@
 #include <rflpc17xx/rflpc17xx.h>
 #include "scroller.h"
 #include "led_common.h"
+#include "timers.h"
 
-#define SPI_WRITE(val) rflpc_spi_write(RFLPC_SPI0, (val))
-#define SPI_ACTIVATE_LED rflpc_gpio_clr_pin(0,16)
-#define SPI_DEACTIVATE_LED rflpc_gpio_set_pin(0,16)
-#define SPI_WAIT_QUEUE_EMPTY while (!rflpc_spi_tx_fifo_empty(RFLPC_SPI0))
+#define SPI_PORT RFLPC_SPI1
+#define CS_GPIO_PORT 0
+#define CS_GPIO_PIN 6
+
+#define SPI_WRITE(val) rflpc_spi_write(SPI_PORT, (val))
+#define SPI_ACTIVATE_LED rflpc_gpio_clr_pin(CS_GPIO_PORT,CS_GPIO_PIN)
+#define SPI_DEACTIVATE_LED rflpc_gpio_set_pin(CS_GPIO_PORT,CS_GPIO_PIN)
+#define SPI_WAIT_QUEUE_EMPTY while (!rflpc_spi_tx_fifo_empty(SPI_PORT))
 
 #define SPI_INIT do { \
    int spi_peripheral_clock = rflpc_clock_get_system_clock() / 8; \
@@ -58,10 +63,10 @@
    while (needed_divider / serial_clock_rate_divider > 254) \
       serial_clock_rate_divider++; \
    needed_divider /= serial_clock_rate_divider; \
-   rflpc_spi_init_master(RFLPC_SPI0, RFLPC_CCLK_8, needed_divider, serial_clock_rate_divider, 8);\
-   rflpc_gpio_use_pin(0, 16);\
-   rflpc_gpio_set_pin_mode_output(0,16);\
-   rflpc_gpio_set_pin(0,16);\
+   rflpc_spi_init_master(SPI_PORT, RFLPC_CCLK_8, needed_divider, serial_clock_rate_divider, 8);\
+   rflpc_gpio_use_pin(CS_GPIO_PORT, CS_GPIO_PIN);\
+   rflpc_gpio_set_pin_mode_output(CS_GPIO_PORT,CS_GPIO_PIN);\
+   rflpc_gpio_set_pin(CS_GPIO_PORT,CS_GPIO_PIN);\
    }while(0);
 
 #define INIT_WAIT do { \
@@ -108,7 +113,7 @@ static void do_display()
     led_matrix_display_buffer(back_buffer);
     position++;
     if (position == text_size*8)
-	position = -8; /* reset scroll */
+	position = 0; /* reset scroll */
 }
 
 static char init_led(void)
@@ -116,6 +121,7 @@ static char init_led(void)
    INIT_WAIT;
    SPI_INIT;
    color = str_to_color("FFFFFF");
+   strcpy(color_text, "FFFFFF");
    position = 0;
    strcpy(text, "Smews: Smart & Mobile Embedded Web Server");
    text_size = strlen("Smews: Smart & Mobile Embedded Web Server");
@@ -128,5 +134,6 @@ static char init_led(void)
 static char get_led_color(struct args_t *args)
 {
    color = str_to_color(args->color);
+   strcpy(color_text, args->color);
    return 1;
 }
