@@ -1,0 +1,32 @@
+#!/bin/bash
+
+RFLPC_REPOSITORY="git://github.com/mickeymtp/rflpc.git"
+
+LOCAL_FOLDER="drivers/rflpc"
+
+if [ -d $LOCAL_FOLDER ]
+then
+    cd $LOCAL_FOLDER
+    if ! git pull
+    then
+	echo "Failed to update rflpc" 1>&2
+	exit 1
+    fi
+else
+    if ! git clone $RFLPC_REPOSITORY $LOCAL_FOLDER
+    then
+	echo "Failed to clone rflpc repository. Do you have git installed?" 1>&2
+	exit 1
+    fi
+    cd $LOCAL_FOLDER
+fi
+
+TMP_LOG_FILE=`mktemp`
+echo "Compiling library"
+if ! make >& $TMP_LOG_FILE
+then
+    cat $TMP_LOG_FILE 1>&2
+    echo "Failed to compile rflpc!" 1>&2
+fi
+rm -rf $TMP_LOG_FILE
+echo "rflpc successfuly compiled"
