@@ -118,7 +118,7 @@ int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int l
                                                 * sent. Then, if status is not
                                                 * this magic AND packet is not
                                                 * NULL, it has to be freed */
-    rflpc_eth_set_tx_control_word(size, &d->control, last, last);
+    rflpc_eth_set_tx_control_word(size, &d->control, 0, last);
    return 1;
 }
 
@@ -129,7 +129,6 @@ void mbed_eth_prepare_output(uint32_t size)
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
     }
-    rflpc_irq_global_disable();
     /* allocated memory for output buffer */
     while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
     current_buffer.size = 0;
@@ -195,5 +194,4 @@ void mbed_eth_output_done()
    rflpc_eth_done_process_tx_packet(2); /* 2 descriptors */
    current_buffer.ptr = 0;
    current_buffer.size = 0;
-   rflpc_irq_global_enable();
 }
