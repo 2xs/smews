@@ -34,21 +34,63 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-07-13
-  Time-stamp: <2011-08-31 15:37:20 (hauspie)>
+  Created: 2011-08-31
+  Time-stamp: <2011-08-31 16:37:48 (hauspie)>
 */
-#ifndef __HARDWARE_H__
-#define __HARDWARE_H__
-
-#include "protocols.h"
-
-/* NULL pointer */
-#define NULL ((void*)0)
-
-extern const EthAddr local_eth_addr;
-#define MY_IP (*((uint32_t *)local_ip_addr))
 
 
-extern void mbed_eth_hardware_init(void);
 
-#endif
+#include <rflpc17xx/drivers/ethernet.h>
+#include <rflpc17xx/debug.h>
+
+#include "mbed_debug.h"
+
+void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents)
+{
+    RFLPC_ASSERT_STACK();
+    printf("= %p %p %p %x (%p)",d, s, d->packet, d->control, &d->control);
+    if (s->status_info & (1 << 18))
+	printf("cf ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 21))
+	printf("mf ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 22))
+	printf("bf ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 23))
+	printf("crc ");
+    else
+	printf("    ");
+    if (s->status_info & (1 << 24))
+	printf("se ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 25))
+	printf("le ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 27))
+	printf("ae ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 28))
+	printf("ov ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 29))
+	printf("nd ");
+    else
+	printf("   ");
+    if (s->status_info & (1 << 30))
+	printf("lf ");
+    else
+	printf("   ");
+
+    printf("size:%d \r\n", rflpc_eth_get_packet_size(s->status_info));
+    if (dump_contents)
+	MBED_DUMP_BYTES(d->packet, rflpc_eth_get_packet_size(s->status_info));
+}

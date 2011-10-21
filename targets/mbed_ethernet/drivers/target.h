@@ -57,7 +57,6 @@ typedef char int8_t;
 #include <rflpc17xx/drivers/eth_const.h>
 #include <rflpc17xx/nxp/core_cm3.h>
 #include "hardware.h"
-#include "eth.h"
 
 /* Smews includes */
 
@@ -74,15 +73,15 @@ typedef char int8_t;
 /* Returns the time in milliseconds */
 #define TIME_MILLIS 0
 /* Return 1 if data can be read */
-#define DEV_DATA_TO_READ eth_byte_available()
+#define DEV_DATA_TO_READ 0
 /* Reads one byte */
-#define DEV_GET(c) {(c) = eth_get_next_byte();}
+#define DEV_GET(c) {(c) = 0;}
 /* Writes one byte */
-#define DEV_PUT(c) /*eth_add_byte((c))*/
+#define DEV_PUT(c) 
 /* Preparation for sending n bytes */
-#define DEV_PREPARE_OUTPUT(n) /*eth_prepare_output((n))*/
+#define DEV_PREPARE_OUTPUT(n) 
 /* End of output */
-#define DEV_OUTPUT_DONE /*eth_done_output()*/
+#define DEV_OUTPUT_DONE 
 
 /* Optionnal Smews macros */
 
@@ -165,11 +164,13 @@ typedef char int8_t;
 /* Ethernet configuration */
 /* Number of frame descriptors for reception. For each descriptor, 
  * 16 bytes will be needed */
-#define RX_DESCRIPTORS 2
+#define RX_DESCRIPTORS 3
 /* Size of the reception buffers. One buffer will be needed per reception descriptor */
 #define RX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH
+/* Size of the transmission buffer. */
+#define TX_BUFFER_SIZE RFLPC_ETH_MAX_FRAME_LENGTH
 /* Number of frame descriptors for transmission. For each descriptor,
  * 12 bytes will be needed */
-#define TX_DESCRIPTORS 2
+#define TX_DESCRIPTORS 3
 
 #endif /* __TARGET_H__ */

@@ -35,13 +35,13 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-30
-  Time-stamp: <2011-08-31 13:50:29 (hauspie)>
+  Time-stamp: <2011-08-31 15:58:30 (hauspie)>
 
 */
-#include "eth.h"
-#include "mbed_eth_debug.h"
 #include <rflpc17xx/debug.h>
+#include "protocols.h"
 
+#include "mbed_debug.h"
 
 #define MAX_ARP_ENTRY 10
 
@@ -65,7 +65,7 @@ void _dump_arp_cache()
     {
 	if (_arp_table[i].ip != 0)
 	{
-	    MBED_DEBUG("%d: %x:%x:%x:%x:%x:%x -> %d.%d.%d.%d\r\n", i,
+	    MBED_DEBUG("%d: %02x:%02x:%02x:%02x:%02x:%02x -> %d.%d.%d.%d\r\n", i,
 		       _arp_table[i].mac.addr[0],
 		       _arp_table[i].mac.addr[1],
 		       _arp_table[i].mac.addr[2],
@@ -87,34 +87,25 @@ void _dump_arp_cache()
 void arp_add_mac(uint32_t ipv4, EthAddr *mac)
 {
     int i;
-    RFLPC_ASSERT_STACK();
-    MBED_DEBUG("Adding new entry %p\r\n", __get_MSP());
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
     {
-	MBED_DEBUG("1 %p\r\n", __get_MSP());
 	if (_arp_table[i].ip == ipv4 || _arp_table[i].ip == 0)
 	{
 	    _arp_table[i].ip = ipv4;
 	    _arp_table[i].mac = *mac;
-/*	    _dump_arp_cache();*/
-	    MBED_DEBUG("2 %p\r\n", __get_MSP());
-	    RFLPC_DUMP_STACK();
+	    _dump_arp_cache();
 	    return;
 	}
     }
     /* every entry is used, remove the first one (TODO: really use timestamps ! :) ) */
-    MBED_DEBUG("3 %p\r\n", __get_MSP());
     _arp_table[0].ip = ipv4;
     _arp_table[i].mac = *mac;
-    MBED_DEBUG("4 %p\r\n", __get_MSP());
-
-/*    _dump_arp_cache();*/
+    _dump_arp_cache();
 }
 
 int arp_get_mac(uint32_t ipv4, EthAddr *mac)
 {
     int i;
-    RFLPC_ASSERT_STACK();
     for (i = 0 ; i < MAX_ARP_ENTRY ; ++i)
     {
 	if (_arp_table[i].ip == ipv4)
