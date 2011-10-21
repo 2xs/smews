@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-27 13:57:00 (hauspie)>
+  Time-stamp: <2011-09-27 15:37:42 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -66,11 +66,7 @@ void mbed_eth_prepare_output(uint32_t size)
 	return;
     }
     /* allocated memory for output buffer */
-    while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL)
-    {
-	if ((alloc_count++ % 10000000) == 0)
-	    MBED_DEBUG("No more tx buffers left keep trying\r\n");
-    }
+    while ((current_tx_frame = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
     current_tx_frame_idx = PROTO_MAC_HLEN; /* put the idx at the first IP byte */
     current_tx_frame_size = size + PROTO_MAC_HLEN;
 }

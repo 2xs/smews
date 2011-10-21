@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-27 11:21:55 (hauspie)>
+  Time-stamp: <2011-09-27 15:37:03 (hauspie)>
 */
 
 /* RFLPC includes */
@@ -88,7 +88,6 @@ int putchar(int c)
 void mbed_eth_garbage_tx_buffers()
 {
     int i;
-    int collected = 0;
     /* Free sent packets. This loop will be executed on RX IRQ and on TX IRQ */
     for (i = 0 ; i <= LPC_EMAC->TxDescriptorNumber ; ++i)
     {
@@ -98,10 +97,8 @@ void mbed_eth_garbage_tx_buffers()
 	{
 	    mbed_eth_release_tx_buffer(_tx_descriptors[i].packet);
 	    _tx_descriptors[i].packet = NULL;
-	    collected++;
 	}
     }
-    return collected;
 }
 
 RFLPC_IRQ_HANDLER _eth_irq_handler()
