@@ -1,5 +1,5 @@
 /*
-* Copyright or © or Copr. 2008, Michael Hauspie
+* Copyright or © or Copr. 2011, Michael Hauspie
 * 
 * Author e-mail: michael.hauspie@lifl.fr
 * 
@@ -55,6 +55,7 @@ typedef char int8_t;
 
 /* Target specific includes */
 #include <rflpc17xx/drivers/leds.h>
+#include "hardware.h"
 
 /* Smews includes */
 
@@ -65,7 +66,7 @@ typedef char int8_t;
 /* Set the maximal MTU for the network interface used */
 #define DEV_MTU 1500
 /* Initializes the hardware */
-#define HARDWARE_INIT
+#define HARDWARE_INIT {mbed_eth_hardware_init();}
 /* Stops the hardware */
 #define HARDWARE_STOP
 /* Returns the time in milliseconds */

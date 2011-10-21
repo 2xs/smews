@@ -42,7 +42,9 @@ env.Replace(AS = 'arm-none-eabi-as')
 env.Replace(AR = 'arm-none-eabi-ar')
 env.Replace(RANLIB = 'arm-none-eabi-ranlib')
 env.Append(CCFLAGS = '-fno-strict-aliasing -I' + os.path.join(targetDir, 'rflpc') + ' -DRFLPC_PLATFORM_MBED')
-env.Append(LINKFLAGS = '-nostartfiles -static -L' + os.path.join(targetDir,'rflpc/rflpc17xx') + ' -lrflpc17xx -Wl,-T,' + os.path.join(targetDir,'rflpc/rflpc17xx/rflpc17xx.ld'))
+env.Append(LINKFLAGS = '-nostartfiles -static -Wl,-T ' + os.path.join(targetDir,'rflpc/rflpc17xx/rflpc17xx.ld'))
+env.Append(LIBS = 'rflpc17xx')
+env.Append(LIBPATH = os.path.join(targetDir,'rflpc/rflpc17xx'))
 
 binaryName = projectName + '.bin'
 env.Command(binaryName, elfName, ['arm-none-eabi-objcopy -O binary -j .text -j .data $SOURCE $TARGET'])
