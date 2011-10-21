@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-02 10:19:20 (hauspie)>
+  Time-stamp: <2011-09-07 08:54:23 (mickey)>
 */
 
 /* RFLPC includes */
@@ -47,6 +47,7 @@
 
 /* Smews core includes */
 #include "memory.h"
+#include "connections.h"
 
 /* Mbed port includes */
 #include "target.h"
@@ -131,7 +132,6 @@ static void _init_buffers()
     for (i = 0 ; i < RX_DESCRIPTORS ; ++i)
     {
 	_rx_descriptors[i].packet = _rx_buffers + RX_BUFFER_SIZE*i;
-	MBED_DEBUG("Buffer %d: %p\r\n", i, _rx_descriptors[i].packet);
 	_rx_descriptors[i].control = (RX_BUFFER_SIZE - 1) | (1 << 31); /* -1 encoding and enable irq generation on packet reception */
     }
     for (i = 0 ; i < TX_DESCRIPTORS ; ++i)
@@ -144,8 +144,7 @@ static void _init_buffers()
     rflpc_eth_irq_enable_set(RFLPC_ETH_IRQ_EN_RX_DONE);
 }
 
-const EthAddr local_eth_addr = {{2, 3, 4, 5, 6, 7}};
-
+EthAddr local_eth_addr;
 void mbed_eth_hardware_init(void)
 {
     printf(" #####                                          #     # ######  ####### ######\r\n");
@@ -157,6 +156,16 @@ void mbed_eth_hardware_init(void)
     printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
     printf("\r\n");
 
+
+    /* Set the MAC addr from the local ip */
+    /* @todo: use hardware ID chip from MBED */
+    local_eth_addr.addr[0] = 2;
+    local_eth_addr.addr[1] = 3;
+    local_eth_addr.addr[2] = local_ip_addr[3];
+    local_eth_addr.addr[3] = local_ip_addr[2];
+    local_eth_addr.addr[4] = local_ip_addr[1];
+    local_eth_addr.addr[5] = local_ip_addr[0];
+
     printf("ETH Init...");
     rflpc_eth_init();
     rflpc_eth_set_mac_address(local_eth_addr.addr);
@@ -164,6 +173,6 @@ void mbed_eth_hardware_init(void)
 
     while (!rflpc_eth_link_state());
     printf(" done! Link is up\r\n");
-
+    printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
     rflpc_uart0_set_rx_callback(_uart_irq);
 }

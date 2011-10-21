@@ -56,8 +56,10 @@ typedef char int8_t;
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/drivers/eth_const.h>
 #include <rflpc17xx/nxp/core_cm3.h>
+
 #include "hardware.h"
 #include "eth_input.h"
+#include "eth_output.h"
 
 /* Smews includes */
 
@@ -78,18 +80,18 @@ typedef char int8_t;
 /* Reads one byte */
 #define DEV_GET(c) {(c) = mbed_eth_get_byte();}
 /* Writes one byte */
-#define DEV_PUT(c) printf("O: %02x (%c)\r\n", (c), (c))
+#define DEV_PUT(c) mbed_eth_put_byte((c))
 /* Preparation for sending n bytes */
-#define DEV_PREPARE_OUTPUT(n) printf("preparing output for %d bytes\r\n", n);
+#define DEV_PREPARE_OUTPUT(n) mbed_eth_prepare_output((n))
 /* End of output */
-#define DEV_OUTPUT_DONE printf("Done sending bytes\r\n");
+#define DEV_OUTPUT_DONE mbed_eth_output_done()
 
 /* Optionnal Smews macros */
 
 /* Writes n bytes starting from ptr */
-#define DEV_PUTN(ptr,n)
+#define DEV_PUTN(ptr,n) mbed_eth_put_nbytes((ptr), (n))
 /* Writes n bytes starting from ptr (for const data) */
-#define DEV_PUTN_CONST(ptr,n)
+#define DEV_PUTN_CONST(ptr,n) mbed_eth_put_nbytes((ptr), (n))
 /* Passive wait for a device input. Must return after a given time */
 #define DEV_WAIT
 

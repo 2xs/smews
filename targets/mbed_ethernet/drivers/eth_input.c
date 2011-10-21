@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-02 10:44:50 (hauspie)>
+  Time-stamp: <2011-09-07 10:06:56 (mickey)>
 */
 #include <rflpc17xx/printf.h>
 
@@ -70,7 +70,7 @@ uint8_t mbed_eth_get_byte()
 	current_rx_frame_idx = 0;
 	rflpc_eth_done_process_rx_packet();
     }
-    MBED_DEBUG("I: %02x (%c) %d/%d\r\n", byte, byte, current_rx_frame_idx, current_rx_frame_size);
+/*    MBED_DEBUG("I: %02x (%c) %d/%d\r\n", byte, byte, current_rx_frame_idx, current_rx_frame_size);*/
     return byte;
 }
 
@@ -138,6 +138,8 @@ int mbed_process_input(const uint8_t *packet, int size)
 
 
     /* IP Packet received */
+    /* update ARP cache */
+    arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
     if (packet == current_rx_frame)
 	return; /* already processing this packet */
 

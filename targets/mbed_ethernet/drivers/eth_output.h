@@ -34,24 +34,15 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-07-13
-  Time-stamp: <2011-09-07 10:01:09 (mickey)>
+  Created: 2011-09-02
+  Time-stamp: <2011-09-07 09:59:40 (mickey)>
 */
-#ifndef __HARDWARE_H__
-#define __HARDWARE_H__
+#ifndef __ETH_OUTPUT_H__
+#define __ETH_OUTPUT_H__
 
-#include "protocols.h"
-
-/* NULL pointer */
-#ifdef NULL
-#undef NULL
-#endif
-#define NULL ((void*)0)
-
-extern EthAddr local_eth_addr;
-#define MY_IP (*((uint32_t *)local_ip_addr))
-
-
-extern void mbed_eth_hardware_init(void);
+extern void mbed_eth_prepare_output(uint32_t size);
+extern void mbed_eth_put_byte(uint8_t byte);
+extern void mbed_eth_put_nbytes(uint8_t *bytes, uint32_t n);
+extern void mbed_eth_output_done();
 
 #endif
