@@ -42,14 +42,6 @@
 #error "This target does not support IPv6 yet."
 #endif
 
-/* RFLPC includes */
-#include <rflpc17xx/rflpc17xx.h>
-
-
-/* Smews core includes */
-#include "memory.h"
-#include "connections.h"
-
 /* Mbed port includes */
 #include "target.h"
 #include "mbed_debug.h"
@@ -57,6 +49,14 @@
 #include "eth_input.h"
 #include "protocols.h"
 #include "out_buffers.h"
+
+/* RFLPC includes */
+#include <rflpc17xx/rflpc17xx.h>
+
+
+/* Smews core includes */
+#include "memory.h"
+#include "connections.h"
 
 /* transmission descriptors */
 rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
@@ -161,6 +161,9 @@ void mbed_eth_hardware_init(void)
     rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
     /* Start the timer */
     rflpc_timer_start(RFLPC_TIMER0);
+#ifdef ENABLE_PROFILE
+    RFLPC_PROFILE_INIT(RFLPC_TIMER1);
+#endif
     /* Init the GDMA */
     rflpc_dma_init();
 

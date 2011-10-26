@@ -40,6 +40,8 @@
 #include <stdint.h>
 #include <string.h> /* memcpy */
 
+#include "target.h"
+
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/interrupt.h>
 #include <rflpc17xx/profiling.h>
@@ -47,7 +49,6 @@
 
 
 #include "hardware.h"
-#include "target.h"
 #include "mbed_debug.h"
 #include "protocols.h"
 #include "arp_cache.h"
@@ -67,6 +68,8 @@ fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0 by the
  * Then, only the dst address will have to be modified for each frame
  */
 uint8_t ethernet_header[PROTO_MAC_HLEN];
+
+PROFILE_DECLARE_COUNTER(output);
 
 int mbed_eth_fill_header(uint32_t ip)
 {
@@ -128,10 +131,10 @@ void mbed_eth_prepare_output(uint32_t size)
     {
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
-    }
+    }    
     /* allocated memory for output buffer */
     while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_buffer.size = 0;
+    current_buffer.size = 0;    
 }
 
 void mbed_eth_put_byte(uint8_t byte)

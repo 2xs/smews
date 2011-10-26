@@ -42,11 +42,12 @@
 #ifdef MBED_USE_CONSOLE
 
 
+#include "target.h"
+
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/profiling.h>
 #include <rflpc17xx/printf.h>
 #include <rflpc17xx/debug.h>
-#include "target.h"
 #include "out_buffers.h"
 #include "mbed_debug.h"
 #include "arp_cache.h"
@@ -73,6 +74,7 @@ void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
 void mbed_console_arp_state(char *args);
 void mbed_console_stack_dump(char *args);
+void mbed_console_profile(char *args);
 void mbed_console_parse_command();
 
 #define CONSOLE_COMMAND(command, shortcut, help) {#command, shortcut, mbed_console_##command, help}
@@ -85,6 +87,7 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
     CONSOLE_COMMAND(arp_state, "as", "Dump the state of arp resolve table"),
     CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),    
+    CONSOLE_COMMAND(profile, "p", "Show profile counter values"),    
 };
 
 static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
@@ -97,6 +100,32 @@ void mbed_console_help(char *args)
     int i;
     for (i = 0 ; i < _console_command_count ; ++i)
 	printf("\t- %s (%s) : %s\r\n", _console_commands[i].command, _console_commands[i].shortcut, _console_commands[i].help_message);
+}
+
+PROFILE_DECLARE_EXTERN_COUNTER(checksum);
+PROFILE_DECLARE_EXTERN_COUNTER(out_uint);
+PROFILE_DECLARE_EXTERN_COUNTER(out_str);
+PROFILE_DECLARE_EXTERN_COUNTER(out_c);
+PROFILE_DECLARE_EXTERN_COUNTER(out_c_checksum);
+PROFILE_DECLARE_EXTERN_COUNTER(out_c_cr_run);
+PROFILE_DECLARE_EXTERN_COUNTER(out_uint_out_c_call);
+PROFILE_DECLARE_EXTERN_COUNTER(out_str_out_c_call);
+
+void mbed_console_profile(char *args)
+{
+    printf("Profile counters (in microseconds)\r\n");
+    printf("* %d\tChecksum (only calcs, without function calls)\r\n", PROFILE_GET_TOTAL(checksum));
+    printf("* %d\tout_c (copy)\r\n", PROFILE_GET_TOTAL(out_c));
+    printf("* %d\tout_c (checksum, includes function call)\r\n", PROFILE_GET_TOTAL(out_c_checksum));
+    printf("* %d\tout_c (cr_run)\r\n", PROFILE_GET_TOTAL(out_c_cr_run));
+    printf("* %d\tout_c (total)\r\n", PROFILE_GET_TOTAL(out_c)+PROFILE_GET_TOTAL(out_c_checksum)+PROFILE_GET_TOTAL(out_c_cr_run));
+    
+    printf("* %d\tout_uint\r\n", PROFILE_GET_TOTAL(out_uint));
+    printf("* %d\tout_uint (out_c calls)\r\n", PROFILE_GET_TOTAL(out_uint_out_c_call));
+    printf("* %d\tout_str\r\n", PROFILE_GET_TOTAL(out_str));
+    printf("* %d\tout_str (out_c calls)\r\n", PROFILE_GET_TOTAL(out_str_out_c_call));
+    
+    printf("* %d\toutput total\r\n", PROFILE_GET_TOTAL(output));    
 }
 
 extern void mbed_eth_dump_tx_buffer_status();
