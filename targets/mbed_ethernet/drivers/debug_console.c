@@ -74,7 +74,9 @@ void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
 void mbed_console_arp_state(char *args);
 void mbed_console_stack_dump(char *args);
+#ifdef ENABLE_PROFILE
 void mbed_console_profile(char *args);
+#endif
 void mbed_console_parse_command();
 
 #define CONSOLE_COMMAND(command, shortcut, help) {#command, shortcut, mbed_console_##command, help}
@@ -87,7 +89,9 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
     CONSOLE_COMMAND(arp_state, "as", "Dump the state of arp resolve table"),
     CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),    
+#ifdef ENABLE_PROFILE
     CONSOLE_COMMAND(profile, "p", "Show profile counter values"),    
+#endif
 };
 
 static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
@@ -101,7 +105,7 @@ void mbed_console_help(char *args)
     for (i = 0 ; i < _console_command_count ; ++i)
 	printf("\t- %s (%s) : %s\r\n", _console_commands[i].command, _console_commands[i].shortcut, _console_commands[i].help_message);
 }
-
+#ifdef ENABLE_PROFILE
 PROFILE_DECLARE_EXTERN_COUNTER(checksum);
 PROFILE_DECLARE_EXTERN_COUNTER(out_uint);
 PROFILE_DECLARE_EXTERN_COUNTER(out_str);
@@ -127,6 +131,7 @@ void mbed_console_profile(char *args)
     
     printf("* %d\toutput total\r\n", PROFILE_GET_TOTAL(output));    
 }
+#endif
 
 extern void mbed_eth_dump_tx_buffer_status();
 

@@ -66,7 +66,7 @@ typedef char int8_t;
 
 
 /* Profiling macro */
-#define ENABLE_PROFILE
+/*#define ENABLE_PROFILE*/
 
 #ifdef ENABLE_PROFILE
   #define RFLPC_ENABLE_PROFILING
