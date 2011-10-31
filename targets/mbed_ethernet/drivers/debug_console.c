@@ -106,7 +106,6 @@ void mbed_console_help(char *args)
 	printf("\t- %s (%s) : %s\r\n", _console_commands[i].command, _console_commands[i].shortcut, _console_commands[i].help_message);
 }
 #ifdef ENABLE_PROFILE
-PROFILE_DECLARE_EXTERN_COUNTER(checksum);
 PROFILE_DECLARE_EXTERN_COUNTER(out_uint);
 PROFILE_DECLARE_EXTERN_COUNTER(out_str);
 PROFILE_DECLARE_EXTERN_COUNTER(out_c);
@@ -118,7 +117,6 @@ PROFILE_DECLARE_EXTERN_COUNTER(out_str_out_c_call);
 void mbed_console_profile(char *args)
 {
     printf("Profile counters (in microseconds)\r\n");
-    printf("* %d\tChecksum (only calcs, without function calls)\r\n", PROFILE_GET_TOTAL(checksum));
     printf("* %d\tout_c (copy)\r\n", PROFILE_GET_TOTAL(out_c));
     printf("* %d\tout_c (checksum, includes function call)\r\n", PROFILE_GET_TOTAL(out_c_checksum));
     printf("* %d\tout_c (cr_run)\r\n", PROFILE_GET_TOTAL(out_c_cr_run));
