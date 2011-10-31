@@ -75,6 +75,7 @@ typedef char int8_t;
   #define PROFILE_START_COUNTER(counter) RFLPC_PROFILE_START_COUNTER(counter, RFLPC_TIMER1)
   #define PROFILE_STOP_COUNTER(counter)  RFLPC_PROFILE_STOP_COUNTER(counter, RFLPC_TIMER1)
   #define PROFILE_GET_TOTAL(counter)   RFLPC_PROFILE_GET_TOTAL(counter)
+  #define PROFILE_RESET_COUNTER(counter) RFLPC_PROFILE_RESET_COUNTER(counter)
   
   PROFILE_DECLARE_EXTERN_COUNTER(output);
   
@@ -175,7 +176,7 @@ typedef char int8_t;
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
-#define OUTPUT_BUFFER_SIZE 1200
+#define OUTPUT_BUFFER_SIZE 1300
 /* size of the shared stack used by all dynamic content generators */
 #define STACK_SIZE 1024
 /* size of the dynamic memory allocator pool */
