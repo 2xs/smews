@@ -69,7 +69,7 @@ void out_uint(uint16_t i) {
 	if(coroutine_state.state == cor_in)
 		return;
 #endif
-	PROFILE_START_COUNTER(out_uint);
+	/*PROFILE_START_COUNTER(out_uint);*/
 	char buffer[6];
 	char *c = buffer + 5;
 	buffer[5] = '\0';
@@ -78,9 +78,9 @@ void out_uint(uint16_t i) {
 		i /= 10;
 	} while(i);
 	while(*c) {
-		PROFILE_START_COUNTER(out_uint_out_c_call);
+		/*PROFILE_START_COUNTER(out_uint_out_c_call);*/
 		out_c(*c++);
-		PROFILE_STOP_COUNTER(out_uint_out_c_call);
+		/*PROFILE_STOP_COUNTER(out_uint_out_c_call);*/
 	}
 	PROFILE_STOP_COUNTER(out_uint);
 }
@@ -95,9 +95,9 @@ void out_str(const char str[]) {
 	PROFILE_START_COUNTER(out_str);
 	const char *c = str;
 	while(*c) {
-		PROFILE_START_COUNTER(out_str_out_c_call);
+		/*PROFILE_START_COUNTER(out_str_out_c_call);*/
 		out_c(*c++);
-		PROFILE_STOP_COUNTER(out_str_out_c_call);
+		/*PROFILE_STOP_COUNTER(out_str_out_c_call);*/
 	}
 	PROFILE_STOP_COUNTER(out_str);
 }

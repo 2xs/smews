@@ -76,6 +76,7 @@ void mbed_console_arp_state(char *args);
 void mbed_console_stack_dump(char *args);
 #ifdef ENABLE_PROFILE
 void mbed_console_profile(char *args);
+void mbed_console_reset_profile(char *args);
 #endif
 void mbed_console_parse_command();
 
@@ -90,7 +91,8 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(arp_state, "as", "Dump the state of arp resolve table"),
     CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),    
 #ifdef ENABLE_PROFILE
-    CONSOLE_COMMAND(profile, "p", "Show profile counter values"),    
+    CONSOLE_COMMAND(profile, "p", "Show profile counter values"),
+    CONSOLE_COMMAND(reset_profile, "rp", "Reset profile counters"),    
 #endif
 };
 
@@ -113,6 +115,18 @@ PROFILE_DECLARE_EXTERN_COUNTER(out_c_checksum);
 PROFILE_DECLARE_EXTERN_COUNTER(out_c_cr_run);
 PROFILE_DECLARE_EXTERN_COUNTER(out_uint_out_c_call);
 PROFILE_DECLARE_EXTERN_COUNTER(out_str_out_c_call);
+
+void mbed_console_reset_profile(char *args)
+{
+    PROFILE_RESET_COUNTER(out_uint);
+    PROFILE_RESET_COUNTER(out_str);
+    PROFILE_RESET_COUNTER(out_c);
+    PROFILE_RESET_COUNTER(out_c_checksum);
+    PROFILE_RESET_COUNTER(out_c_cr_run);
+    PROFILE_RESET_COUNTER(out_uint_out_c_call);
+    PROFILE_RESET_COUNTER(out_str_out_c_call);
+    mbed_console_profile(args);
+}
 
 void mbed_console_profile(char *args)
 {
