@@ -16,7 +16,7 @@
 
             $.ajax({
                 type: "GET",
-                url: "datagen?size=10000",
+                url: "datagen?size=3000",
                 dataType: 'application/octet-stream',
                 success: function(msg) {
                     binfile = msg;
@@ -27,7 +27,7 @@
                     speed = Math.round(speed*100)/100;
                     $('#dlspeed').html('<b>' + speed + ' Mb/s (Dynamic)</b>');
                     $('#dltime').html((Math.round((bytes*100 / 1024) / 1024)/100) + ' MB transfered in ' + diff + ' s (Dynamic)');
-                    //$('#dlbar').css('width', Math.floor(speed * 15)+'px');
+                    $('#dlbar').css('width', Math.floor(speed * 15)+'px');
                 },
                 complete: function(xhr, textStatus) {
                    TestStaticDownload();
@@ -42,8 +42,9 @@
            static_total_time = 0;
            static_finish_count = 0;
            start = new Date().getTime();
+	   var max = 300;
 
-           for (i = 0 ; i < 300 ; ++i)
+           for (i = 0 ; i < max ; ++i)
            {
             $.ajax({
                 type: "GET",
@@ -54,7 +55,7 @@
                 },
                 complete: function(xhr, textStatus) {
                    static_finish_count++;
-                   if (static_finish_count == 299)
+                   if (static_finish_count == max)
                    {
                       end = new Date().getTime();
                       static_total_time = (end - start)/1000;
@@ -70,7 +71,7 @@
           speed = (static_total / static_total_time) / 1024 / 1024 * 8;
           speed = Math.round(speed*100)/100;
           $('#dlspeedstatic').html('<b>' + speed + ' Mb/s (Static)</b>');
-          //$('#dlbarstatic').css('width', Math.floor(speed * 15)+'px');
+          $('#dlbarstatic').css('width', Math.floor(speed * 15)+'px');
           $('#dltimestatic').html((Math.round((static_total*100 / 1024) / 1024)/100) + ' MB transfered in ' + static_total_time + ' s (static)');
        }
 
