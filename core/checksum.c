@@ -42,8 +42,6 @@ unsigned char checksum_flip;
 /* current checksum */
 unsigned char current_checksum[2];
 
-PROFILE_DECLARE_COUNTER(checksum);
-
 #ifndef INLINE_CHECKSUM
 #include "checksum.inl"
 #endif
