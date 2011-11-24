@@ -1,0 +1,5 @@
+*~
+*.kde*
+bin
+gen
+.sconsign.dblite
