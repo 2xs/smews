@@ -7,7 +7,7 @@ Contact: Simon Duquennoy -- simonduq@sics.se
 	 Michael Hauspie -- michael.hauspie@lifl.fr
 Web page: smews.gforge.inria.fr
 
-Smews is an efficient embedded Web server for higly constrained devices.
+Smews is an efficient embedded Web server for highly constrained devices.
 
 This software includes parts of code from SOSSE (Simple Operating system for Smart cards)
 http://www.mbsks.franken.de/sosse/, under GPL license :
