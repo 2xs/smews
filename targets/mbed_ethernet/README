@@ -1,4 +1,4 @@
-The smews port on mbed uses rflpc library available at https://github.com/mickeymtp/rflpc
+The smews port on mbed uses rflpc library available at https://github.com/hauspie/rflpc
 
 To compile this port, you will need the arm compiler which can be built using
 summon-arm-toolchain script available at https://github.com/esden/summon-arm-toolchain
