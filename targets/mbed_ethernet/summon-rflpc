@@ -9,13 +9,14 @@
 #
 
 RFLPC_REPOSITORY="git://github.com/hauspie/rflpc.git"
+RFLPC_RELEASE="v0.6"
 LOCAL_FOLDER="`cd \`dirname $0\` && pwd`/rflpc"
 
 
 if [ -d $LOCAL_FOLDER ]
 then
     cd $LOCAL_FOLDER
-    if ! git pull
+    if ! git fetch
     then
 	echo "Failed to update rflpc" 1>&2
 	exit 1
@@ -28,6 +29,8 @@ else
     fi
     cd $LOCAL_FOLDER
 fi
+
+git checkout $RFLPC_RELEASE
 
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
