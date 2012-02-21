@@ -1,3 +1,5 @@
+Next version:
+	- Checksum can be inlined by define INLINE_CHECKSUM at compile time. No change at all if not defined.
 1.6.2b:
 	- Fixed the summon-rflpc script so that it gets a fixed version of the library which has been tested in smews (instead of the last one)
 1.6.2a:
