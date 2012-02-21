@@ -1,0 +1,5 @@
+.sconsign.dblite
+*.aux
+*.fls
+*.log
+*.toc

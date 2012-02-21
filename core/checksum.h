@@ -44,6 +44,7 @@
 /* Current checksum */
 extern unsigned char current_checksum[2];
 
+#ifndef INLINE_CHECKSUM
 /* Checksumming functions */
 extern void checksum_init(void);
 extern void checksum_set(uint16_t val);
@@ -53,5 +54,9 @@ extern void checksum_add(unsigned char x);
 void checksum_add16(const uint16_t x);
 /* Te be used only with an even alignment */
 void checksum_add32(const unsigned char x[]);
+#else
+#include "checksum.inl"
+#endif
+
 
 #endif /* __CHECKSUM_H__ */

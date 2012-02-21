@@ -35,7 +35,7 @@
 /*
 <generator>
         <handlers init="init_datagen" doGet="get_datagen"/>
-	<properties persistence="persistent" />
+	<properties persistence="volatile" />
 	<args>
 	        <arg name="size" type="uint16" />
 	</args>

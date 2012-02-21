@@ -65,7 +65,6 @@ typedef char int8_t;
 /* Smews includes */
 
 
-
 /* Drivers interface */
 
 /* Set the maximal MTU for the network interface used */
@@ -81,18 +80,18 @@ typedef char int8_t;
 /* Reads one byte */
 #define DEV_GET(c) {(c) = mbed_eth_get_byte();}
 /* Writes one byte */
-#define DEV_PUT(c) mbed_eth_put_byte((c))
+#define DEV_PUT(c) do { mbed_eth_put_byte((c)); } while (0)
 /* Preparation for sending n bytes */
-#define DEV_PREPARE_OUTPUT(n) mbed_eth_prepare_output((n))
+#define DEV_PREPARE_OUTPUT(n) do { mbed_eth_prepare_output((n)); } while(0)
 /* End of output */
-#define DEV_OUTPUT_DONE mbed_eth_output_done()
+#define DEV_OUTPUT_DONE do { mbed_eth_output_done(); } while (0)
 
 /* Optionnal Smews macros */
 
 /* Writes n bytes starting from ptr */
-#define DEV_PUTN(ptr,n) mbed_eth_put_nbytes((ptr), (n))
+#define DEV_PUTN(ptr,n) do {mbed_eth_put_nbytes((ptr), (n)); } while (0)
 /* Writes n bytes starting from ptr (for const data) */
-#define DEV_PUTN_CONST(ptr,n) mbed_eth_put_nbytes((ptr), (n))
+#define DEV_PUTN_CONST(ptr,n) DEV_PUTN((ptr),(n))
 /* Passive wait for a device input. Must return after a given time */
 #define DEV_WAIT
 
@@ -154,7 +153,7 @@ typedef char int8_t;
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
-#define OUTPUT_BUFFER_SIZE 1200
+#define OUTPUT_BUFFER_SIZE 1300
 /* size of the shared stack used by all dynamic content generators */
 #define STACK_SIZE 1024
 /* size of the dynamic memory allocator pool */
@@ -180,5 +179,7 @@ typedef char int8_t;
 
 /* This indicates a threshold from which a DEV_PUTN_CONST will be implemented by a multi-fragment frame using the ethernet controller gather DMA */
 #define DMA_THRESHOLD 64
+
+
 
 #endif /* __TARGET_H__ */

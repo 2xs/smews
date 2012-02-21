@@ -35,18 +35,19 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-29
-  Time-stamp: <2011-09-29 12:54:17 (hauspie)>
+  Time-stamp: <2012-02-21 16:53:12 (hauspie)>
 */
 
 
 #ifdef MBED_USE_CONSOLE
 
 
+#include "target.h"
+
 #include <rflpc17xx/drivers/ethernet.h>
 #include <rflpc17xx/profiling.h>
 #include <rflpc17xx/printf.h>
 #include <rflpc17xx/debug.h>
-#include "target.h"
 #include "out_buffers.h"
 #include "mbed_debug.h"
 #include "arp_cache.h"

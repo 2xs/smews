@@ -33,58 +33,63 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#include "generators.h"
-#include "output.h"
-#include "connections.h"
-#include "memory.h"
-
-#ifndef DISABLE_COMET
-/*-----------------------------------------------------------------------------------*/
-char server_push(const struct output_handler_t *push_handler /*CONST_VAR*/) {
-	uint16_t x;
-	x = 0;
-	if(push_handler->handler_comet) {
-		FOR_EACH_CONN(conn, {
-			if(conn->output_handler == push_handler) {
-				conn->comet_send_ack = 0;
-				UI32(conn->final_outseqno) = UI32(conn->next_outseqno) - 1;
-			}
-		})
-		return 1;
-	} else {
-		return 0;
-	}
-}
+#ifdef INLINE_CHECKSUM
+#define CHECKSUM_CALL static inline
+/* current checksum carry */
+extern unsigned char checksum_carry;
+/* index of the next checksum byte to compute (0/1) */
+extern unsigned char checksum_flip;
+#else
+#define CHECKSUM_CALL
 #endif
 
 /*-----------------------------------------------------------------------------------*/
-void out_uint(uint16_t i) {	
-#ifndef DISABLE_POST
-	/* unauthorised out */
-	if(coroutine_state.state == cor_in)
-		return;
-#endif
-	char buffer[6];
-	char *c = buffer + 5;
-	buffer[5] = '\0';
-	do {
-		*--c = (i % 10) + '0';
-		i /= 10;
-	} while(i);
-	while(*c) {
-		out_c(*c++);
-	}
+CHECKSUM_CALL void checksum_init() {
+	current_checksum[S0] = 0;
+	current_checksum[S1] = 0;
+	checksum_carry = 0;
+	checksum_flip = S0;
 }
 
 /*-----------------------------------------------------------------------------------*/
-void out_str(const char str[]) {
-#ifndef DISABLE_POST
-	/* unauthorised out */
-	if(coroutine_state.state == cor_in)
-		return;
-#endif
-	const char *c = str;
-	while(*c) {
-		out_c(*c++);
-	}
+CHECKSUM_CALL void checksum_add(unsigned char val) {
+	uint16_t tmp_sum;
+	tmp_sum = current_checksum[checksum_flip] + val + checksum_carry;
+	current_checksum[checksum_flip] = tmp_sum;
+	checksum_carry = tmp_sum >> 8;
+	checksum_flip ^= 0x01;	
+}
+
+/* Te be used only with an even alignment */
+/*-----------------------------------------------------------------------------------*/
+CHECKSUM_CALL void checksum_add16(const uint16_t val) {
+	uint16_t tmp_sum;
+	
+	tmp_sum = current_checksum[S0] + (val >> 8) + checksum_carry;
+	current_checksum[S0] = tmp_sum;
+	checksum_carry = tmp_sum >> 8;
+
+	tmp_sum = current_checksum[S1] + (val & 0xff) + checksum_carry;
+	current_checksum[S1] = tmp_sum;
+	checksum_carry = tmp_sum >> 8;
+}
+
+/* Te be used only with an even alignment */
+/*-----------------------------------------------------------------------------------*/
+CHECKSUM_CALL void checksum_add32(const unsigned char val[]) {
+	uint16_t tmp_sum;
+	
+	tmp_sum = current_checksum[S0] + val[W0] + val[W2] + checksum_carry;
+	current_checksum[S0] = tmp_sum;
+	checksum_carry = tmp_sum >> 8;
+
+	tmp_sum = current_checksum[S1] + val[W1] + val[W3] + checksum_carry;
+	current_checksum[S1] = tmp_sum;
+	checksum_carry = tmp_sum >> 8;
+}
+
+/*-----------------------------------------------------------------------------------*/
+CHECKSUM_CALL void checksum_end() {	
+	while(checksum_carry)
+		checksum_add(0);	
 }

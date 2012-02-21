@@ -16,7 +16,7 @@
 
             $.ajax({
                 type: "GET",
-                url: "datagen?size=10000",
+                url: "datagen?size=3000",
                 dataType: 'application/octet-stream',
                 success: function(msg) {
                     binfile = msg;
@@ -42,8 +42,9 @@
            static_total_time = 0;
            static_finish_count = 0;
            start = new Date().getTime();
+	   var max = 300;
 
-           for (i = 0 ; i < 300 ; ++i)
+           for (i = 0 ; i < max ; ++i)
            {
             $.ajax({
                 type: "GET",
@@ -54,7 +55,7 @@
                 },
                 complete: function(xhr, textStatus) {
                    static_finish_count++;
-                   if (static_finish_count == 299)
+                   if (static_finish_count == max)
                    {
                       end = new Date().getTime();
                       static_total_time = (end - start)/1000;

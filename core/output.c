@@ -158,6 +158,7 @@ static void dev_put32_val(uint32_t word) {
 	}
 #endif
 
+
 /*-----------------------------------------------------------------------------------*/
 char out_c(char c) {
 	if(curr_output.content_length == OUTPUT_BUFFER_SIZE) {

@@ -1,2 +1,5 @@
-smews.kdev4
-.kde*
+*~
+*.kde*
+bin
+gen
+.sconsign.dblite

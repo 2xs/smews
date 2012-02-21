@@ -35,20 +35,12 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-29 12:55:40 (hauspie)>
+  Time-stamp: <2012-02-21 16:52:41 (hauspie)>
 */
 
 #ifdef IPV6
 #error "This target does not support IPv6 yet."
 #endif
-
-/* RFLPC includes */
-#include <rflpc17xx/rflpc17xx.h>
-
-
-/* Smews core includes */
-#include "memory.h"
-#include "connections.h"
 
 /* Mbed port includes */
 #include "target.h"
@@ -57,6 +49,14 @@
 #include "eth_input.h"
 #include "protocols.h"
 #include "out_buffers.h"
+
+/* RFLPC includes */
+#include <rflpc17xx/rflpc17xx.h>
+
+
+/* Smews core includes */
+#include "memory.h"
+#include "connections.h"
 
 /* transmission descriptors */
 rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;

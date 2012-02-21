@@ -36,60 +36,12 @@
 #include "checksum.h"
 
 /* current checksum carry */
-static unsigned char checksum_carry;
+unsigned char checksum_carry;
 /* index of the next checksum byte to compute (0/1) */
-static unsigned char checksum_flip;
+unsigned char checksum_flip;
 /* current checksum */
 unsigned char current_checksum[2];
 
-/*-----------------------------------------------------------------------------------*/
-void checksum_init() {
-	current_checksum[S0] = 0;
-	current_checksum[S1] = 0;
-	checksum_carry = 0;
-	checksum_flip = S0;
-}
-
-/*-----------------------------------------------------------------------------------*/
-void checksum_add(unsigned char val) {
-	uint16_t tmp_sum;
-	
-	tmp_sum = current_checksum[checksum_flip] + val + checksum_carry;
-	current_checksum[checksum_flip] = tmp_sum;
-	checksum_carry = tmp_sum >> 8;
-	checksum_flip ^= 0x01;
-}
-
-/* Te be used only with an even alignment */
-/*-----------------------------------------------------------------------------------*/
-void checksum_add16(const uint16_t val) {
-	uint16_t tmp_sum;
-
-	tmp_sum = current_checksum[S0] + (val >> 8) + checksum_carry;
-	current_checksum[S0] = tmp_sum;
-	checksum_carry = tmp_sum >> 8;
-
-	tmp_sum = current_checksum[S1] + (val & 0xff) + checksum_carry;
-	current_checksum[S1] = tmp_sum;
-	checksum_carry = tmp_sum >> 8;
-}
-
-/* Te be used only with an even alignment */
-/*-----------------------------------------------------------------------------------*/
-void checksum_add32(const unsigned char val[]) {
-	uint16_t tmp_sum;
-
-	tmp_sum = current_checksum[S0] + val[W0] + val[W2] + checksum_carry;
-	current_checksum[S0] = tmp_sum;
-	checksum_carry = tmp_sum >> 8;
-
-	tmp_sum = current_checksum[S1] + val[W1] + val[W3] + checksum_carry;
-	current_checksum[S1] = tmp_sum;
-	checksum_carry = tmp_sum >> 8;
-}
-
-/*-----------------------------------------------------------------------------------*/
-void checksum_end() {
-	while(checksum_carry)
-		checksum_add(0);
-}
+#ifndef INLINE_CHECKSUM
+#include "checksum.inl"
+#endif
