@@ -57,11 +57,6 @@ char server_push(const struct output_handler_t *push_handler /*CONST_VAR*/) {
 }
 #endif
 
-PROFILE_DECLARE_COUNTER(out_uint);
-PROFILE_DECLARE_COUNTER(out_str);
-PROFILE_DECLARE_COUNTER(out_uint_out_c_call);
-PROFILE_DECLARE_COUNTER(out_str_out_c_call);
-
 /*-----------------------------------------------------------------------------------*/
 void out_uint(uint16_t i) {	
 #ifndef DISABLE_POST
@@ -69,7 +64,6 @@ void out_uint(uint16_t i) {
 	if(coroutine_state.state == cor_in)
 		return;
 #endif
-	/*PROFILE_START_COUNTER(out_uint);*/
 	char buffer[6];
 	char *c = buffer + 5;
 	buffer[5] = '\0';
@@ -78,11 +72,8 @@ void out_uint(uint16_t i) {
 		i /= 10;
 	} while(i);
 	while(*c) {
-		/*PROFILE_START_COUNTER(out_uint_out_c_call);*/
 		out_c(*c++);
-		/*PROFILE_STOP_COUNTER(out_uint_out_c_call);*/
 	}
-	PROFILE_STOP_COUNTER(out_uint);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -92,12 +83,8 @@ void out_str(const char str[]) {
 	if(coroutine_state.state == cor_in)
 		return;
 #endif
-	PROFILE_START_COUNTER(out_str);
 	const char *c = str;
 	while(*c) {
-		/*PROFILE_START_COUNTER(out_str_out_c_call);*/
 		out_c(*c++);
-		/*PROFILE_STOP_COUNTER(out_str_out_c_call);*/
 	}
-	PROFILE_STOP_COUNTER(out_str);
 }

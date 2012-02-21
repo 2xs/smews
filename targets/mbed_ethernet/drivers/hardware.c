@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2011-09-29 12:55:40 (hauspie)>
+  Time-stamp: <2012-02-21 16:52:41 (hauspie)>
 */
 
 #ifdef IPV6
@@ -161,9 +161,6 @@ void mbed_eth_hardware_init(void)
     rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
     /* Start the timer */
     rflpc_timer_start(RFLPC_TIMER0);
-#ifdef ENABLE_PROFILE
-    RFLPC_PROFILE_INIT(RFLPC_TIMER1);
-#endif
     /* Init the GDMA */
     rflpc_dma_init();
 

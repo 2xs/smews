@@ -65,29 +65,6 @@ typedef char int8_t;
 /* Smews includes */
 
 
-/* Profiling macro */
-
-#ifdef ENABLE_PROFILE
-  #define RFLPC_ENABLE_PROFILING
-  #include <rflpc17xx/profiling.h>
-  #define PROFILE_DECLARE_COUNTER(counter) RFLPC_PROFILE_DECLARE_COUNTER(counter)
-  #define PROFILE_DECLARE_EXTERN_COUNTER(counter) RFLPC_PROFILE_DECLARE_EXTERN_COUNTER(counter)
-  #define PROFILE_START_COUNTER(counter) RFLPC_PROFILE_START_COUNTER(counter, RFLPC_TIMER1)
-  #define PROFILE_STOP_COUNTER(counter)  RFLPC_PROFILE_STOP_COUNTER(counter, RFLPC_TIMER1)
-  #define PROFILE_GET_TOTAL(counter)   RFLPC_PROFILE_GET_TOTAL(counter)
-  #define PROFILE_RESET_COUNTER(counter) RFLPC_PROFILE_RESET_COUNTER(counter)
-  
-  PROFILE_DECLARE_EXTERN_COUNTER(output);
-  
-#else
-  #define PROFILE_DECLARE_COUNTER(counter)
-  #define PROFILE_DECLARE_EXTERN_COUNTER(counter)
-  #define PROFILE_START_COUNTER(counter)
-  #define PROFILE_STOP_COUNTER(counter)
-  #define PROFILE_GET_TOTAL(counter)
-#endif
-
-
 /* Drivers interface */
 
 /* Set the maximal MTU for the network interface used */
@@ -103,16 +80,16 @@ typedef char int8_t;
 /* Reads one byte */
 #define DEV_GET(c) {(c) = mbed_eth_get_byte();}
 /* Writes one byte */
-#define DEV_PUT(c) do { PROFILE_START_COUNTER(output); mbed_eth_put_byte((c)); PROFILE_STOP_COUNTER(output); } while (0)
+#define DEV_PUT(c) do { mbed_eth_put_byte((c)); } while (0)
 /* Preparation for sending n bytes */
-#define DEV_PREPARE_OUTPUT(n) do { PROFILE_START_COUNTER(output); mbed_eth_prepare_output((n)); PROFILE_STOP_COUNTER(output); } while(0)
+#define DEV_PREPARE_OUTPUT(n) do { mbed_eth_prepare_output((n)); } while(0)
 /* End of output */
-#define DEV_OUTPUT_DONE do { PROFILE_START_COUNTER(output); mbed_eth_output_done(); PROFILE_STOP_COUNTER(output); } while (0)
+#define DEV_OUTPUT_DONE do { mbed_eth_output_done(); } while (0)
 
 /* Optionnal Smews macros */
 
 /* Writes n bytes starting from ptr */
-#define DEV_PUTN(ptr,n) do {PROFILE_START_COUNTER(output); mbed_eth_put_nbytes((ptr), (n)); PROFILE_STOP_COUNTER(output); } while (0)
+#define DEV_PUTN(ptr,n) do {mbed_eth_put_nbytes((ptr), (n)); } while (0)
 /* Writes n bytes starting from ptr (for const data) */
 #define DEV_PUTN_CONST(ptr,n) DEV_PUTN((ptr),(n))
 /* Passive wait for a device input. Must return after a given time */

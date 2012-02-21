@@ -158,13 +158,9 @@ static void dev_put32_val(uint32_t word) {
 	}
 #endif
 
-PROFILE_DECLARE_COUNTER(out_c);
-PROFILE_DECLARE_COUNTER(out_c_checksum);
-PROFILE_DECLARE_COUNTER(out_c_cr_run);
 
 /*-----------------------------------------------------------------------------------*/
 char out_c(char c) {
-	PROFILE_START_COUNTER(out_c_cr_run);
 	if(curr_output.content_length == OUTPUT_BUFFER_SIZE) {
 		cr_run(NULL
 #ifndef DISABLE_POST
@@ -172,13 +168,8 @@ char out_c(char c) {
 #endif
 				);
 	}
-	PROFILE_STOP_COUNTER(out_c_cr_run);
-	PROFILE_START_COUNTER(out_c_checksum);
 	checksum_add(c);
-	PROFILE_STOP_COUNTER(out_c_checksum);
-	PROFILE_START_COUNTER(out_c);
 	curr_output.buffer[curr_output.content_length++] = c;
-	PROFILE_STOP_COUNTER(out_c);
 	return 1;
 }
 

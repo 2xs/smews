@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2011-09-29 12:55:14 (hauspie)>
+  Time-stamp: <2012-02-21 16:52:53 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -69,7 +69,6 @@ fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0 by the
  */
 uint8_t ethernet_header[PROTO_MAC_HLEN];
 
-PROFILE_DECLARE_COUNTER(output);
 
 int mbed_eth_fill_header(uint32_t ip)
 {
