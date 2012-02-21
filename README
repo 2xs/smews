@@ -1,11 +1,13 @@
-[ Smews version 1.6.2 ]
+[ Smews version 1.6.2b ]
 
 License: CeCILL license, http://www.cecill.info
 Date: 21-10-2011
 Contact: Simon Duquennoy -- simonduq@sics.se
-Web page: smews.gforge.inria.fr
+	 Gilles Grimaud -- gilles.grimaud@lifl.fr
+	 Michael Hauspie -- michael.hauspie@lifl.fr
+Web page: http://www.lifl.fr/2XS/smews
 
-Smews is an efficient embedded Web server for higly constrained devices.
+Smews is an efficient embedded Web server for highly constrained devices.
 
 This software includes parts of code from SOSSE (Simple Operating system for Smart cards)
 http://www.mbsks.franken.de/sosse/, under GPL license :

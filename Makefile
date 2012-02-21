@@ -1,3 +1,7 @@
+#
+# Just a helper for Makefiles addicts.
+# The smews build system uses scons
+#
 IPADDR=192.168.100.200
 TARGET=mbed_ethernet
 APPS=:welcome
