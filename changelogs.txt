@@ -2,6 +2,9 @@ Next version:
 	- Checksum can be inlined by define INLINE_CHECKSUM at compile time.
 		- Provides small performance boost for platform like mbed at the cost of memory footprint
 		- Nothing changed from the previous behavior if INLINE_CHECKSUM is not defined
+1.6.2c:
+	- Bump summon-rflpc to use v0.6a
+	- Fixed mbed_ethernet SConscript to use -mthumb
 1.6.2b:
 	- Fixed the summon-rflpc script so that it gets a fixed version of the library which has been tested in smews (instead of the last one)
 1.6.2a:

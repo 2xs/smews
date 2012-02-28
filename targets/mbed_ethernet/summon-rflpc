@@ -9,7 +9,7 @@
 #
 
 RFLPC_REPOSITORY="git://github.com/hauspie/rflpc.git"
-RFLPC_RELEASE="v0.6"
+RFLPC_RELEASE="v0.6a"
 LOCAL_FOLDER="`cd \`dirname $0\` && pwd`/rflpc"
 
 
