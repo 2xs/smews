@@ -1,3 +1,6 @@
+1.6.2c:
+	- Bump summon-rflpc to use v0.6a
+	- Fixed mbed_ethernet SConscript to use -mthumb
 1.6.2b:
 	- Fixed the summon-rflpc script so that it gets a fixed version of the library which has been tested in smews (instead of the last one)
 1.6.2a:
