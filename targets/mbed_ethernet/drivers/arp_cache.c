@@ -38,8 +38,8 @@
   Time-stamp: <2011-09-29 10:29:55 (hauspie)>
 
 */
-#include <rflpc17xx/debug.h>
-#include <rflpc17xx/printf.h>
+#include <rflpc17xx/rflpc17xx.h>
+
 #include "protocols.h"
 #include "hardware.h"
 

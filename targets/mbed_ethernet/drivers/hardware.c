@@ -77,10 +77,10 @@ int putchar(int c)
     static int uart_init = 0;
     if (!uart_init)
     {
-	rflpc_uart0_init();
+	rflpc_uart_init(RFLPC_UART0);
 	uart_init = 1;
     }
-    rflpc_uart0_putchar(c);
+    rflpc_uart_putchar(RFLPC_UART0, c);
     return c;
 }
 
@@ -124,7 +124,7 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
 
 RFLPC_IRQ_HANDLER _uart_irq()
 {
-    char c = rflpc_uart0_getchar();
+    char c = rflpc_uart_getchar(RFLPC_UART0);
 #ifdef MBED_USE_CONSOLE
     mbed_console_add_char(c);
 #endif
@@ -153,6 +153,7 @@ extern char _bss_start;
 extern char _bss_end;
 void mbed_eth_hardware_init(void)
 {
+    rflpc_uart_init(RFLPC_UART0);
     /* Configure and start the timer. Timer 0 will be used for timestamping */
     rflpc_timer_enable(RFLPC_TIMER0);   
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
@@ -175,6 +176,7 @@ void mbed_eth_hardware_init(void)
     printf("      #  #    #  #       # ## #       #         #     # #     # #       #     #\r\n");
     printf("#     #  #    #  #       ##  ##  #    #         #     # #     # #       #     #\r\n");
     printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
+    printf("Compiled on %s %s\r\n", __DATE__, __TIME__);
     printf("\r\n");
 
     printf(".data  size: %d\r\n", &_data_end - &_data_start);
@@ -209,5 +211,5 @@ void mbed_eth_hardware_init(void)
     printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
     mbed_console_prompt();
-    rflpc_uart0_set_rx_callback(_uart_irq);
+    rflpc_uart_set_rx_callback(RFLPC_UART0, _uart_irq);
 }
