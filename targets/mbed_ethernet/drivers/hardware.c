@@ -153,6 +153,7 @@ extern char _bss_start;
 extern char _bss_end;
 void mbed_eth_hardware_init(void)
 {
+    rflpc_uart_init(RFLPC_UART0);
     /* Configure and start the timer. Timer 0 will be used for timestamping */
     rflpc_timer_enable(RFLPC_TIMER0);   
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
@@ -175,6 +176,7 @@ void mbed_eth_hardware_init(void)
     printf("      #  #    #  #       # ## #       #         #     # #     # #       #     #\r\n");
     printf("#     #  #    #  #       ##  ##  #    #         #     # #     # #       #     #\r\n");
     printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
+    printf("Compiled on %s %s\r\n", __DATE__, __TIME__);
     printf("\r\n");
 
     printf(".data  size: %d\r\n", &_data_end - &_data_start);
