@@ -48,13 +48,12 @@
 #include "timers.h"
 
 #define SPI_PORT RFLPC_SPI1
-#define CS_GPIO_PORT 0
-#define CS_GPIO_PIN 6
 
 #define SPI_WRITE(val) rflpc_spi_write(SPI_PORT, (val))
-#define SPI_ACTIVATE_LED rflpc_gpio_clr_pin(CS_GPIO_PORT,CS_GPIO_PIN)
-#define SPI_DEACTIVATE_LED rflpc_gpio_set_pin(CS_GPIO_PORT,CS_GPIO_PIN)
-#define SPI_WAIT_QUEUE_EMPTY while (!rflpc_spi_tx_fifo_empty(SPI_PORT))
+/* For the MBED, these are empty, because the SPI chip drives the chip select automatically */
+#define SPI_ACTIVATE_LED 
+#define SPI_DEACTIVATE_LED 
+#define SPI_WAIT_QUEUE_EMPTY 
 
 #define SPI_INIT do { \
    int spi_peripheral_clock = rflpc_clock_get_system_clock() / 8; \
@@ -63,10 +62,7 @@
    while (needed_divider / serial_clock_rate_divider > 254) \
       serial_clock_rate_divider++; \
    needed_divider /= serial_clock_rate_divider; \
-   rflpc_spi_init_master(SPI_PORT, RFLPC_CCLK_8, needed_divider, serial_clock_rate_divider, 8);\
-   rflpc_gpio_use_pin(CS_GPIO_PORT, CS_GPIO_PIN);\
-   rflpc_gpio_set_pin_mode_output(CS_GPIO_PORT,CS_GPIO_PIN);\
-   rflpc_gpio_set_pin(CS_GPIO_PORT,CS_GPIO_PIN);\
+   rflpc_spi_init(SPI_PORT, RFLPC_SPI_MASTER, RFLPC_CCLK_8, 8, needed_divider, serial_clock_rate_divider); \
    }while(0);
 
 #define INIT_WAIT do { \
@@ -76,7 +72,7 @@
    rflpc_timer_start(RFLPC_TIMER3); \
   } while (0)
 
-#define WAIT(s) do {uint32_t start = rflpc_timer_get_counter(RFLPC_TIMER3); while ((rflpc_timer_get_counter(RFLPC_TIMER3) - start) < (s));} while(0)
+#define WAIT(s) 
 
 static uint8_t back_buffer[64];
 
