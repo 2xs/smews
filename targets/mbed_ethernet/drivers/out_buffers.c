@@ -39,7 +39,7 @@
 */
 #include "target.h"
 
-#include <rflpc17xx/printf.h>
+#include <rflpc17xx/rflpc17xx.h>
 
 typedef struct
 {

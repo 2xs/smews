@@ -44,10 +44,8 @@
 
 #include "target.h"
 
-#include <rflpc17xx/drivers/ethernet.h>
-#include <rflpc17xx/profiling.h>
-#include <rflpc17xx/printf.h>
-#include <rflpc17xx/debug.h>
+#include <rflpc17xx/rflpc17xx.h>
+
 #include "out_buffers.h"
 #include "mbed_debug.h"
 #include "arp_cache.h"

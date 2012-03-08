@@ -37,8 +37,8 @@
   Created: 2011-08-31
   Time-stamp: <2011-09-29 10:02:00 (hauspie)>
 */
-#include <rflpc17xx/printf.h>
-#include <rflpc17xx/profiling.h>
+#include <rflpc17xx/rflpc17xx.h>
+
 
 #include "connections.h"
 
