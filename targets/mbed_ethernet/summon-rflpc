@@ -9,7 +9,7 @@
 #
 
 RFLPC_REPOSITORY="git://github.com/hauspie/rflpc.git"
-RFLPC_RELEASE="v0.6a"
+RFLPC_RELEASE="v0.7"
 LOCAL_FOLDER="`cd \`dirname $0\` && pwd`/rflpc"
 
 
@@ -30,7 +30,7 @@ else
     cd $LOCAL_FOLDER
 fi
 
-git checkout $RFLPC_RELEASE
+git checkout -B $RFLPC_RELEASE
 
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
