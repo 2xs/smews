@@ -47,7 +47,7 @@
 #include "mbed_debug.h"
 #include "protocols.h"
 
-void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents)
+void mbed_dump_packet(rflpc_eth_descriptor_t *d, rflpc_eth_rx_status_t *s, int dump_contents)
 {
     EthHead eth;
 

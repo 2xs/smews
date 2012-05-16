@@ -92,13 +92,13 @@ static inline void dump_bytes(const void *ptr, int count)
 #define MBED_DUMP_BYTES dump_bytes
 #define MBED_DEBUG printf
 
-extern void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents);
+extern void mbed_dump_packet(rflpc_eth_descriptor_t *d, rflpc_eth_rx_status_t *s, int dump_contents);
 #else
 #include <rflpc17xx/drivers/ethernet.h>
 
 static inline void dummy_dump_bytes(const void *ptr, int count){}
 static inline void dummy_debug(const char *f, ...){}
-static inline void mbed_dump_packet(rfEthDescriptor *d, rfEthRxStatus *s, int dump_contents){}
+static inline void mbed_dump_packet(rflpc_eth_descriptor_t *d, rflpc_eth_rx_status_t *s, int dump_contents){}
 
 #define MBED_DUMP_BYTES dummy_dump_bytes
 #define MBED_DEBUG dummy_debug

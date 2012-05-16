@@ -92,8 +92,8 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 {
     ArpHead arp_rcv;
     ArpHead arp_send;
-    rfEthDescriptor *d;
-    rfEthTxStatus *s;
+    rflpc_eth_descriptor_t *d;
+    rflpc_eth_tx_status_t *s;
 
     proto_arp_demangle(&arp_rcv, packet + PROTO_MAC_HLEN);
     if (arp_rcv.target_ip != MY_IP)
