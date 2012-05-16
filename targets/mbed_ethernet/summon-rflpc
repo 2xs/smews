@@ -9,7 +9,7 @@
 #
 
 RFLPC_REPOSITORY="git://github.com/hauspie/rflpc.git"
-RFLPC_RELEASE="v0.7"
+RFLPC_RELEASE="v0.8"
 LOCAL_FOLDER="`cd \`dirname $0\` && pwd`/rflpc"
 
 
@@ -35,6 +35,17 @@ git checkout -B $RFLPC_RELEASE
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
 make mrproper >& /dev/null
+# Creating config file
+cat > config/config <<EOF
+RFLPC_CONFIG_ENABLE_DMA
+RFLPC_CONFIG_ENABLE_ETHERNET
+RFLPC_CONFIG_ENABLE_MEMCPY
+RFLPC_CONFIG_ENABLE_MEMSET
+RFLPC_CONFIG_ENABLE_PRINTF
+RFLPC_CONFIG_ENABLE_SPI
+RFLPC_CONFIG_ENABLE_TIMERS
+RFLPC_CONFIG_ENABLE_UART
+EOF
 if ! make -C rflpc17xx >& $TMP_LOG_FILE
 then
     cat $TMP_LOG_FILE 1>&2
