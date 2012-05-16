@@ -5,29 +5,31 @@
 # 
 # Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
 # Created: 
-# Time-stamp: <2011-07-13 17:23:17 (hauspie)>
+# Time-stamp: <2012-05-16 14:48:37 (hauspie)>
 #
 
 RFLPC_REPOSITORY="git://github.com/hauspie/rflpc.git"
-RFLPC_RELEASE="v0.8"
-LOCAL_FOLDER="`cd \`dirname $0\` && pwd`/rflpc"
+RFLPC_RELEASE="v0.9"
+LOCAL_FOLDER="`cd \`dirname $0\` && pwd`"
+RFLPC_FOLDER=$LOCAL_FOLDER/rflpc
+RFLPC_CONFIG_FILE_SRC=$LOCAL_FOLDER/rflpc-config-file/config-options.h
+RFLPC_CONFIG_FOLDER=$RFLPC_FOLDER/rflpc17xx/config
 
-
-if [ -d $LOCAL_FOLDER ]
+if [ -d $RFLPC_FOLDER ]
 then
-    cd $LOCAL_FOLDER
+    cd $RFLPC_FOLDER
     if ! git fetch
     then
 	echo "Failed to update rflpc" 1>&2
 	exit 1
     fi
 else
-    if ! git clone $RFLPC_REPOSITORY $LOCAL_FOLDER
+    if ! git clone $RFLPC_REPOSITORY $RFLPC_FOLDER
     then
 	echo "Failed to clone rflpc repository. Do you have git installed?" 1>&2
 	exit 1
     fi
-    cd $LOCAL_FOLDER
+    cd $RFLPC_FOLDER
 fi
 
 git checkout -B $RFLPC_RELEASE
@@ -36,16 +38,8 @@ TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
 make mrproper >& /dev/null
 # Creating config file
-cat > config/config <<EOF
-RFLPC_CONFIG_ENABLE_DMA
-RFLPC_CONFIG_ENABLE_ETHERNET
-RFLPC_CONFIG_ENABLE_MEMCPY
-RFLPC_CONFIG_ENABLE_MEMSET
-RFLPC_CONFIG_ENABLE_PRINTF
-RFLPC_CONFIG_ENABLE_SPI
-RFLPC_CONFIG_ENABLE_TIMERS
-RFLPC_CONFIG_ENABLE_UART
-EOF
+cp $RFLPC_CONFIG_FILE_SRC $RFLPC_CONFIG_FOLDER
+# Compile
 if ! make -C rflpc17xx >& $TMP_LOG_FILE
 then
     cat $TMP_LOG_FILE 1>&2
