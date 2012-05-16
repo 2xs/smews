@@ -45,10 +45,8 @@ env.Replace(RANLIB = 'arm-none-eabi-ranlib')
 env.Append(CCFLAGS = '-mthumb -mcpu=cortex-m3')
 # Tweaks
 env.Append(CCFLAGS = '-fno-builtin -fomit-frame-pointer -fno-strict-aliasing -Wall -Os -I' + os.path.join(targetDir, 'rflpc'))
-# Platform
-env.Append(CCFLAGS = '-DRFLPC_CONFIG_PLATFORM_MBED')
-# RFLPC Library options
-env.Append(CCFLAGS = '-DRFLPC_CONFIG_ENABLE_DMA -DRFLPC_CONFIG_ENABLE_ETHERNET -DRFLPC_CONFIG_ENABLE_MEMCPY -DRFLPC_CONFIG_ENABLE_MEMSET -DRFLPC_CONFIG_ENABLE_PRINTF -DRFLPC_CONFIG_ENABLE_SPI -DRFLPC_CONFIG_ENABLE_TIMERS -DRFLPC_CONFIG_ENABLE_UART')
+# Library configuration
+env.Append(CCFLAGS = '-include ' + os.path.join(targetDir,'rflpc/rflpc17xx/config/config.h'))
 # Smews mbed specific option
 env.Append(CCFLAGS = '-DMBED_USE_CONSOLE')
 env.Append(LINKFLAGS = '-nostdlib -Wl,-T,rflpc17xx.ld')
