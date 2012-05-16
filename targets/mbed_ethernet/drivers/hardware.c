@@ -59,14 +59,14 @@
 #include "connections.h"
 
 /* transmission descriptors */
-rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_descriptor_t _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception descriptors */
-rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_descriptor_t _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* transmission status */
-rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_tx_status_t   _tx_status[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception status */
-rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_rx_status_t   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* Reception buffers */
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
@@ -101,8 +101,8 @@ void mbed_eth_garbage_tx_buffers()
 
 RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
-    rfEthDescriptor *d;
-    rfEthRxStatus *s;
+    rflpc_eth_descriptor_t *d;
+    rflpc_eth_rx_status_t *s;
     int i = 0;
 
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
