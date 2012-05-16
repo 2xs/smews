@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2012-02-21 16:52:41 (hauspie)>
+  Time-stamp: <2012-05-16 15:03:29 (hauspie)>
 */
 
 #ifdef IPV6
@@ -59,14 +59,14 @@
 #include "connections.h"
 
 /* transmission descriptors */
-rfEthDescriptor _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_descriptor_t _tx_descriptors[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception descriptors */
-rfEthDescriptor _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_descriptor_t _rx_descriptors[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* transmission status */
-rfEthTxStatus   _tx_status[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_tx_status_t   _tx_status[TX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 /* reception status */
-rfEthRxStatus   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
+rflpc_eth_rx_status_t   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out_ram")));;
 
 /* Reception buffers */
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
@@ -101,8 +101,8 @@ void mbed_eth_garbage_tx_buffers()
 
 RFLPC_IRQ_HANDLER _eth_irq_handler()
 {
-    rfEthDescriptor *d;
-    rfEthRxStatus *s;
+    rflpc_eth_descriptor_t *d;
+    rflpc_eth_rx_status_t *s;
     int i = 0;
 
     if (rflpc_eth_irq_get_status() & RFLPC_ETH_IRQ_EN_RX_DONE) /* packet received */
@@ -151,6 +151,22 @@ extern char _data_start;
 extern char _data_end;
 extern char _bss_start;
 extern char _bss_end;
+
+void mbed_auto_set_mac(EthAddr *mac_addr)
+{
+    unsigned long serial[4];
+
+    if (rflpc_iap_get_serial_number(serial) == 0)
+    {
+	mac_addr->addr[0] = 2;
+	mac_addr->addr[1] = 3;
+	mac_addr->addr[2] = serial[0] & 0xFF;
+	mac_addr->addr[3] = serial[1] & 0xFF;
+	mac_addr->addr[4] = serial[2] & 0xFF;
+	mac_addr->addr[5] = serial[3] & 0xFF;
+    }
+}
+
 void mbed_eth_hardware_init(void)
 {
     rflpc_uart_init(RFLPC_UART0);
@@ -186,15 +202,9 @@ void mbed_eth_hardware_init(void)
 
 
 
-    /* Set the MAC addr from the local ip */
-    /* @todo: use hardware ID chip from MBED */
-    local_eth_addr.addr[0] = 2;
-    local_eth_addr.addr[1] = 3;
-    local_eth_addr.addr[2] = local_ip_addr[3];
-    local_eth_addr.addr[3] = local_ip_addr[2];
-    local_eth_addr.addr[4] = local_ip_addr[1];
-    local_eth_addr.addr[5] = local_ip_addr[0];
-
+    /* Set the MAC addr from the flash serial number */
+    mbed_auto_set_mac(&local_eth_addr);
+    
     printf("ETH Init...");
     rflpc_eth_init();
     rflpc_eth_set_mac_address(local_eth_addr.addr);

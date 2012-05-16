@@ -104,8 +104,8 @@ int mbed_eth_fill_header(uint32_t ip)
 
 int mbed_eth_prepare_fragment(const uint8_t *data, uint32_t size, int idx, int last)
 {
-   rfEthDescriptor *d;
-   rfEthTxStatus *s;
+   rflpc_eth_descriptor_t *d;
+   rflpc_eth_tx_status_t *s;
 
    /* Wait for a descriptor to be available for this fragment */
    while (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s, idx));

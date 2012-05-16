@@ -125,8 +125,8 @@ void mbed_console_rx_state(char *args)
       MBED_DUMP_BYTES(current_rx_frame, current_rx_frame_size);
    }
    printf("Dumping rx descriptors\r\n");
-   rfEthDescriptor *d = (rfEthDescriptor*)LPC_EMAC->RxDescriptor;
-   rfEthRxStatus *s = (rfEthRxStatus*)LPC_EMAC->RxStatus;
+   rflpc_eth_descriptor_t *d = (rflpc_eth_descriptor_t*)LPC_EMAC->RxDescriptor;
+   rflpc_eth_rx_status_t *s = (rflpc_eth_rx_status_t*)LPC_EMAC->RxStatus;
    int i;
    for (i = 0 ; i <= LPC_EMAC->RxDescriptorNumber ; ++i)
    {

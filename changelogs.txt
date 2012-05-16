@@ -1,5 +1,5 @@
 Next version:
-	- Now uses the rflpc v0.7
+	- Now uses the rflpc v0.9
 	- Checksum can be inlined by define INLINE_CHECKSUM at compile time.
 		- Provides small performance boost for platform like mbed at the cost of memory footprint
 		- Nothing changed from the previous behavior if INLINE_CHECKSUM is not defined
