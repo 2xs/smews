@@ -41,8 +41,16 @@ env.Replace(CC = 'arm-none-eabi-gcc')
 env.Replace(AS = 'arm-none-eabi-as')
 env.Replace(AR = 'arm-none-eabi-ar')
 env.Replace(RANLIB = 'arm-none-eabi-ranlib')
-env.Append(CCFLAGS = '-mthumb -mcpu=cortex-m3 -DMBED_USE_CONSOLE')
-env.Append(CCFLAGS = '-fno-builtin -fomit-frame-pointer -fno-strict-aliasing -Wall -Os -DRFLPC_PLATFORM_MBED -I' + os.path.join(targetDir, 'rflpc'))
+# Architecture
+env.Append(CCFLAGS = '-mthumb -mcpu=cortex-m3')
+# Tweaks
+env.Append(CCFLAGS = '-fno-builtin -fomit-frame-pointer -fno-strict-aliasing -Wall -Os -I' + os.path.join(targetDir, 'rflpc'))
+# Platform
+env.Append(CCFLAGS = '-DRFLPC_CONFIG_PLATFORM_MBED')
+# RFLPC Library options
+env.Append(CCFLAGS = '-DRFLPC_CONFIG_ENABLE_DMA -DRFLPC_CONFIG_ENABLE_ETHERNET -DRFLPC_CONFIG_ENABLE_MEMCPY -DRFLPC_CONFIG_ENABLE_MEMSET -DRFLPC_CONFIG_ENABLE_PRINTF -DRFLPC_CONFIG_ENABLE_SPI -DRFLPC_CONFIG_ENABLE_TIMERS -DRFLPC_CONFIG_ENABLE_UART')
+# Smews mbed specific option
+env.Append(CCFLAGS = '-DMBED_USE_CONSOLE')
 env.Append(LINKFLAGS = '-nostdlib -Wl,-T,rflpc17xx.ld')
 env.Append(LIBS = 'rflpc17xx')
 env.Append(LIBPATH = os.path.join(targetDir,'rflpc/rflpc17xx'))
