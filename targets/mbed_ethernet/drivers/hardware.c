@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2012-05-16 15:03:29 (hauspie)>
+  Time-stamp: <2012-05-16 16:02:02 (hauspie)>
 */
 
 /* Mbed port includes */
@@ -163,6 +163,11 @@ void mbed_auto_set_mac(EthAddr *mac_addr)
     }
 }
 
+void mbed_display_ip(void)
+{
+    printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
+}
+
 void mbed_eth_hardware_init(void)
 {
     rflpc_uart_init(RFLPC_UART0);
@@ -214,7 +219,8 @@ void mbed_eth_hardware_init(void)
            local_eth_addr.addr[3],
            local_eth_addr.addr[4],
            local_eth_addr.addr[5]);
-    printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
+/*    printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);*/
+    mbed_display_ip();
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
     mbed_console_prompt();
     rflpc_uart_set_rx_callback(RFLPC_UART0, _uart_irq);
