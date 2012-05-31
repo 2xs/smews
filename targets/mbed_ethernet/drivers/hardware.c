@@ -164,6 +164,37 @@ void mbed_auto_set_mac(EthAddr *mac_addr)
     }
 }
 
+#ifdef IPV6
+/* This function checks if the set IPv6 addr is the link-local network addr (i.e. in fe80::/64)
+ * if so, it generates the link local address from the MAC address*/
+void mbed_ipv6_check_and_set_link_local(EthAddr *mac_addr)
+{
+    unsigned short s = (local_ip_addr[15] << 8) | local_ip_addr[14];
+    if (s == 0xfe80) /* link local */
+    {
+	int i;
+	for (i = 0 ; i < 13 ; ++i)
+	{
+	    if (local_ip_addr[i] != 0)
+		break;
+	}
+	if (i == 13) /* the addr is fe80:: */
+	{
+	    local_ip_addr[0] = mac_addr->addr[5];
+	    local_ip_addr[1] = mac_addr->addr[4];
+	    local_ip_addr[2] = mac_addr->addr[3];
+	    local_ip_addr[3] = 0xfe;
+	    local_ip_addr[4] = 0xff;
+	    local_ip_addr[5] = mac_addr->addr[2];
+	    local_ip_addr[6] = mac_addr->addr[1];
+	    /* The Universal/Local bit (2) should be inverted when using MAC addr to generated IPv6 addr
+	     * See EUI-64 usage for IPv6 */
+	    local_ip_addr[7] = ((~mac_addr->addr[0]) & 2) | (mac_addr->addr[0] & ~2);
+	}
+    }
+}
+#endif
+
 void mbed_display_ip(void)
 {
 #ifdef IPV6
@@ -181,7 +212,9 @@ void mbed_display_ip(void)
 	    printf("%x", s);
 	    if (i != 0)
 		printf(":");
-	}	
+	}
+	if (s == 0 && i == 0)
+	    printf(":");
 	was_zero = (s == 0);
     }
     printf("\r\n");
@@ -194,7 +227,7 @@ void mbed_eth_hardware_init(void)
 {
     rflpc_uart_init(RFLPC_UART0);
     /* Configure and start the timer. Timer 0 will be used for timestamping */
-    rflpc_timer_enable(RFLPC_TIMER0);
+    rflpc_timer_enable(RFLPC_TIMER0);   
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
     rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
     /* Set the pre scale register so that timer counter is incremented every 1ms */
@@ -227,7 +260,9 @@ void mbed_eth_hardware_init(void)
 
     /* Set the MAC addr from the flash serial number */
     mbed_auto_set_mac(&local_eth_addr);
-
+#ifdef IPV6
+    mbed_ipv6_check_and_set_link_local(&local_eth_addr);
+#endif
     printf("ETH Init...");
     rflpc_eth_init();
     rflpc_eth_set_mac_address(local_eth_addr.addr);
