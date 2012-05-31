@@ -38,6 +38,7 @@
   Time-stamp: <2012-05-16 16:02:02 (hauspie)>
 */
 
+
 /* Mbed port includes */
 #include "target.h"
 #include "mbed_debug.h"
@@ -165,7 +166,28 @@ void mbed_auto_set_mac(EthAddr *mac_addr)
 
 void mbed_display_ip(void)
 {
+#ifdef IPV6
+    int i;
+    int was_zero = 0;
+    printf("My ip(v6): ");
+    for (i = 7 ; i >= 0 ; --i)
+    {
+	unsigned short s = (local_ip_addr[i*2+1] << 8) | local_ip_addr[i*2];	
+	
+	if (s != 0)
+	{	    
+	    if (was_zero)
+		printf(":");
+	    printf("%x", s);
+	    if (i != 0)
+		printf(":");
+	}	
+	was_zero = (s == 0);
+    }
+    printf("\r\n");
+#else
     printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
+#endif
 }
 
 void mbed_eth_hardware_init(void)
