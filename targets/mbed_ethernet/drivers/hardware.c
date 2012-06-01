@@ -69,18 +69,6 @@ rflpc_eth_rx_status_t   _rx_status[RX_DESCRIPTORS] __attribute__ ((section(".out
 uint8_t _rx_buffers[RX_DESCRIPTORS*RX_BUFFER_SIZE] __attribute__ ((section(".out_ram")));;
 
 
-int putchar(int c)
-{
-    static int uart_init = 0;
-    if (!uart_init)
-    {
-	rflpc_uart_init(RFLPC_UART0);
-	uart_init = 1;
-    }
-    rflpc_uart_putchar(RFLPC_UART0, c);
-    return c;
-}
-
 void mbed_eth_garbage_tx_buffers()
 {
     int i;
