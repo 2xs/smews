@@ -180,6 +180,7 @@ void mbed_ipv6_check_and_set_link_local(EthAddr *mac_addr)
 	}
 	if (i == 13) /* the addr is fe80:: */
 	{
+	    printf("Configured IPv6 is fe80::, auto-configuring from mac\r\n");
 	    local_ip_addr[0] = mac_addr->addr[5];
 	    local_ip_addr[1] = mac_addr->addr[4];
 	    local_ip_addr[2] = mac_addr->addr[3];
@@ -223,61 +224,98 @@ void mbed_display_ip(void)
 #endif
 }
 
-void mbed_eth_hardware_init(void)
+void mbed_display_mac(void)
 {
-    rflpc_uart_init(RFLPC_UART0);
-    /* Configure and start the timer. Timer 0 will be used for timestamping */
-    rflpc_timer_enable(RFLPC_TIMER0);   
-    /* Clock the timer with the slower clock possible. Enough for millisecond precision */
-    rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
-    /* Set the pre scale register so that timer counter is incremented every 1ms */
-    rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
-    /* Start the timer */
-    rflpc_timer_start(RFLPC_TIMER0);
-    /* Init the GDMA */
-    rflpc_dma_init();
-
-
-    /* Init output buffers */
-    mbed_eth_init_tx_buffers();
-
-    printf(" #####                                          #     # ######  ####### ######\r\n");
-    printf("#     #  #    #  ######  #    #   ####          ##   ## #     # #       #     #\r\n");
-    printf("#        ##  ##  #       #    #  #              # # # # #     # #       #     #\r\n");
-    printf(" #####   # ## #  #####   #    #   ####          #  #  # ######  #####   #     #\r\n");
-    printf("      #  #    #  #       # ## #       #         #     # #     # #       #     #\r\n");
-    printf("#     #  #    #  #       ##  ##  #    #         #     # #     # #       #     #\r\n");
-    printf(" #####   #    #  ######  #    #   ####          #     # ######  ####### ######\r\n");
-    printf("Compiled on %s %s\r\n", __DATE__, __TIME__);
-    printf("\r\n");
-
-    printf(".data  size: %d\r\n", &_data_end - &_data_start);
-    printf(".bss   size: %d\r\n", &_bss_end - &_bss_start);
-    printf(".stack size: %d\r\n", RFLPC_STACK_SIZE);
-    printf("Total: %d\r\n", (&_data_end - &_data_start) + (&_bss_end - &_bss_start) + RFLPC_STACK_SIZE);
-
-
-
-    /* Set the MAC addr from the flash serial number */
-    mbed_auto_set_mac(&local_eth_addr);
-#ifdef IPV6
-    mbed_ipv6_check_and_set_link_local(&local_eth_addr);
-#endif
-    printf("ETH Init...");
-    rflpc_eth_init();
-    rflpc_eth_set_mac_address(local_eth_addr.addr);
-    _init_buffers();
-
-    while (!rflpc_eth_link_state());
-    printf(" done! Link is up\r\n");
     printf("My MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", local_eth_addr.addr[0],
            local_eth_addr.addr[1],
            local_eth_addr.addr[2],
            local_eth_addr.addr[3],
            local_eth_addr.addr[4],
            local_eth_addr.addr[5]);
-/*    printf("My ip: %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);*/
+}
+
+void mbed_init_timer(void)
+{
+   /* Configure and start the timer. Timer 0 will be used for timestamping */
+    rflpc_timer_enable(RFLPC_TIMER0);   
+    /* Clock the timer with the slower clock possible. Enough for millisecond precision */
+    rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
+    /* Set the pre scale register so that timer counter is incremented every 1ms */
+    rflpc_timer_set_pre_scale_register(RFLPC_TIMER0, rflpc_clock_get_system_clock() / 8000);
+    /* Start the timer */
+    rflpc_timer_start(RFLPC_TIMER0);    
+}
+
+void mbed_print_motd(void)
+{
+    
+    printf("\r\n  ______\r\n");
+    printf(" / _____)                             \r\n");
+    printf("( (____   ____   _____  _ _ _   ___\r\n");
+    printf(" \\____ \\ |    \\ | ___ || | | | /___)\r\n");
+    printf(" _____) )| | | || ____|| | | ||___ |\r\n");
+    printf("(______/ |_|_|_||_____) \\___/ (___/\r\n");
+    printf("    ___\r\n");
+    printf("   / __)\r\n");
+    printf(" _| |__  ___    ____ \r\n");
+    printf("(_   __)/ _ \\  / ___)\r\n");
+    printf("  | |  | |_| || |    \r\n");
+    printf("  |_|   \\___/ |_|\r\n");
+    printf(" _______  ______   _______  ______\r\n");
+    printf("(_______)(____  \\ (_______)(______)\r\n");
+    printf(" _  _  _  ____)  ) _____    _     _\r\n");
+    printf("| ||_|| ||  __  ( |  ___)  | |   | |\r\n");
+    printf("| |   | || |__)  )| |_____ | |__/ /\r\n");
+    printf("|_|   |_||______/ |_______)|_____/\r\n");
+
+    printf("Compiled on %s %s\r\n", __DATE__, __TIME__);
+    printf("\r\n");
+
+    printf(".data  size: %d B\r\n", &_data_end - &_data_start);
+    printf(".bss   size: %d B\r\n", &_bss_end - &_bss_start);
+    printf(".stack size: %d B\r\n", RFLPC_STACK_SIZE);
+    printf("Total: %d B\r\n", ((&_data_end - &_data_start) + (&_bss_end - &_bss_start) + RFLPC_STACK_SIZE));
+}
+
+void mbed_configure_eth(void)
+{
+    /* Init output buffers */
+    mbed_eth_init_tx_buffers();
+    
+
+    /* Set the MAC addr from the flash serial number */
+    mbed_auto_set_mac(&local_eth_addr);
+#ifdef IPV6
+    mbed_ipv6_check_and_set_link_local(&local_eth_addr);
+#endif
+    printf("Initializing ethernet. ");
+    rflpc_eth_init();
+    rflpc_eth_set_mac_address(local_eth_addr.addr);
+    _init_buffers();
+
+    printf("Waiting for link to be up...");
+    while (!rflpc_eth_link_state());
+    printf(" done! Link is up\r\n");
+    mbed_display_mac();    
     mbed_display_ip();
+}
+
+void mbed_eth_hardware_init(void)
+{
+    /* Init the UART for printf */
+    rflpc_uart_init(RFLPC_UART0);
+
+    mbed_print_motd();
+    
+    mbed_init_timer();
+        
+    rflpc_dma_init();
+
+    /* Init output buffers */
+    mbed_eth_init_tx_buffers();
+    
+    mbed_configure_eth();
+    
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
     mbed_console_prompt();
     rflpc_uart_set_rx_callback(RFLPC_UART0, _uart_irq);
