@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 # Copyright or c or Copr. 2008, Simon Duquennoy
-# 
+#
 # Author e-mail: simon.duquennoy@lifl.fr
-# 
+#
 # This software is a computer program whose purpose is to design an
 # efficient Web server for very-constrained embedded system.
-# 
+#
 # This software is governed by the CeCILL license under French law and
-# abiding by the rules of distribution of free software.  You can  use, 
+# abiding by the rules of distribution of free software.  You can  use,
 # modify and/ or redistribute the software under the terms of the CeCILL
 # license as circulated by CEA, CNRS and INRIA at the following URL
-# "http://www.cecill.info". 
-# 
+# "http://www.cecill.info".
+#
 # As a counterpart to the access to the source code and  rights to copy,
 # modify and redistribute granted by the license, users are provided only
 # with a limited warranty  and the software's author,  the holder of the
 # economic rights,  and the successive licensors  have only  limited
-# liability. 
-# 
+# liability.
+#
 # In this respect, the user's attention is drawn to the risks associated
 # with loading,  using,  modifying and/or developing or reproducing the
 # software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 # therefore means  that it is reserved for developers  and  experienced
 # professionals having in-depth computer knowledge. Users are therefore
 # encouraged to load and test the software's suitability as regards their
-# requirements in conditions enabling the security of their systems and/or 
-# data to be ensured and,  more generally, to use and operate it in the 
-# same conditions as regards security. 
-# 
+# requirements in conditions enabling the security of their systems and/or
+# data to be ensured and,  more generally, to use and operate it in the
+# same conditions as regards security.
+#
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL license and that you accept its terms.
 
@@ -128,7 +128,7 @@ def writeDefinesH(dstFile):
 			if(re.search('\W',c)):
 				req = req.replace(c,'_'+str(ord(c))+'_')
 		hOut.write('#define \t REQUEST_' + req + '\t' + str(requestList.index(m)) + '\n')
-	
+
 	for m in attributList:
 		att = m.upper()
 		for c in att:
@@ -239,10 +239,10 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			return
 
 		# select the XML part of the c file
-		xmlRoot = 'generator'		
+		xmlRoot = 'generator'
 		xmlData = fileData[fileData.rfind('<' + xmlRoot + '>'):]
 		xmlData = xmlData[:xmlData.rfind('</' + xmlRoot + '>') + len(xmlRoot) + 3]
-		
+
 		# default value for the generator properties
 		dstFileInfos['persistence'] = 'persistent'
 		dstFileInfos['interaction'] = 'rest'
@@ -258,7 +258,7 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			propertiesInfos = None
 			handlerInfos = {}
 			argsList = []
-			contentTypeList = [] 
+			contentTypeList = []
 			controlByte = 0
 			# parse the XML
 			p = xml.parsers.expat.ParserCreate()
@@ -275,7 +275,7 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 				controlByte += 4
 				dstFileInfos['doPostIn'] = handlerInfos['doPostIn']
 				postList.append(srcFile)
-			
+
 			if handlerInfos.has_key('doPostOut'):
 				controlByte += 8
 				dstFileInfos['doPostOut'] = handlerInfos['doPostOut']
@@ -285,16 +285,16 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 				controlByte += 2
 				dstFileInfos['doPost'] = handlerInfos['doPost']
 				postList.append(srcFile)
-	
+
 			if(controlByte != 1 and controlByte != 17 and controlByte != 18 and controlByte != 44):
 				if(controlByte == 0 or controlByte == 16 or controlByte == 32 or controlByte == 48):
 					exit('Error: the file ' + srcFile + ' does not describe a doGet or doPost handler or doPostIn and doPostOut handlers')
-				
-				exit('Error: the file ' + srcFile + 'has an incompatible decription (' + 
-						((controlByte & 1 == 1 and 'doGet,') or '') + 
+
+				exit('Error: the file ' + srcFile + 'has an incompatible decription (' +
+						((controlByte & 1 == 1 and 'doGet,') or '') +
 						((controlByte & 2 == 2 and 'doPost,') or '') +
 						((controlByte & 4 == 4 and 'doPostIn,') or '') +
-						((controlByte & 8 == 8 and 'doPostOut,') or '') + 
+						((controlByte & 8 == 8 and 'doPostOut,') or '') +
 						((controlByte & 16 == 16 and 'args,') or '') +
 						((controlByte & 32 == 32 and 'content-types,') or '') + ')')
 
@@ -404,23 +404,28 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			generatedOutputHandler += '\t\t\t.init = NULL,\n'
 		else:
 			generatedOutputHandler += '\t\t\t.init = ' + dstFileInfos['init'] + ',\n'
-		# initGet
-		if dstFileInfos.has_key('initGet'):
-			generatedOutputHandler += '\t\t\t.initget = ' + dstFileInfos['initGet'] + ',\n'
-		# doGet or doPost
 
 		generatedOutputHandler += '\t\t\t.handlers = {\n'
-		if dstFileInfos.has_key('doGet'):
-			generatedOutputHandler += '\t\t\t\t.doget = ' + dstFileInfos['doGet'] + ',\n'
 
+		if dstFileInfos.has_key('initGet') or dstFileInfos.has_key('doGet'):
+			generatedOutputHandler += '\t\t\t\t.get = {\n'
+			# initGet
+			if dstFileInfos.has_key('initGet'):
+				generatedOutputHandler += '\t\t\t\t.initget = ' + dstFileInfos['initGet'] + ',\n'
+			# doGet
+			if dstFileInfos.has_key('doGet'):
+				generatedOutputHandler += '\t\t\t\t\t.doget = ' + dstFileInfos['doGet'] + ',\n'
+			generatedOutputHandler += '\t\t\t\t},\n'
+
+		# doPost
 		if dstFileInfos.has_key('doPost'):
 			generatedOutputHandler += '\t\t\t\t.doget = ' + dstFileInfos['doPost'] + ',\n'
-		
-		#doPost		
+
+		#doPost
 		if dstFileInfos.has_key('doPostIn'):
 			generatedOutputHandler += '\t\t\t\t.post = {\n'
 			generatedOutputHandler += '\t\t\t\t\t.dopostin = ' + dstFileInfos['doPostIn'] + ',\n'
-		
+
 		if dstFileInfos.has_key('doPostOut'):
 			generatedOutputHandler += '\t\t\t\t\t.dopostout = ' + dstFileInfos['doPostOut'] + ',\n'
 			generatedOutputHandler += '\t\t\t\t},\n'
@@ -438,19 +443,19 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			generatedOutputHandler += '\t\t.args_tree = NULL,\n'
 			generatedOutputHandler += '\t\t.args_index = NULL,\n'
 			generatedOutputHandler += '\t\t.args_size = 0\n'
-		
+
 		generatedOutputHandler += '\t},\n'
 		generatedOutputHandler += '#endif\n'
-		
+
 		generatedOutputHandler += '#ifndef DISABLE_POST\n'
 		generatedOutputHandler += '\t.handler_mimes = {\n'
 
 		if (dstFileInfos.has_key('doPostIn') and len(dstFileInfos['contentTypeList']) > 0) :
 			generatedOutputHandler += '\t\t.mimes_index = mimes_index,\n'
-			generatedOutputHandler += '\t\t.mimes_size = '+ str(len(dstFileInfos['contentTypeList'])) +',\n'    
+			generatedOutputHandler += '\t\t.mimes_size = '+ str(len(dstFileInfos['contentTypeList'])) +',\n'
 		elif(dstFileInfos.has_key('doPost') and len(dstFileInfos['argsList']) > 0) :
 			generatedOutputHandler += '\t\t.mimes_index = mimes_index,\n'
-			generatedOutputHandler += '\t\t.mimes_size = 1,\n'    
+			generatedOutputHandler += '\t\t.mimes_size = 1,\n'
 		else :
 			generatedOutputHandler += '\t\t.mimes_index = NULL,\n'
 			generatedOutputHandler += '\t\t.mimes_size = 0,\n'
@@ -462,18 +467,18 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		if (dstFileInfos.has_key('doPost') or dstFileInfos.has_key('doPostIn')):
 			generatedMimesArray = '/********* Content-types array **********/\n'
 			generatedMimesArray += 'static CONST_VAR(unsigned char, mimes_index[]) = {'
-			
+
 			countAttr =  len(dstFileInfos['contentTypeList'])
-			
+
 			if(len(dstFileInfos['argsList']) > 0):
-				if 'application/x-www-form-urlencoded' in mimesListPost:	
+				if 'application/x-www-form-urlencoded' in mimesListPost:
 					generatedMimesArray += str(mimesListPost.index('application/x-www-form-urlencoded'))
 				else:
 					exit('the mime type application/x-www-form-urlencoded don\'t exist in the mimeListPost file')
-			
+
 			elif len(dstFileInfos['contentTypeList']) > 0:
 				for attrs in dstFileInfos['contentTypeList']:
-					if attrs['type'] in mimesListPost:	
+					if attrs['type'] in mimesListPost:
 						generatedMimesArray +=  str(mimesListPost.index(attrs['type']))
 					else:
 						exit('the mime type ' + attrs['type'] + ' don\'t exist in the mimeListPost file')
@@ -482,8 +487,8 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 					countAttr -= 1
 			else:
 				generatedMimesArray += 'NULL'
-			
-				
+
+
 			generatedMimesArray += '};\n'
 
 		# arguments c structure creation (this structure is directly used by the generator functions)
@@ -498,7 +503,7 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 				tmpString = attrs['type'] + '_t ' + attrs['name']
 			generatedArgsStruc += '\t' + tmpString + ';\n'
 		generatedArgsStruc += '};\n'
-			
+
 		# arguments index creation
 		generatedIndex = '/********** Arguments index **********/\n'
 		generatedIndex += 'static CONST_VAR(struct arg_ref_t, args_index[]) = {\n'
@@ -512,7 +517,7 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 				tmpType = attrs['type'] + '_t'
 			generatedIndex += '\t{arg_type: ' + argsTypesMap[attrs['type']] + ', arg_size: sizeof(' + tmpType + '), arg_offset: offsetof(struct args_t,' + attrs['name'] + ')},\n'
 		generatedIndex += '};\n'
-	
+
 		# new c file creation
 		cOut = open(dstFile,'w')
 		writeHeader(cOut,1)
@@ -573,10 +578,10 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 			fileData = 'HTTP/1.1 505 HTTP Version Not Supported\r\nContent-Length: ' + fileData
 		else:
 			fileData = 'HTTP/1.1 200 OK\r\nContent-Length: ' + fileData
-			
+
 	except IOError:
 		fileData = ('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n')
-	
+
 	# TCP chuncks checksums precalculationon the file data (HTTP header included)
 	chkSum = 0
 	chkSumList = []
@@ -623,14 +628,14 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 	cOut.write('CONST_VAR(uint16_t, chk_' + cName + '[])  = {\n')
 	cOut.write(reduce(lambda x,y: x + "," + y,map(lambda x: hex(x),chkSumList)))
 	cOut.write('};')
-	
+
 	# file data generation
 	cOut.write('\n')
 	cOut.write('\n/********** File data **********/\n')
 	cOut.write('CONST_VAR(unsigned char, data_' + cName + '[]) = {\n')
 	cOut.write(reduce(lambda x,y: x + "," + y,map(lambda x: hex(ord(x)),fileData)))
 	cOut.write('};\n')
-	
+
 	cOut.close()
 
 # channels h file generation. This file contains channel declarations
@@ -670,9 +675,9 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 	# c file creation
 	cOut = open(target,'w')
 	writeHeader(cOut,0)
-	
+
 	cOut.write('#include "handlers.h"\n')
-		
+
 	# external handler references
 	cOut.write('\n/********** External references **********/\n')
 	for fileName in staticFilesNames:
@@ -705,7 +710,7 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 				fileName = fileName + '/'
 			filesRefs[fileName] = handlerName
 	# generator
-	# fp is the file post list 
+	# fp is the file post list
 	fp = []
 	for fileName in set(generatorFilesNames):
 		# retrieve the output_handler for this file
@@ -748,6 +753,6 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 		else:
 			filesListNew.append(fileName)
 
-	# generate the URLs tree	
+	# generate the URLs tree
 	GenBlob.genBlobTree(cOut,filesListNew,'urls_tree',False)
 	cOut.close()
