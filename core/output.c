@@ -80,12 +80,12 @@
 /* Connection handler callback */
 #ifndef DISABLE_ARGS
 #define HANDLER_CALLBACK(connection,handler) { \
-	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler) != NULL) \
-		((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler))((connection)->protocol.http.args);}
+	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
+		((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))((connection)->protocol.http.args);}
 #else
 #define HANDLER_CALLBACK(connection,handler) { \
-	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler) != NULL) \
-		((handler generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler))(NULL);}
+	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
+		((handler generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))(NULL);}
 #endif
 
 /* Partially pre-calculated HTTP/1.1 header with checksum */
@@ -590,7 +590,7 @@ char smews_send(void) {
 				}
 				else{
 #endif
-					curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.doget);
+					curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.get.doget);
 #ifndef DISABLE_ARGS
 					curr_output.service->coroutine.params.args = connection->protocol.http.args;
 #endif
