@@ -108,7 +108,6 @@ struct http_connection {
 	unsigned char comet_send_ack: 1;
 	unsigned char comet_streaming: 1;
 #endif
-	struct generator_service_t *generator_service;
 };
 
 /* Generic connection structure */

@@ -397,7 +397,7 @@ char smews_receive(void) {
 		UI32(tmp_connection.protocol.http.current_inseqno) = 0;
 		tmp_connection.protocol.http.parsing_state = parsing_out;
 		UI16(tmp_connection.protocol.http.inflight) = 0;
-		tmp_connection.protocol.http.generator_service = NULL;
+		tmp_connection.generator_service = NULL;
 		tmp_connection.protocol.http.ready_to_send = 1;
 #ifndef DISABLE_COMET
 		tmp_connection.protocol.http.comet_send_ack = 0;
@@ -440,7 +440,7 @@ char smews_receive(void) {
 	/* TCP ack management */
 	if(UI32(current_inack) && UI32(current_inack) <= UI32(tmp_connection.protocol.http.next_outseqno)) {
 		UI16(tmp_connection.protocol.http.inflight) = UI32(tmp_connection.protocol.http.next_outseqno) - UI32(current_inack);
-		if(tmp_connection.protocol.http.generator_service) {
+		if(tmp_connection.generator_service) {
 			/* deferred because current segment has not yet been checked */
 			defer_clean_service = 1;
 		}
@@ -448,7 +448,7 @@ char smews_receive(void) {
 
 	/* clear output_handler if needed */
 	if(tmp_connection.output_handler && UI16(tmp_connection.protocol.http.inflight) == 0 && !something_to_send(&tmp_connection)) {
-		if(tmp_connection.protocol.http.generator_service) {
+		if(tmp_connection.generator_service) {
 			/* deferred because current segment has not yet been checked */
 			defer_free_handler = 1;
 #ifndef DISABLE_ARGS
@@ -1254,11 +1254,11 @@ char smews_receive(void) {
 	checksum_end();
 	if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
 		if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
-			clean_service(tmp_connection.protocol.http.generator_service, current_inack);
+			clean_service(tmp_connection.generator_service, current_inack);
 			if(defer_free_handler) { /* free handler and generator service is the service is completely acknowledged */
-				cr_clean(&tmp_connection.protocol.http.generator_service->coroutine);
-				mem_free(tmp_connection.protocol.http.generator_service, sizeof(struct generator_service_t));
-				tmp_connection.protocol.http.generator_service = NULL;
+				cr_clean(&tmp_connection.generator_service->coroutine);
+				mem_free(tmp_connection.generator_service, sizeof(struct generator_service_t));
+				tmp_connection.generator_service = NULL;
 #ifndef DISABLE_ARGS
 				mem_free(defer_free_args, defer_free_args_size);
 #endif
