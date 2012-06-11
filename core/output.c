@@ -569,12 +569,12 @@ char smews_send(void) {
 			struct in_flight_infos_t *if_infos = NULL;
 
 			/* creation and initialization of the generator_service if needed */
-			if(connection->generator_service == NULL) {
-				connection->generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
-				if(connection->generator_service == NULL) {
+			if(connection->protocol.http.generator_service == NULL) {
+				connection->protocol.http.generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
+				if(connection->protocol.http.generator_service == NULL) {
 					return 1;
 				}
-				curr_output.service = connection->generator_service;
+				curr_output.service = connection->protocol.http.generator_service;
 				/* init generator service */
 				curr_output.service->service_header = header_standard;
 				curr_output.service->in_flight_infos = NULL;
@@ -621,7 +621,7 @@ char smews_send(void) {
 			}
 
 			/* init the global curr_output structure (usefull for out_c) */
-			curr_output.service = connection->generator_service;
+			curr_output.service = connection->protocol.http.generator_service;
 			UI32(curr_output.next_outseqno) = UI32(connection->protocol.http.next_outseqno);
 
 			/* is the service persistent or not? */
@@ -785,9 +785,9 @@ char smews_send(void) {
 #ifndef DISABLE_COMET
 			/* clean comet service here (this is quite dirty) */
 			if(CONST_UI8(connection->output_handler->handler_stream) && has_ended && UI16(connection->protocol.http.inflight) == 0) {
-				clean_service(connection->generator_service, NULL);
-				mem_free(connection->generator_service, sizeof(struct generator_service_t));
-				connection->generator_service = NULL;
+				clean_service(connection->protocol.http.generator_service, NULL);
+				mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+				connection->protocol.http.generator_service = NULL;
 			}
 #endif
 			break;

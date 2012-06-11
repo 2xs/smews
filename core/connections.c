@@ -145,10 +145,10 @@ void free_connection(const struct connection *connection) {
 	} else {
 		all_connections = connection->next;
 	}
-	if(connection->generator_service) {
-		clean_service(connection->generator_service, NULL);
+	if(connection->protocol.http.generator_service) {
+		clean_service(connection->protocol.http.generator_service, NULL);
 	}
-	mem_free(connection->generator_service, sizeof(struct generator_service_t));
+	mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
 	mem_free((void*)connection, sizeof(struct connection));
 }
 
