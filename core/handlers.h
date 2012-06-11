@@ -110,7 +110,11 @@ struct arg_ref_t {
 
 /* handler structure to be served */
 struct output_handler_t {
-	enum handler_type_e {type_control, type_file, type_generator} handler_type;
+	enum handler_type_e {type_control, type_file, type_generator
+#ifndef DISABLE_GP_IP_HANDLER /* This type of handler handle a network protocol above IP (ICMP for instance) */
+	, type_general_ip_handler
+#endif
+	} handler_type;
 	unsigned char handler_comet;
 	unsigned char handler_stream;
 	union handler_data_u {

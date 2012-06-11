@@ -237,6 +237,9 @@ char smews_receive(void) {
 	unsigned char tmp_ui32[4];
 	unsigned char tmp_ui16[2];
 	uint16_t packet_length;
+#ifndef DISABLE_GP_IP_HANDLER
+	uint8_t protocol; /* the protocol encapsulated in the IP packet */
+#endif
 	unsigned char tcp_header_length;
 	uint16_t segment_length;
 	struct connection *connection;
@@ -297,10 +300,19 @@ char smews_receive(void) {
 	/* Get IP packet payload length in len */
 	DEV_GET16(((uint16_t *)&packet_length));
 
-	/* What's the next header? It should (must!) be TCP... */
 	DEV_GET(tmp_char);
+	/* What's the next header? */
 	if (tmp_char != IP_PROTO_TCP)
+#ifndef DISABLE_GP_IP_HANDLER
+	{
+		/* If not TCP and general purpose IP is enabled, try to find a handler that match the protocol number */
+
+	}
+#else
+		/* If not TCP and general purpose IP is disabled, drop packet */
 		return 1;
+#endif
+
 
 	/* We don't care about the Hop Limit (TTL) */
 	DEV_GET(tmp_char);
