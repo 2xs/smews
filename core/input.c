@@ -390,6 +390,28 @@ char smews_receive(void) {
 		{
 			/* If the function returns 1, then it requests an out */
 			/* Add the connection in the connection list */
+			/* ensure that http and tcp part of the union have good values for a later free */
+			tmp_connection.protocol.http.generator_service = NULL;
+#ifdef IPV6
+			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
+			connection = mem_alloc((sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+#else
+			connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
+#endif
+			if(connection != NULL) {
+				/* insert the new connection */
+				if(all_connections == NULL) {
+					tmp_connection.next = connection;
+					tmp_connection.prev = connection;
+					all_connections = connection;
+				} else {
+					tmp_connection.prev = all_connections->prev;
+					tmp_connection.prev->next = connection;
+					tmp_connection.next = all_connections;
+					all_connections->prev = connection;
+				}
+				*connection = tmp_connection;
+			}
 		}
 		return 1;
 	}
