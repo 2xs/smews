@@ -34,19 +34,19 @@
 */
 /*
 <generator>
-        <handlers doPacketIn="icmp_packet_in" doPacketOut="icmp_packet_out"/>
+        <handlers doPacketIn="icmp4_packet_in" doPacketOut="icmp4_packet_out"/>
         <properties protocol="1" />
 </generator>
  */
 #include <rflpc17xx/rflpc17xx.h>
 
-char icmp_packet_in(uint8_t protocol)
+char icmp4_packet_in(uint8_t protocol)
 {
 	printf("icmp_packet_in called with %d as protocol number\r\n", protocol);
-	return 0;
+	return 1;
 }
 
-char icmp_packet_out(uint8_t protocol)
+char icmp4_packet_out(uint8_t protocol)
 {
 	printf("icmp_packet_out called with %d as protocol number\r\n", protocol);
 	return 0;
