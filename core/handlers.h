@@ -46,6 +46,12 @@ struct args_t;
 typedef char (generator_init_func_t)(void);
 typedef char (generator_initget_func_t)(struct args_t *);
 typedef char (generator_doget_func_t)(struct args_t *);
+
+#ifndef DISABLE_GP_IP_HANDLER /* General purpose above IP protocol handler */
+typedef char (generator_dopacket_in_func_t)(uint8_t);
+typedef char (generator_dopacket_out_func_t)(uint8_t);
+#endif
+
 #ifndef DISABLE_POST
 typedef char (generator_dopost_in_func_t)(uint8_t,uint8_t,char *,void **);
 typedef char (generator_dopost_out_func_t)(uint8_t,void *);
@@ -64,6 +70,13 @@ struct dynamic_resource {
 			generator_dopost_in_func_t *dopostin;
 			generator_dopost_out_func_t *dopostout;
 		} post;
+#endif
+#ifndef DISABLE_GP_IP_HANDLER
+		struct gp_ip_handlers {
+			uint8_t protocol; /* Protocol number handled by this resource */
+			generator_dopacket_in_func_t *dopacketin;
+			generator_dopacket_out_func_t *dopacketout;
+		} gp_ip;
 #endif
 	} handlers;
 	enum prop_e { prop_persistent, prop_idempotent, prop_volatile } prop;

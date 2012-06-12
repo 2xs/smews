@@ -55,7 +55,7 @@ attributListFileName = os.path.join('tools','supportedPostAttributList')
 attributList = []
 contentTypeList = []
 postList = []
-# doGet:1 doPost:2 doPostIn:4 doPostOut:8 args:16 content-types:32
+# doGet:1 doPost:2 doPostIn:4 doPostOut:8 args:16 content-types:32 doPacketIn:64 doPacketOut: 128
 controlByte = 0
 chuncksSize = 0
 cOutName = 'pages.c'
@@ -155,7 +155,7 @@ def writeHeader(file,enriched):
 		tmp = 'enriched'
 	file.write('/*\n')
 	file.write('* This file has been ' + tmp + ' by GenApps, a tool of the smews project\n')
-	file.write('* smews home page: http://www2.lifl.fr/~duquenno/Research/smews\n')
+	file.write('* smews home page: http://www.lifl.fr/2XS/smews\n')
 	t = datetime.datetime.now()
 	t = time.mktime(t.timetuple())
 	file.write('* Generation date: ' + str(datetime.datetime.utcfromtimestamp(t).ctime()) + '\n')
@@ -218,6 +218,7 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			global propertiesInfos
 			global contentTypeList
 			global controlByte
+			global protocolList
 			if name == 'args':
 				contentTypeList.append('application/x-www-form-urlencoded')
 				controlByte += 16
@@ -286,9 +287,29 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 				dstFileInfos['doPost'] = handlerInfos['doPost']
 				postList.append(srcFile)
 
-			if(controlByte != 1 and controlByte != 17 and controlByte != 18 and controlByte != 44):
+			if handlerInfos.has_key('doPacketIn'):
+				controlByte += 64
+				dstFileInfos['doPacketIn'] = handlerInfos['doPacketIn']
+
+			if handlerInfos.has_key('doPacketOut'):
+				controlByte += 128
+				dstFileInfos['doPacketOut'] = handlerInfos['doPacketOut']
+
+			# 1 -> get without args
+			# 17 -> get with args
+			# 18 -> doPost with args
+			# 44 -> doPostIn, doPostOut, content-type
+			# 64 -> doPacketIn only
+			# 192 -> doPacketIn and doPacketOut
+			# 0 -> nothing
+			# 16 -> only args
+			# 32 -> only content-types
+			# 48 -> args and content-types only
+			if(controlByte != 1 and controlByte != 17 and controlByte != 18 and controlByte != 44 and controlByte != 64 and controlByte != 192):
 				if(controlByte == 0 or controlByte == 16 or controlByte == 32 or controlByte == 48):
 					exit('Error: the file ' + srcFile + ' does not describe a doGet or doPost handler or doPostIn and doPostOut handlers')
+				if (controlByte == 128):
+					exit('Error: the file ' + srcFile + ' only defines a doPacketOut without a doPacketIn handler')
 
 				exit('Error: the file ' + srcFile + 'has an incompatible decription (' +
 						((controlByte & 1 == 1 and 'doGet,') or '') +
@@ -296,7 +317,10 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 						((controlByte & 4 == 4 and 'doPostIn,') or '') +
 						((controlByte & 8 == 8 and 'doPostOut,') or '') +
 						((controlByte & 16 == 16 and 'args,') or '') +
-						((controlByte & 32 == 32 and 'content-types,') or '') + ')')
+						((controlByte & 32 == 32 and 'content-types,') or '') +
+						((controlByte & 64 == 64 and 'doPacketIn,') or '') +
+						((controlByte & 128 == 128 and 'doPacketOut,') or '') +
+						')')
 
 			# init handler
 			if handlerInfos.has_key('init'):
@@ -324,6 +348,8 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 					      defaultChannel = defaultChannel[:defaultChannel.rfind('.c')]
 					      defaultChannel = getCName(defaultChannel)
 					      dstFileInfos['channel'] = defaultChannel
+				if propertiesInfos.has_key('protocol'): # protocol number for above IP handlers
+					dstFileInfos['protocol'] = propertiesInfos['protocol']
 
 		# boolean used to know if the c file contains XML data
 		dstFileInfos['hasXml'] = len(xmlData) > 1
@@ -381,10 +407,21 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		if dstFileInfos.has_key('doPost'):
 			generatedOutputHandler += 'static generator_doget_func_t ' + dstFileInfos['doPost'] + ';\n'
 
+		# other protocols than TCP handlers
+		if dstFileInfos.has_key('doPacketIn'):
+			generatedOutputHandler += '#ifndef DISABLE_GP_IP_HANDLER\n'
+			generatedOutputHandler += 'static generator_dopacket_in_func_t ' + dstFileInfos['doPacketIn'] + ';\n'
+			if dstFileInfos.has_key('doPacketOut'):
+				generatedOutputHandler += 'static generator_dopacket_out_func_t ' + dstFileInfos['doPacketOut'] + ';\n'
+			generatedOutputHandler += '#endif\n'
+
 		# output_handler structure creation
 		generatedOutputHandler += 'CONST_VAR(struct output_handler_t, ' + cFuncName + ') = {\n'
 		# handler type
-		generatedOutputHandler += '\t.handler_type = type_generator,\n'
+		if dstFileInfos.has_key('doPacketIn'):
+			generatedOutputHandler += '\t.handler_type = type_general_ip_handler,\n'
+		else:
+			generatedOutputHandler += '\t.handler_type = type_generator,\n'
 		generatedOutputHandler += '\t.handler_comet = %d,\n' %(1 if dstFileInfos['channel'] != '' else 0)
 		generatedOutputHandler += '\t.handler_stream = %d,\n' %(1 if dstFileInfos['interaction'] == 'streaming' else 0)
 		if dstFileInfos['persistence'] == 'persistent':
@@ -415,13 +452,14 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			# doGet
 			if dstFileInfos.has_key('doGet'):
 				generatedOutputHandler += '\t\t\t\t\t.doget = ' + dstFileInfos['doGet'] + ',\n'
+			# doPost
+			if dstFileInfos.has_key('doPost'):
+				generatedOutputHandler += '\t\t\t\t.doget = ' + dstFileInfos['doPost'] + ',\n'
 			generatedOutputHandler += '\t\t\t\t},\n'
 
-		# doPost
-		if dstFileInfos.has_key('doPost'):
-			generatedOutputHandler += '\t\t\t\t.doget = ' + dstFileInfos['doPost'] + ',\n'
 
-		#doPost
+
+		#doPostIn/doPostOut
 		if dstFileInfos.has_key('doPostIn'):
 			generatedOutputHandler += '\t\t\t\t.post = {\n'
 			generatedOutputHandler += '\t\t\t\t\t.dopostin = ' + dstFileInfos['doPostIn'] + ',\n'
@@ -429,6 +467,20 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		if dstFileInfos.has_key('doPostOut'):
 			generatedOutputHandler += '\t\t\t\t\t.dopostout = ' + dstFileInfos['doPostOut'] + ',\n'
 			generatedOutputHandler += '\t\t\t\t},\n'
+
+		#doPacketIn, doPacketOut
+		if dstFileInfos.has_key('doPacketIn'):
+			generatedOutputHandler += '#ifndef DISABLE_GP_IP_HANDLER\n'
+			generatedOutputHandler += '\t\t\t\t.gp_ip = {\n'
+			generatedOutputHandler += '\t\t\t\t.dopacketin = ' + dstFileInfos['doPacketIn'] + ',\n'
+			if dstFileInfos.has_key('doPacketOut'):
+				generatedOutputHandler += '\t\t\t\t.dopacketout = ' + dstFileInfos['doPacketOut'] + ',\n'
+			if dstFileInfos.has_key('protocol'):
+				generatedOutputHandler += '\t\t\t\t.protocol = ' + dstFileInfos['protocol'] + ',\n'
+			generatedOutputHandler += '\t\t\t\t},\n'
+			generatedOutputHandler += '#endif\n'
+
+
 		generatedOutputHandler += '\t\t\t},\n'
 		generatedOutputHandler += '\t\t},\n'
 		generatedOutputHandler += '\t},\n'
