@@ -237,16 +237,15 @@ char smews_receive(void) {
 	unsigned char tmp_ui32[4];
 	unsigned char tmp_ui16[2];
 	uint16_t packet_length;
-#ifndef DISABLE_GP_IP_HANDLER
-	uint8_t protocol; /* the protocol encapsulated in the IP packet */
-#endif
 	unsigned char tcp_header_length;
 	uint16_t segment_length;
 	struct connection *connection;
 	unsigned char tmp_char;
 	uint16_t x;
 	unsigned char new_tcp_data;
-
+#ifndef DISABLE_GP_IP_HANDLER
+	uint8_t protocol;
+#endif
 #ifdef IPV6
 	/* Full and compressed IPv6 adress of the received packet */
 	unsigned char full_ipv6_addr[16];
@@ -302,14 +301,10 @@ char smews_receive(void) {
 
 	DEV_GET(tmp_char);
 	/* What's the next header? */
-	if (tmp_char != IP_PROTO_TCP)
 #ifndef DISABLE_GP_IP_HANDLER
-	{
-		/* If not TCP and general purpose IP is enabled, try to find a handler that match the protocol number */
-
-	}
+	protocol = tmp_char;
 #else
-		/* If not TCP and general purpose IP is disabled, drop packet */
+	if (tmp_char != IP_PROTO_TCP) /* If not TCP and general purpose IP is disabled, drop packet */
 		return 1;
 #endif
 
@@ -350,9 +345,13 @@ char smews_receive(void) {
 
 	/* discard IP TTL */
 	DEV_GETC16(tmp_ui16);
-	/* get IP protocol, only TCP is supported */
-	if(tmp_ui16[S1] != IP_PROTO_TCP)
+
+#ifndef DISABLE_GP_IP_HANDLER
+	protocol = tmp_ui16[S1];
+#else
+	if(tmp_ui16[S1] != IP_PROTO_TCP) /* If not TCP and general purpose IP is disabled, drop packet */
 		return 1;
+#endif
 
 	/* discard IP checksum */
 	DEV_GETC16(tmp_ui16);
@@ -370,6 +369,31 @@ char smews_receive(void) {
 		return 1;
 #endif
 
+#ifndef DISABLE_GP_IP_HANDLER
+	if (protocol != IP_PROTO_TCP)
+	{
+		/* If not TCP and general purpose IP is enabled, try to find a handler that match the protocol number */
+		int i;
+		for (i = 0 ; resources_index[i] != NULL ; ++i)
+		{
+			if (resources_index[i]->handler_type != type_general_ip_handler)
+				continue;
+			if (resources_index[i]->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
+			{
+				tmp_connection.output_handler = resources_index[i];
+				break;
+			}
+		}
+		if (resources_index[i] == NULL)
+			return 1;
+		if (tmp_connection.output_handler->handler_data.generator.handlers.gp_ip.dopacketin(protocol))
+		{
+			/* If the function returns 1, then it requests an out */
+			/* Add the connection in the connection list */
+		}
+		return 1;
+	}
+#endif
 	/* End of IP, starting TCP */
 	checksum_init();
 

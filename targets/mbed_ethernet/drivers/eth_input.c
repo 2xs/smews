@@ -151,10 +151,10 @@ int mbed_process_input(const uint8_t *packet, int size)
     }
 
     if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
-	return ETH_INPUT_FREE_PACKET;
+		return ETH_INPUT_FREE_PACKET;
 
     if (eth.type != PROTO_IP)
-	return ETH_INPUT_FREE_PACKET; /* drop packet */
+		return ETH_INPUT_FREE_PACKET; /* drop packet */
 
 
     /* IP Packet received */
