@@ -149,7 +149,13 @@ void free_connection(const struct connection *connection) {
 		clean_service(connection->protocol.http.generator_service, NULL);
 	}
 	mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+
+#ifdef IPV6
+			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
+	mem_free((void*)connection,(sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+#else
 	mem_free((void*)connection, sizeof(struct connection));
+#endif
 }
 
 #ifndef DISABLE_POST
