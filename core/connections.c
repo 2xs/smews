@@ -124,6 +124,9 @@ char something_to_send(const struct connection *connection) {
 	if(!connection->output_handler)
 		return 0;
 
+	if(CONST_UI8(connection->output_handler->handler_type) == type_general_ip_handler)
+		return connection->protocol.gpip.want_to_send;
+
 	if(CONST_UI8(connection->output_handler->handler_type) == type_control
 #ifndef DISABLE_COMET
 		|| connection->protocol.http.comet_send_ack == 1
@@ -134,6 +137,36 @@ char something_to_send(const struct connection *connection) {
 		return connection->protocol.http.tcp_state == tcp_established
 			&& UI32(connection->protocol.http.next_outseqno) != UI32(connection->protocol.http.final_outseqno);
 	}
+}
+
+/*-----------------------------------------------------------------------------------*/
+struct connection *add_connection(const struct connection *from)
+{
+	struct connection *connection;
+#ifdef IPV6
+	/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
+	connection = mem_alloc((sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+#else
+	connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
+#endif
+	if (connection == NULL)
+		return NULL;
+
+	/* copy the connection */
+	if (from != NULL)
+		*connection = *from;
+	/* insert the new connection */
+	if(all_connections == NULL) {
+		connection->next = connection;
+		connection->prev = connection;
+		all_connections = connection;
+	} else {
+		connection->prev = all_connections->prev;
+		connection->prev->next = connection;
+		connection->next = all_connections;
+		all_connections->prev = connection;
+	}
+	return connection;
 }
 
 /*-----------------------------------------------------------------------------------*/

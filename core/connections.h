@@ -111,6 +111,13 @@ struct http_connection {
 	struct generator_service_t *generator_service;
 };
 
+#ifndef DISABLE_GP_IP_HANDLER
+struct gp_ip_connection {
+	uint8_t protocol;
+	uint8_t want_to_send;
+};
+#endif
+
 /* Generic connection structure */
 struct connection {
 #ifndef IPV6
@@ -118,6 +125,9 @@ struct connection {
 #endif
 	const struct output_handler_t * /*CONST_VAR*/ output_handler;
 	union {
+#ifndef DISABLE_GP_IP_HANDLER
+		struct gp_ip_connection gpip;
+#endif
 		struct http_connection http;
 	} protocol;
 
@@ -137,6 +147,8 @@ struct connection {
 			(item) = (item)->next; \
 		} while((item) != all_connections); \
 	} \
+
+#define NEXT_CONN(item) (item) = (item)->next
 
 /* Pseudo connection for RST */
 struct http_rst_connection {
@@ -167,6 +179,8 @@ extern unsigned char local_ip_addr[4];
 /* Shared funuctions */
 extern char something_to_send(const struct connection *connection);
 extern void free_connection(const struct connection *connection);
+/* Allocates and insert a new connection. The inserted connection will be a copy of the from parameter */
+extern struct connection *add_connection(const struct connection *from);
 
 #ifndef DISABLE_POST
 /* Shared coroutine state (in = 0 / out = 1)*/
