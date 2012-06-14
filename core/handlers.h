@@ -48,7 +48,7 @@ typedef char (generator_initget_func_t)(struct args_t *);
 typedef char (generator_doget_func_t)(struct args_t *);
 
 #ifndef DISABLE_GP_IP_HANDLER /* General purpose above IP protocol handler */
-typedef char (generator_dopacket_in_func_t)(uint8_t);
+typedef char (generator_dopacket_in_func_t)(uint8_t, uint16_t);
 typedef char (generator_dopacket_out_func_t)(uint8_t);
 #endif
 
