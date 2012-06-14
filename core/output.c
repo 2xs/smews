@@ -41,6 +41,8 @@
 #include "smews.h"
 #include "connections.h"
 #include "memory.h"
+#include "input.h" /* for *_HEADER_SIZE defines */
+
 #ifndef DISABLE_POST
 	#include "defines.h"
 #endif
@@ -162,13 +164,20 @@ static void dev_put32_val(uint32_t word) {
 /*-----------------------------------------------------------------------------------*/
 char out_c(char c) {
 	if(curr_output.content_length == OUTPUT_BUFFER_SIZE) {
+#ifndef DISABLE_GP_IP_HANDLER
+		if (curr_output.service == NULL) /* no service generator is when out is called from a dopacketout */
+			return 0;
+#endif
 		cr_run(NULL
 #ifndef DISABLE_POST
 				,cor_type_get
 #endif
 				);
 	}
-	checksum_add(c);
+#ifndef DISABLE_GP_IP_HANDLER
+	if (curr_output.service != NULL) /* only compute checksum for http generator, not for gpip */
+#endif
+		checksum_add(c);
 	curr_output.buffer[curr_output.content_length++] = c;
 	return 1;
 }
@@ -205,9 +214,14 @@ void smews_send_packet(struct connection *connection) {
 #else
 		ip_addr = connection->ip_addr;
 #endif
-		port = connection->protocol.http.port;
-		next_outseqno = connection->protocol.http.next_outseqno;
-		current_inseqno = connection->protocol.http.current_inseqno;
+#ifndef DISABLE_GP_IP_HANDLER
+		if (connection->output_handler->handler_type != type_general_ip_handler)
+#endif
+		{
+			port = connection->protocol.http.port;
+			next_outseqno = connection->protocol.http.next_outseqno;
+			current_inseqno = connection->protocol.http.current_inseqno;
+		}
 		output_handler = connection->output_handler;
 	} else {
 		ip_addr = rst_connection.ip_addr;
@@ -244,10 +258,18 @@ void smews_send_packet(struct connection *connection) {
 					segment_length += CHUNK_LENGTH_SIZE + 4;
 					break;
 			}
-		break;
+			break;
+#ifndef DISABLE_GP_IP_HANDLER
+		case type_general_ip_handler:
+			/* "cheat" the segment_length variable to reflect what needs to be sent
+			 * the trick is used so that the code below can be reused
+			 */
+			segment_length = curr_output.content_length - TCP_HEADER_SIZE;
+			break;
+#endif
 	}
 
-	DEV_PREPARE_OUTPUT(segment_length + 40);
+	DEV_PREPARE_OUTPUT(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
 	/* start to send IP header */
 #ifdef IPV6
@@ -256,7 +278,7 @@ void smews_send_packet(struct connection *connection) {
 	DEV_PUT32_VAL(IP_VTRAFC_FLOWL);
 
 	/* our payload length is */
-	DEV_PUT16_VAL(segment_length + 20);
+	DEV_PUT16_VAL(segment_length + TCP_HEADER_SIZE);
 
 	/* We have TCP inside and Hop Limit is 64 */
 	DEV_PUT16_VAL(IP_NH_TTL);
@@ -276,7 +298,7 @@ void smews_send_packet(struct connection *connection) {
 	DEV_PUT16_VAL(IP_VHL_TOS);
 
 	/* send IP packet length */
-	DEV_PUT16_VAL(segment_length + 40);
+	DEV_PUT16_VAL(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
 	/* send IP ID, offset, ttl and protocol (TCP) */
 	DEV_PUT16_VAL(IP_ID);
@@ -287,7 +309,7 @@ void smews_send_packet(struct connection *connection) {
 	checksum_init();
 	UI16(current_checksum) = BASIC_IP_CHK;
 	checksum_add32(local_ip_addr);
-	checksum_add16(segment_length + 40);
+	checksum_add16(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
 	checksum_add32(ip_addr);
 	checksum_end();
@@ -300,6 +322,16 @@ void smews_send_packet(struct connection *connection) {
 
 	/* send IP destination address */
 	DEV_PUT32(ip_addr);
+#endif
+
+	/* if the connection is for gpip, send the payload and return */
+#ifndef DISABLE_GP_IP_HANDLER
+	if (output_handler->handler_type == type_general_ip_handler)
+	{
+		DEV_PUTN(curr_output.buffer, curr_output.content_length);
+		DEV_OUTPUT_DONE;
+		return;
+	}
 #endif
 
 	/* start to send TCP header */
@@ -531,9 +563,15 @@ char smews_send(void) {
 #ifndef DISABLE_GP_IP_HANDLER
 	if (connection->output_handler->handler_type == type_general_ip_handler)
 	{
-		printf("gpip output\r\n");
+		curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE);
+		if (curr_output.buffer == NULL) /* no more memory */
+			return 0;
+		curr_output.content_length = 0;
+		curr_output.service = NULL;
+		connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(connection->protocol.gpip.protocol);
 		connection->protocol.gpip.want_to_send = 0;
-		/* Todo output */
+		smews_send_packet(connection);
+		mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
 		return 0;
 	}
 #endif
