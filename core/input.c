@@ -64,11 +64,6 @@ extern CONST_VAR(struct output_handler_t, apps_httpCodes_404_html_handler);
 #define HTTP_PORT 80
 #define IP_PROTO_TCP 6
 
-#ifndef IPV6
-#define IP_HEADER_SIZE 20
-#endif
-#define TCP_HEADER_SIZE 20
-
 /* TCP pre-calculated partial pseudo-header checksum (for incoming packets)*/
 #define TCP_PRECALC_CHECKSUM ((uint16_t)(0x0000ffff - (IP_PROTO_TCP - 0x15)))
 
