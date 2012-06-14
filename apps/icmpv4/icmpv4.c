@@ -40,14 +40,19 @@
  */
 #include <rflpc17xx/rflpc17xx.h>
 
-char icmp4_packet_in(uint8_t protocol)
+char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
 {
-	printf("icmp_packet_in called with %d as protocol number\r\n", protocol);
+/*	printf("icmp_packet_in called with %d as protocol number\r\n", protocol); */
+	while (payload_size)
+	{
+		/* printf("%02x\r\n", (uint8_t) in()); */
+		payload_size--;
+	}
 	return 1;
 }
 
 char icmp4_packet_out(uint8_t protocol)
 {
-	printf("icmp_packet_out called with %d as protocol number\r\n", protocol);
+/*	printf("icmp_packet_out called with %d as protocol number\r\n", protocol); */
 	return 0;
 }
