@@ -483,8 +483,13 @@ void smews_send_packet(struct connection *connection) {
 
 /*-----------------------------------------------------------------------------------*/
 static inline int32_t able_to_send(const struct connection *connection) {
-	return something_to_send(connection)
-		&& UI16(connection->protocol.http.inflight) + (uint16_t)connection->protocol.http.tcp_mss <= UI16(connection->protocol.http.cwnd);
+	if (!something_to_send(connection))
+		return 0;
+#ifndef DISABLE_GP_IP_HANDLER
+	if (connection->output_handler->handler_type == type_general_ip_handler)
+		return 1;
+#endif
+	return UI16(connection->protocol.http.inflight) + (uint16_t)connection->protocol.http.tcp_mss <= UI16(connection->protocol.http.cwnd);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -523,6 +528,15 @@ char smews_send(void) {
 	}
 	/* enable a round robin */
 	all_connections = connection->next;
+#ifndef DISABLE_GP_IP_HANDLER
+	if (connection->output_handler->handler_type == type_general_ip_handler)
+	{
+		printf("gpip output\r\n");
+		connection->protocol.gpip.want_to_send = 0;
+		/* Todo output */
+		return 0;
+	}
+#endif
 
 	if(!connection->protocol.http.ready_to_send){
 		old_output_handler = connection->output_handler;
