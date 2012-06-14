@@ -62,8 +62,8 @@ uint8_t mbed_eth_get_byte()
     uint8_t byte;
     if (current_rx_frame == NULL)
     {
-	MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
-	return 0;
+		MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
+		return 0;
     }
 
     byte = current_rx_frame[current_rx_frame_idx++];

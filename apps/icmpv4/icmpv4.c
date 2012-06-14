@@ -40,25 +40,93 @@
  */
 #include <rflpc17xx/rflpc17xx.h>
 #include "target.h"
+#include "checksum.h"
+#include "types.h"
 
-static char out_buffer[OUTPUT_BUFFER_SIZE];
+static char icmp_payload[OUTPUT_BUFFER_SIZE];
 static int buffer_size;
+static uint8_t reply_pending = 0;
+static char sequence_number[2];
+static char identifier[2];
+
+#define ICMP_ECHO_REQUEST 	8
+#define ICMP_ECHO_REPLY		0
+#define ICMP_HEADER_SIZE	8
 
 char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
 {
+	uint8_t tmp;
+	uint8_t tmp_short[2];
 	int i;
-	for (i = 0 ; i < OUTPUT_BUFFER_SIZE && i < payload_size ; ++i)
+
+	if (reply_pending) /* if previous reply was not handled, drop */
+		return 0;
+
+	checksum_init();
+	tmp = in(); /* type */
+
+	if (tmp != ICMP_ECHO_REQUEST)
+		return 0; /* drop packet and do not generate a reply */
+	checksum_add(tmp);
+	tmp = in(); /* code */
+	checksum_add(tmp);
+
+	tmp_short[S0] = in(); /* checksum */
+	tmp_short[S1] = in();
+	checksum_add16(UI16(tmp_short));
+
+	identifier[S0] = in();
+	identifier[S1] = in();
+	checksum_add16(UI16(identifier));
+
+	sequence_number[S0] = in();
+	sequence_number[S1] = in();
+	checksum_add16(UI16(sequence_number));
+	for (i = 0 ; i < payload_size - ICMP_HEADER_SIZE; ++i)
 	{
-		out_buffer[i] = in();
+		icmp_payload[i] = in();
+		checksum_add(icmp_payload[i]);
 	}
-	buffer_size = payload_size;
+	buffer_size = payload_size - ICMP_HEADER_SIZE;
+	checksum_end();
+	if(UI16(current_checksum) != 0xffff)
+	{
+		printf("invalid checksum\r\n");
+		return 0; /* invalid checksum */
+	}
+	reply_pending = 1;
 	return 1;
 }
 
 char icmp4_packet_out(uint8_t protocol)
 {
 	int i;
+	/* compute checksum */
+	reply_pending = 0;
+	checksum_init();
+	checksum_add(ICMP_ECHO_REPLY);
+	checksum_add(0);
+	checksum_add16(UI16(sequence_number));
+	checksum_add16(UI16(identifier));
 	for (i = 0 ; i < buffer_size ; ++i)
-		out_c(out_buffer[i]);
+	{
+		checksum_add(icmp_payload[i]);
+	}
+	checksum_end();
+
+	/* generate reply */
+
+	out_c(ICMP_ECHO_REPLY); /* type */
+	out_c(0);  /* code */
+	out_c(current_checksum[S0]);
+	out_c(current_checksum[S1]);
+	out_c(identifier[S0]);
+	out_c(identifier[S1]);
+	out_c(sequence_number[S0]);
+	out_c(sequence_number[S1]);
+	for (i = 0 ; i < buffer_size ; ++i)
+	{
+		out_c(icmp_payload[i]);
+	}
 	return 0;
 }
