@@ -181,10 +181,34 @@ struct curr_input_t {
 	struct connection *connection;
 	uint16_t length;
 } curr_input;
+#endif
 
-/* called from dopostin function */
+#if defined(DISABLE_POST) && !defined(DISABLE_GP_IP_HANDLER)
+	/* If support for post is not included, the in() function
+	 * for general purpose ip handler is very simple */
+	short in()
+	{
+		unsigned char tmp;
+		DEV_GET(tmp);
+		return tmp;
+	}
+#endif
+
+#ifndef DISABLE_POST
+/* called from dopostin or dopacketin */
 short in(){
 	unsigned char tmp;
+
+#ifndef DISABLE_GP_IP_HANDLER
+	/* If post AND general purpose ip, then check if the connection is null
+	 * if so, it is called from packetin */
+	if (curr_input.connection == NULL)
+	{
+		DEV_GET(tmp);
+		return tmp;
+	}
+#endif
+
 	if(coroutine_state.state == cor_out)
 		return -1;
 	if(!curr_input.connection->protocol.http.post_data->content_length)
@@ -226,6 +250,34 @@ short in(){
 		curr_input.connection->protocol.http.post_data->content_length--;
 	curr_input.length--;
 	return tmp;
+}
+#endif
+
+#ifndef DISABLE_GP_IP_HANDLER
+static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol)
+{
+	/* Try to find a handler that match the protocol number */
+	int i;
+	for (i = 0 ; resources_index[i] != NULL ; ++i)
+	{
+		if (resources_index[i]->handler_type != type_general_ip_handler)
+			continue;
+		if (resources_index[i]->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
+			return resources_index[i];
+	}
+	return NULL;
+}
+
+static struct connection *smews_gpip_get_connection(uint8_t protocol)
+{
+	FOR_EACH_CONN(conn, {
+			if (conn->output_handler &&  CONST_UI8(conn->output_handler->handler_type) == type_general_ip_handler)
+			{
+				if (conn->protocol.gpip.protocol == protocol)
+					return conn;
+			}
+	})
+	return NULL;
 }
 #endif
 
@@ -330,6 +382,9 @@ char smews_receive(void) {
 
 	/* get IP packet length in len */
 	DEV_GETC16(((uint16_t *)&packet_length));
+	/* The packet_length is the size of the IP payload, without the IP header size.
+	 * This make the value homegeneous for IPv4 and IPv6 and simplifies code for TCP segment length calculation (no more #ifndef hacks) */
+	packet_length = packet_length - IP_HEADER_SIZE;
 
 	/* discard IP ID */
 	DEV_GETC16(tmp_ui16);
@@ -372,47 +427,41 @@ char smews_receive(void) {
 #ifndef DISABLE_GP_IP_HANDLER
 	if (protocol != IP_PROTO_TCP)
 	{
-		/* If not TCP and general purpose IP is enabled, try to find a handler that match the protocol number */
-		int i;
-		for (i = 0 ; resources_index[i] != NULL ; ++i)
+		/* First, try to find an existing connection for this service */
+		connection = smews_gpip_get_connection(protocol);
+
+		if (connection == NULL) /* no connection found, create one */
 		{
-			if (resources_index[i]->handler_type != type_general_ip_handler)
-				continue;
-			if (resources_index[i]->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
-			{
-				tmp_connection.output_handler = resources_index[i];
-				break;
-			}
+			tmp_connection.output_handler = smews_gpip_get_output_handler(protocol);
+			if (tmp_connection.output_handler == NULL)
+				return 1;
+			tmp_connection.protocol.gpip.protocol = protocol;
+			/* add the connection */
+			connection = add_connection(&tmp_connection);
+			if (connection == NULL)
+				return 1;
 		}
-		if (resources_index[i] == NULL)
-			return 1;
-		if (tmp_connection.output_handler->handler_data.generator.handlers.gp_ip.dopacketin(protocol))
+		else
+		{
+		/* update the connection */
+#ifdef IPV6
+			memcpy(connection->ip_addr, comp_ipv6_addr, (17-((comp_ipv6_addr[0])&15)));
+#else
+			memcpy(connection->ip_addr, tmp_connection.ip_addr, sizeof(tmp_connection.ip_addr));
+#endif
+		}
+
+#ifndef DISABLE_POST /* if post is available, must set the curr_input connection to null
+						so that the in function knows that we are in dopacketin */
+			curr_input.connection = NULL;
+#endif
+		if (connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(protocol, packet_length))
 		{
 			/* If the function returns 1, then it requests an out */
-			/* Add the connection in the connection list */
-			/* ensure that http and tcp part of the union have good values for a later free */
-			tmp_connection.protocol.http.generator_service = NULL;
-#ifdef IPV6
-			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-			connection = mem_alloc((sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
-#else
-			connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
-#endif
-			if(connection != NULL) {
-				/* insert the new connection */
-				if(all_connections == NULL) {
-					tmp_connection.next = connection;
-					tmp_connection.prev = connection;
-					all_connections = connection;
-				} else {
-					tmp_connection.prev = all_connections->prev;
-					tmp_connection.prev->next = connection;
-					tmp_connection.next = all_connections;
-					all_connections->prev = connection;
-				}
-				*connection = tmp_connection;
-			}
+			connection->protocol.gpip.want_to_send = 1;
 		}
+		else
+			connection->protocol.gpip.want_to_send = 0;
 		return 1;
 	}
 #endif
@@ -425,25 +474,27 @@ char smews_receive(void) {
 	/* current connection selection */
 	connection = NULL;
 	/* search an existing TCP connection using the current port */
-#ifdef IPV6
+
 	FOR_EACH_CONN(conn, {
-		if(UI16(conn->port) == UI16(tmp_connection.protocol.http.port) &&
-				ipcmp(conn->ip_addr, comp_ipv6_addr)) {
-				/* connection already existing */
-				connection = conn;
-			break;
+#ifndef DISABLE_GP_IP_HANDLER
+		/* do not consider GPIP connections */
+		if (conn->output_handler && conn->output_handler->handler_type == type_general_ip_handler)
+		{
+			NEXT_CONN(conn);
+			continue;
 		}
-	})
-#else
-	FOR_EACH_CONN(conn, {
-		if(UI16(conn->protocol.http.port) == UI16(tmp_connection.protocol.http.port) &&
-				UI32(conn->ip_addr) == UI32(tmp_connection.ip_addr)) {
-				/* connection already existing */
-				connection = conn;
-			break;
-		}
-	})
 #endif
+		if(UI16(conn->protocol.http.port) == UI16(tmp_connection.protocol.http.port) &&
+#ifdef IPV6
+			ipcmp(conn->ip_addr, comp_ipv6_addr)) {
+#else
+			UI32(conn->ip_addr) == UI32(tmp_connection.ip_addr)) {
+#endif
+				/* connection already existing */
+				connection = conn;
+			break;
+		}
+	})
 
 	if(connection) {
 		/* a connection has been found */
@@ -524,18 +575,12 @@ char smews_receive(void) {
 	tcp_header_length = (tmp_ui16[S0] >> 4) * 4;
 
 	/* TCP segment length calculation */
-#ifdef IPV6
+
+	/* packet_length is the length of the IP payload *without* IP headers */
 	segment_length = packet_length - tcp_header_length;
 
 	if(packet_length - tcp_header_length > 0)
 		UI32(current_inseqno) += segment_length;
-#else
-	segment_length = packet_length - IP_HEADER_SIZE - tcp_header_length;
-
-	/* calculation of the next sequence number we have to acknowledge */
-	if(packet_length - IP_HEADER_SIZE - tcp_header_length > 0)
-		UI32(current_inseqno) += segment_length;
-#endif
 
 	new_tcp_data = UI32(current_inseqno) > UI32(tmp_connection.protocol.http.current_inseqno);
 
@@ -591,12 +636,12 @@ char smews_receive(void) {
 	checksum_add32(&full_ipv6_addr[4]);
 	checksum_add32(&full_ipv6_addr[8]);
 	checksum_add32(&full_ipv6_addr[12]);
-	checksum_add16(packet_length);
 #else
 	checksum_add32(local_ip_addr);
 	checksum_add32(tmp_connection.ip_addr);
-	checksum_add16(packet_length - IP_HEADER_SIZE);
+
 #endif
+	checksum_add16(packet_length);
 
 	/* get TCP mss (for initial negociation) */
 	tcp_header_length -= TCP_HEADER_SIZE;
@@ -1324,6 +1369,13 @@ char smews_receive(void) {
 		}
 
 		if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
+			connection = add_connection(NULL);
+			/* update the pointer in the tmp_connection because
+			 * it will be copied later so if the pointers do not have the right value, the list
+			 * will be screwed */
+			tmp_connection.prev = connection->prev;
+			tmp_connection.next = connection->next;
+#if 0
 			/* allocate a new connection */
 #ifdef IPV6
 			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
@@ -1344,6 +1396,7 @@ char smews_receive(void) {
 					all_connections->prev = connection;
 				}
 			}
+#endif
 		}
 
 		if(!connection) {
