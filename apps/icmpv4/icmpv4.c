@@ -39,20 +39,26 @@
 </generator>
  */
 #include <rflpc17xx/rflpc17xx.h>
+#include "target.h"
+
+static char out_buffer[OUTPUT_BUFFER_SIZE];
+static int buffer_size;
 
 char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
 {
-/*	printf("icmp_packet_in called with %d as protocol number\r\n", protocol); */
-	while (payload_size)
+	int i;
+	for (i = 0 ; i < OUTPUT_BUFFER_SIZE && i < payload_size ; ++i)
 	{
-		/* printf("%02x\r\n", (uint8_t) in()); */
-		payload_size--;
+		out_buffer[i] = in();
 	}
+	buffer_size = payload_size;
 	return 1;
 }
 
 char icmp4_packet_out(uint8_t protocol)
 {
-/*	printf("icmp_packet_out called with %d as protocol number\r\n", protocol); */
+	int i;
+	for (i = 0 ; i < buffer_size ; ++i)
+		out_c(out_buffer[i]);
 	return 0;
 }
