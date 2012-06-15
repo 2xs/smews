@@ -38,14 +38,12 @@
         <properties protocol="1" />
 </generator>
  */
-#include <rflpc17xx/rflpc17xx.h>
 #include "target.h"
 #include "checksum.h"
 #include "types.h"
 
 static char icmp_payload[OUTPUT_BUFFER_SIZE];
 static int buffer_size;
-static uint8_t reply_pending = 0;
 static char sequence_number[2];
 static char identifier[2];
 
@@ -58,9 +56,6 @@ char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
 	uint8_t tmp;
 	uint8_t tmp_short[2];
 	int i;
-
-	if (reply_pending) /* if previous reply was not handled, drop */
-		return 0;
 
 	checksum_init();
 	tmp = in(); /* type */
@@ -94,7 +89,6 @@ char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
 		printf("invalid checksum\r\n");
 		return 0; /* invalid checksum */
 	}
-	reply_pending = 1;
 	return 1;
 }
 
@@ -102,7 +96,6 @@ char icmp4_packet_out(uint8_t protocol)
 {
 	int i;
 	/* compute checksum */
-	reply_pending = 0;
 	checksum_init();
 	checksum_add(ICMP_ECHO_REPLY);
 	checksum_add(0);
