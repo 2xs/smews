@@ -255,7 +255,7 @@ static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t prot
 	int i;
 	for (i = 0 ; resources_index[i] != NULL ; ++i)
 	{
-		if (resources_index[i]->handler_type != type_general_ip_handler)
+		if (!IS_GPIP_HANDLER(resources_index[i]))
 			continue;
 		if (resources_index[i]->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
 			return resources_index[i];
@@ -266,7 +266,7 @@ static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t prot
 static struct connection *smews_gpip_get_connection(uint8_t protocol)
 {
 	FOR_EACH_CONN(conn, {
-			if (conn->output_handler &&  CONST_UI8(conn->output_handler->handler_type) == type_general_ip_handler)
+			if (IS_GPIP(conn))
 			{
 				if (conn->protocol.gpip.protocol == protocol)
 					return conn;
@@ -473,7 +473,7 @@ char smews_receive(void) {
 	FOR_EACH_CONN(conn, {
 #ifndef DISABLE_GP_IP_HANDLER
 		/* do not consider GPIP connections */
-		if (conn->output_handler && conn->output_handler->handler_type == type_general_ip_handler)
+		if (IS_GPIP(conn))
 		{
 			NEXT_CONN(conn);
 			continue;
@@ -1370,28 +1370,6 @@ char smews_receive(void) {
 			 * will be screwed */
 			tmp_connection.prev = connection->prev;
 			tmp_connection.next = connection->next;
-#if 0
-			/* allocate a new connection */
-#ifdef IPV6
-			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-			connection = mem_alloc((sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
-#else
-			connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
-#endif
-			if(connection != NULL) {
-				/* insert the new connection */
-				if(all_connections == NULL) {
-					tmp_connection.next = connection;
-					tmp_connection.prev = connection;
-					all_connections = connection;
-				} else {
-					tmp_connection.prev = all_connections->prev;
-					tmp_connection.prev->next = connection;
-					tmp_connection.next = all_connections;
-					all_connections->prev = connection;
-				}
-			}
-#endif
 		}
 
 		if(!connection) {
