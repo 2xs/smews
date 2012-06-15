@@ -47,7 +47,7 @@ static char doGet(struct args_t *args) {
 	int cpt = 0;
 	FOR_EACH_CONN(conn, {
 		out_str("Connection: "); out_uint(cpt++); out_str("\n");
-		if (conn->output_handler && conn->output_handler->handler_type != type_general_ip_handler)
+		if (!IS_GPIP(conn))
 		{
 			out_str("\tport: "); out_uint(UI16(conn->protocol.http.port)); out_str("\n");
 			out_str("\ttcp_state: "); out_uint(conn->protocol.http.tcp_state); out_str("\n");
