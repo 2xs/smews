@@ -219,7 +219,7 @@ void get_remote_ip(const void *connection, unsigned char *ip)
 #ifdef IPV6
 	decompress_ip(((const struct connection*)connection)->ip_addr+1, ip, ((const struct connection*)connection)->ip_addr[0]);
 #else
-	memcpy(ip, local_ip_addr, sizeof(local_ip_addr));
+	memcpy(ip, ((const struct connection*)connection)->ip_addr, sizeof(((const struct connection*)connection)->ip_addr));
 #endif
 }
 
