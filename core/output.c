@@ -215,7 +215,7 @@ void smews_send_packet(struct connection *connection) {
 		ip_addr = connection->ip_addr;
 #endif
 #ifndef DISABLE_GP_IP_HANDLER
-		if (connection->output_handler->handler_type != type_general_ip_handler)
+		if (!IS_GPIP(connection))
 #endif
 		{
 			port = connection->protocol.http.port;
@@ -281,6 +281,14 @@ void smews_send_packet(struct connection *connection) {
 	DEV_PUT16_VAL(segment_length + TCP_HEADER_SIZE);
 
 	/* We have TCP inside and Hop Limit is 64 */
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		/* do not use TCP as Next Header but the protocol value of the gp_ip connection */
+		DEV_PUT16_VAL((IP_NH_TTL & 0xFF) | (connection->protocol.gp_ip.protocol << 8));
+	}
+	else
+#endif
 	DEV_PUT16_VAL(IP_NH_TTL);
 
 	/* Put source & dest IP */
@@ -303,10 +311,29 @@ void smews_send_packet(struct connection *connection) {
 	/* send IP ID, offset, ttl and protocol (TCP) */
 	DEV_PUT16_VAL(IP_ID);
 	DEV_PUT16_VAL(IP_OFFSET);
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		/* do not use TCP as protocol number but the protocol value of the gpip connection */
+		DEV_PUT16_VAL((IP_TTL_PROTOCOL & 0xFF00) | connection->protocol.gpip.protocol);
+	}
+	else
+#endif
 	DEV_PUT16_VAL(IP_TTL_PROTOCOL);
 
 	/* complete IP precalculated checksum */
 	checksum_init();
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		checksum_add16(IP_VHL_TOS);
+		checksum_add16(IP_ID);
+		checksum_add16(IP_OFFSET);
+		/* The BASIC_IP_CHK can not be used here as we changed the protocol number */
+		checksum_add16((IP_TTL_PROTOCOL & 0xFF00) | connection->protocol.gpip.protocol);
+	}
+	else
+#endif
 	UI16(current_checksum) = BASIC_IP_CHK;
 	checksum_add32(local_ip_addr);
 	checksum_add16(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
@@ -326,7 +353,7 @@ void smews_send_packet(struct connection *connection) {
 
 	/* if the connection is for gpip, send the payload and return */
 #ifndef DISABLE_GP_IP_HANDLER
-	if (output_handler->handler_type == type_general_ip_handler)
+	if (IS_GPIP_HANDLER(output_handler))
 	{
 		DEV_PUTN(curr_output.buffer, curr_output.content_length);
 		DEV_OUTPUT_DONE;
@@ -518,8 +545,12 @@ static inline int32_t able_to_send(const struct connection *connection) {
 	if (!something_to_send(connection))
 		return 0;
 #ifndef DISABLE_GP_IP_HANDLER
-	if (connection->output_handler->handler_type == type_general_ip_handler)
+	if (IS_GPIP(connection))
 		return 1;
+#endif
+#ifndef DISABLE_COMET
+	if (connection->protocol.http.comet_passive)
+		return 0;
 #endif
 	return UI16(connection->protocol.http.inflight) + (uint16_t)connection->protocol.http.tcp_mss <= UI16(connection->protocol.http.cwnd);
 }
@@ -539,21 +570,12 @@ char smews_send(void) {
 	}
 
 	/* we first choose a valid connection */
-#ifndef DISABLE_COMET
-	FOR_EACH_CONN(conn, {
-		if(able_to_send(conn) && conn->protocol.http.comet_passive == 0) {
-			connection = conn;
-			break;
-		}
-	})
-#else
 		FOR_EACH_CONN(conn, {
 		if(able_to_send(conn)) {
 			connection = conn;
 			break;
 		}
 	})
-#endif
 
 	if(connection == NULL) {
 		return 0;
@@ -561,7 +583,7 @@ char smews_send(void) {
 	/* enable a round robin */
 	all_connections = connection->next;
 #ifndef DISABLE_GP_IP_HANDLER
-	if (connection->output_handler->handler_type == type_general_ip_handler)
+	if (IS_GPIP(connection))
 	{
 		curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE);
 		if (curr_output.buffer == NULL) /* no more memory */
