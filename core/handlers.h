@@ -150,6 +150,10 @@ struct output_handler_t {
 #endif
 };
 
+#ifndef DISABLE_GP_IP_HANDLER
+	#define IS_GPIP_HANDLER(handler) (CONST_UI8(handler->handler_type) == type_general_ip_handler)
+#endif
+
 /* Macros for accessing output_handler structs */
 #define GET_CONTROL(r) ((r)->handler_data.control)
 #define GET_FILE(r) ((r)->handler_data.file)

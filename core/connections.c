@@ -121,11 +121,15 @@ unsigned char * compress_ip(unsigned char full_ip_addr[], unsigned char comp_ip_
 #endif
 /*-----------------------------------------------------------------------------------*/
 char something_to_send(const struct connection *connection) {
+
+	#ifndef DISABLE_GP_IP_HANDLER
+	if(IS_GPIP(connection))
+		return connection->protocol.gpip.want_to_send;
+#endif
+
 	if(!connection->output_handler)
 		return 0;
 
-	if(CONST_UI8(connection->output_handler->handler_type) == type_general_ip_handler)
-		return connection->protocol.gpip.want_to_send;
 
 	if(CONST_UI8(connection->output_handler->handler_type) == type_control
 #ifndef DISABLE_COMET
@@ -178,10 +182,17 @@ void free_connection(const struct connection *connection) {
 	} else {
 		all_connections = connection->next;
 	}
-	if(connection->protocol.http.generator_service) {
-		clean_service(connection->protocol.http.generator_service, NULL);
+#ifndef DISABLE_GP_IP_HANDLER
+	if (!IS_GPIP(connection))
+	{
+#endif
+		if(connection->protocol.http.generator_service) {
+			clean_service(connection->protocol.http.generator_service, NULL);
+			mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+		}
+#ifndef DISABLE_GP_IP_HANDLER
 	}
-	mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+#endif
 
 #ifdef IPV6
 			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */

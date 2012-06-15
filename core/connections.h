@@ -138,6 +138,10 @@ struct connection {
 #endif
 };
 
+#ifndef DISABLE_GP_IP_HANDLER
+	#define IS_GPIP(connection) (connection && connection->output_handler && IS_GPIP_HANDLER(connection->output_handler))
+#endif
+
 /* Loop on each connection */
 #define FOR_EACH_CONN(item, code) \
 	if(all_connections) { \
