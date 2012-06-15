@@ -199,14 +199,16 @@ extern struct coroutine_state_t coroutine_state;
  * This is the address of the smews device to which a request is transmited
  * @param [in] connection
  * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned)
+ * @return pointer ip
  */
-extern void get_local_ip(const void *connection, unsigned char *ip);
+extern unsigned char *get_local_ip(const void *connection, unsigned char *ip);
 
 /** Returns the ip address of the remote end of a connection.
  * @param [in] connection
  * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned)
+ * @param pointer ip
  */
-extern void get_remote_ip(const void *connection, unsigned char *ip);
+extern unsigned char *get_remote_ip(const void *connection, unsigned char *ip);
 
 #ifndef DISABLE_GP_IP_HANDLER
 /** Returns the size of the last payload associated to a connection.

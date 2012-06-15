@@ -209,18 +209,20 @@ struct coroutine_state_t coroutine_state = {
 #endif
 
 
-void get_local_ip(const void *connection, unsigned char *ip)
+unsigned char *get_local_ip(const void *connection, unsigned char *ip)
 {
 	memcpy(ip, local_ip_addr, sizeof(local_ip_addr));
+	return ip;
 }
 
-void get_remote_ip(const void *connection, unsigned char *ip)
+unsigned char *get_remote_ip(const void *connection, unsigned char *ip)
 {
 #ifdef IPV6
 	decompress_ip(((const struct connection*)connection)->ip_addr+1, ip, ((const struct connection*)connection)->ip_addr[0]);
 #else
 	memcpy(ip, ((const struct connection*)connection)->ip_addr, sizeof(((const struct connection*)connection)->ip_addr));
 #endif
+	return ip;
 }
 
 #ifndef DISABLE_GP_IP_HANDLER
