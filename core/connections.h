@@ -175,10 +175,12 @@ extern struct http_rst_connection rst_connection;
 #ifdef IPV6
 extern unsigned char local_ip_addr[16];
 extern char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]);
+#define IP_CMP(ip1, ip2) ipcmp(ip1, ip2)
 extern unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes);
 extern unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes);
 #else
 extern unsigned char local_ip_addr[4];
+#define IP_CMP(ip1, ip2) (UI32((ip1)) == UI32((ip2)))
 #endif
 
 /* Shared funuctions */

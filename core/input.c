@@ -263,13 +263,16 @@ static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t prot
 	return NULL;
 }
 
-static struct connection *smews_gpip_get_connection(uint8_t protocol)
+static struct connection *smews_gpip_get_connection(uint8_t protocol, unsigned char *source_ip)
 {
 	FOR_EACH_CONN(conn, {
 			if (IS_GPIP(conn))
 			{
 				if (conn->protocol.gpip.protocol == protocol)
-					return conn;
+				{
+					if (!source_ip || IP_CMP(source_ip, conn->ip_addr))
+						return conn;
+				}
 			}
 	})
 	return NULL;
@@ -423,7 +426,7 @@ char smews_receive(void) {
 	if (protocol != IP_PROTO_TCP)
 	{
 		/* First, try to find an existing connection for this service */
-		connection = smews_gpip_get_connection(protocol);
+		connection = smews_gpip_get_connection(protocol, NULL);
 
 		if (connection == NULL) /* no connection found, create one */
 		{
