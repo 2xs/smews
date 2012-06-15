@@ -38,9 +38,6 @@
         <properties protocol="1" />
 </generator>
  */
-#include "target.h"
-#include "checksum.h"
-#include "types.h"
 
 static char icmp_payload[OUTPUT_BUFFER_SIZE];
 static int buffer_size;
@@ -51,10 +48,11 @@ static char identifier[2];
 #define ICMP_ECHO_REPLY		0
 #define ICMP_HEADER_SIZE	8
 
-char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
+char icmp4_packet_in(const void *connection_info)
 {
 	uint8_t tmp;
 	uint8_t tmp_short[2];
+	uint16_t payload_size = get_payload_size(connection_info);
 	int i;
 
 	checksum_init();
@@ -92,7 +90,7 @@ char icmp4_packet_in(uint8_t protocol, uint16_t payload_size)
 	return 1;
 }
 
-char icmp4_packet_out(uint8_t protocol)
+char icmp4_packet_out(const void *connection_info)
 {
 	int i;
 	/* compute checksum */

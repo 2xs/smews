@@ -114,6 +114,7 @@ struct http_connection {
 #ifndef DISABLE_GP_IP_HANDLER
 struct gp_ip_connection {
 	uint8_t protocol;
+	uint16_t payload_size;
 	uint8_t want_to_send;
 };
 #endif
@@ -174,8 +175,8 @@ extern struct http_rst_connection rst_connection;
 #ifdef IPV6
 extern unsigned char local_ip_addr[16];
 extern char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]);
-extern unsigned char * decompress_ip(unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes);
-extern unsigned char * compress_ip(unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes);
+extern unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes);
+extern unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes);
 #else
 extern unsigned char local_ip_addr[4];
 #endif
@@ -192,6 +193,33 @@ struct coroutine_state_t {
 	enum coroutine_state_e {cor_in, cor_out} state:1;
 };
 extern struct coroutine_state_t coroutine_state;
+#endif
+
+/** Returns the local ip address associated to a connection.
+ * This is the address of the smews device to which a request is transmited
+ * @param [in] connection
+ * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned)
+ */
+extern void get_local_ip(const void *connection, unsigned char *ip);
+
+/** Returns the ip address of the remote end of a connection.
+ * @param [in] connection
+ * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned)
+ */
+extern void get_remote_ip(const void *connection, unsigned char *ip);
+
+#ifndef DISABLE_GP_IP_HANDLER
+/** Returns the size of the last payload associated to a connection.
+ * It is to be used in the doPacketIn handler to know how much in() to perform
+ * @param [in] connection
+ */
+extern uint16_t get_payload_size(const void *connection);
+
+/** Returns the protocol number associated to a connection.
+ * To be used in a doPacketIn or doPacketOut handler
+ * @param [in] connection
+ */
+extern uint16_t get_protocol(const void *connection);
 #endif
 
 #endif /* __CONNECTIONS_H__ */

@@ -210,7 +210,7 @@ void smews_send_packet(struct connection *connection) {
 		connection->protocol.http.transmission_time = last_transmission_time;
 #endif
 #ifdef IPV6
-		ip_addr = decompress_ip(connection->protocol.http.ip_addr+1,full_ipv6_addr,connection->protocol.http.ip_addr[0]);
+		ip_addr = decompress_ip(connection->ip_addr+1,full_ipv6_addr,connection->ip_addr[0]);
 #else
 		ip_addr = connection->ip_addr;
 #endif
@@ -590,7 +590,7 @@ char smews_send(void) {
 			return 0;
 		curr_output.content_length = 0;
 		curr_output.service = NULL;
-		connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(connection->protocol.gpip.protocol);
+		connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(connection);
 		connection->protocol.gpip.want_to_send = 0;
 		smews_send_packet(connection);
 		mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);

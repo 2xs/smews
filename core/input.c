@@ -450,7 +450,8 @@ char smews_receive(void) {
 						so that the in function knows that we are in dopacketin */
 			curr_input.connection = NULL;
 #endif
-		if (connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(protocol, packet_length))
+		connection->protocol.gpip.payload_size = packet_length;
+		if (connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(connection))
 		{
 			/* If the function returns 1, then it requests an out */
 			connection->protocol.gpip.want_to_send = 1;

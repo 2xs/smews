@@ -39,6 +39,9 @@
 #include "types.h"
 #include "handlers.h"
 #include "memory.h"
+#include "target.h"
+#include "checksum.h"
+#include "connections.h"
 
 /* Triggers a Comet channel */
 #ifndef DISABLE_COMET

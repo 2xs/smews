@@ -207,3 +207,34 @@ struct coroutine_state_t coroutine_state = {
 	.state = cor_out,
 };
 #endif
+
+
+void get_local_ip(const void *connection, unsigned char *ip)
+{
+	memcpy(ip, local_ip_addr, sizeof(local_ip_addr));
+}
+
+void get_remote_ip(const void *connection, unsigned char *ip)
+{
+#ifdef IPV6
+	decompress_ip(((const struct connection*)connection)->ip_addr+1, ip, ((const struct connection*)connection)->ip_addr[0]);
+#else
+	memcpy(ip, local_ip_addr, sizeof(local_ip_addr));
+#endif
+}
+
+#ifndef DISABLE_GP_IP_HANDLER
+uint16_t get_payload_size(const void *connection)
+{
+	if (!IS_GPIP(((const struct connection*)connection)))
+		return 0;
+	return ((const struct connection*)connection)->protocol.gpip.payload_size;
+}
+
+uint16_t get_protocol(const void *connection)
+{
+	if (!IS_GPIP(((const struct connection *)connection)))
+		return 0;
+	return ((const struct connection *)connection)->protocol.gpip.protocol;
+}
+#endif
