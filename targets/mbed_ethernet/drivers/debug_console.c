@@ -49,6 +49,7 @@
 #include "out_buffers.h"
 #include "mbed_debug.h"
 #include "arp_cache.h"
+#include "connections.h"
 
 #define CONSOLE_BUFFER_SIZE 64
 
@@ -72,7 +73,10 @@ void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
 void mbed_console_arp_state(char *args);
 void mbed_console_stack_dump(char *args);
+void mbed_console_connections_state(char *args);
+
 void mbed_console_parse_command();
+
 
 #define CONSOLE_COMMAND(command, shortcut, help) {#command, shortcut, mbed_console_##command, help}
 
@@ -83,13 +87,39 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(eth_state, "es", "Dump the state of ethernet device"),
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
     CONSOLE_COMMAND(arp_state, "as", "Dump the state of arp resolve table"),
-    CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),    
+    CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),
+    CONSOLE_COMMAND(connections_state, "cs", "Show the connections state"),
 };
 
 static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
 
 static char _console_buffer[CONSOLE_BUFFER_SIZE];
 static int _console_buffer_idx;
+
+void mbed_console_connections_state(char *args)
+{
+	int cpt = 0;
+	FOR_EACH_CONN(conn, {
+		printf("Connection: %d\r\n", cpt++);
+		if (IS_HTTP(conn))
+		{
+			printf("\tport: %d\r\n", UI16(conn->protocol.http.port));
+			printf("\ttcp_state: %d\r\n", conn->protocol.http.tcp_state);
+		}
+#ifndef DISABLE_GP_IP_HANDLER
+		else
+		{
+			printf("\tGPIP for protocol %d\r\n", conn->output_handler->handler_data.generator.handlers.gp_ip.protocol);
+		}
+#endif
+		printf("\toutput_handler: ");
+		if(conn->output_handler)
+			printf("****\r\n");
+		else
+			printf("NULL\r\n");
+		printf("\tsomething to send: %d\r\n", something_to_send(conn));
+	})
+}
 
 void mbed_console_help(char *args)
 {

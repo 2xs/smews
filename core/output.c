@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2008, Simon Duquennoy
-* 
+*
 * Author e-mail: simon.duquennoy@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -41,6 +41,8 @@
 #include "smews.h"
 #include "connections.h"
 #include "memory.h"
+#include "input.h" /* for *_HEADER_SIZE defines */
+
 #ifndef DISABLE_POST
 	#include "defines.h"
 #endif
@@ -80,12 +82,12 @@
 /* Connection handler callback */
 #ifndef DISABLE_ARGS
 #define HANDLER_CALLBACK(connection,handler) { \
-	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler) != NULL) \
-		((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler))((connection)->args);}
+	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
+		((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))((connection)->protocol.http.args);}
 #else
 #define HANDLER_CALLBACK(connection,handler) { \
-	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler) != NULL) \
-		((handler generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handler))(NULL);}
+	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
+		((handler generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))(NULL);}
 #endif
 
 /* Partially pre-calculated HTTP/1.1 header with checksum */
@@ -162,19 +164,26 @@ static void dev_put32_val(uint32_t word) {
 /*-----------------------------------------------------------------------------------*/
 char out_c(char c) {
 	if(curr_output.content_length == OUTPUT_BUFFER_SIZE) {
+#ifndef DISABLE_GP_IP_HANDLER
+		if (curr_output.service == NULL) /* no service generator is when out is called from a dopacketout */
+			return 0;
+#endif
 		cr_run(NULL
 #ifndef DISABLE_POST
 				,cor_type_get
 #endif
 				);
 	}
-	checksum_add(c);
+#ifndef DISABLE_GP_IP_HANDLER
+	if (curr_output.service != NULL) /* only compute checksum for http generator, not for gpip */
+#endif
+		checksum_add(c);
 	curr_output.buffer[curr_output.content_length++] = c;
 	return 1;
 }
 
 /*-----------------------------------------------------------------------------------*/
-void smews_send_packet(struct http_connection *connection) {
+void smews_send_packet(struct connection *connection) {
 	uint32_t index_in_file;
 	uint16_t segment_length;
 	unsigned char *ip_addr;
@@ -198,16 +207,20 @@ void smews_send_packet(struct http_connection *connection) {
 
 	if(connection) {
 #ifndef DISABLE_TIMERS
-		connection->transmission_time = last_transmission_time;
+		connection->protocol.http.transmission_time = last_transmission_time;
 #endif
 #ifdef IPV6
 		ip_addr = decompress_ip(connection->ip_addr+1,full_ipv6_addr,connection->ip_addr[0]);
 #else
 		ip_addr = connection->ip_addr;
 #endif
-		port = connection->port;
-		next_outseqno = connection->next_outseqno;
-		current_inseqno = connection->current_inseqno;
+
+		if (IS_HTTP(connection))
+		{
+			port = connection->protocol.http.port;
+			next_outseqno = connection->protocol.http.next_outseqno;
+			current_inseqno = connection->protocol.http.current_inseqno;
+		}
 		output_handler = connection->output_handler;
 	} else {
 		ip_addr = rst_connection.ip_addr;
@@ -226,8 +239,8 @@ void smews_send_packet(struct http_connection *connection) {
 		case type_file: {
 			uint16_t max_out_size;
 			uint32_t file_remaining_bytes;
-			max_out_size = MAX_OUT_SIZE((uint16_t)connection->tcp_mss);
-			file_remaining_bytes = UI32(connection->final_outseqno) - UI32(next_outseqno);
+			max_out_size = MAX_OUT_SIZE((uint16_t)connection->protocol.http.tcp_mss);
+			file_remaining_bytes = UI32(connection->protocol.http.final_outseqno) - UI32(next_outseqno);
 			segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
 			index_in_file = CONST_UI32(GET_FILE(output_handler).length) - file_remaining_bytes;
 			break;
@@ -244,10 +257,18 @@ void smews_send_packet(struct http_connection *connection) {
 					segment_length += CHUNK_LENGTH_SIZE + 4;
 					break;
 			}
-		break;
+			break;
+#ifndef DISABLE_GP_IP_HANDLER
+		case type_general_ip_handler:
+			/* "cheat" the segment_length variable to reflect what needs to be sent
+			 * the trick is used so that the code below can be reused
+			 */
+			segment_length = curr_output.content_length - TCP_HEADER_SIZE;
+			break;
+#endif
 	}
 
-	DEV_PREPARE_OUTPUT(segment_length + 40);
+	DEV_PREPARE_OUTPUT(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
 	/* start to send IP header */
 #ifdef IPV6
@@ -256,9 +277,17 @@ void smews_send_packet(struct http_connection *connection) {
 	DEV_PUT32_VAL(IP_VTRAFC_FLOWL);
 
 	/* our payload length is */
-	DEV_PUT16_VAL(segment_length + 20);
+	DEV_PUT16_VAL(segment_length + TCP_HEADER_SIZE);
 
 	/* We have TCP inside and Hop Limit is 64 */
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		/* do not use TCP as Next Header but the protocol value of the gp_ip connection */
+		DEV_PUT16_VAL((IP_NH_TTL & 0xFF) | (connection->protocol.gp_ip.protocol << 8));
+	}
+	else
+#endif
 	DEV_PUT16_VAL(IP_NH_TTL);
 
 	/* Put source & dest IP */
@@ -274,34 +303,63 @@ void smews_send_packet(struct http_connection *connection) {
 #else
 	/* send vhl, tos, IP header length */
 	DEV_PUT16_VAL(IP_VHL_TOS);
-	
+
 	/* send IP packet length */
-	DEV_PUT16_VAL(segment_length + 40);
+	DEV_PUT16_VAL(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
 	/* send IP ID, offset, ttl and protocol (TCP) */
 	DEV_PUT16_VAL(IP_ID);
 	DEV_PUT16_VAL(IP_OFFSET);
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		/* do not use TCP as protocol number but the protocol value of the gpip connection */
+		DEV_PUT16_VAL((IP_TTL_PROTOCOL & 0xFF00) | connection->protocol.gpip.protocol);
+	}
+	else
+#endif
 	DEV_PUT16_VAL(IP_TTL_PROTOCOL);
 
 	/* complete IP precalculated checksum */
 	checksum_init();
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		checksum_add16(IP_VHL_TOS);
+		checksum_add16(IP_ID);
+		checksum_add16(IP_OFFSET);
+		/* The BASIC_IP_CHK can not be used here as we changed the protocol number */
+		checksum_add16((IP_TTL_PROTOCOL & 0xFF00) | connection->protocol.gpip.protocol);
+	}
+	else
+#endif
 	UI16(current_checksum) = BASIC_IP_CHK;
 	checksum_add32(local_ip_addr);
-	checksum_add16(segment_length + 40);
+	checksum_add16(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
 	checksum_add32(ip_addr);
 	checksum_end();
 
 	/* send IP checksum */
 	DEV_PUT16_VAL(~UI16(current_checksum));
-	
+
 	/* send IP source address */
 	DEV_PUT32(local_ip_addr);
-	
+
 	/* send IP destination address */
 	DEV_PUT32(ip_addr);
 #endif
-	
+
+	/* if the connection is for gpip, send the payload and return */
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP_HANDLER(output_handler))
+	{
+		DEV_PUTN(curr_output.buffer, curr_output.content_length);
+		DEV_OUTPUT_DONE;
+		return;
+	}
+#endif
+
 	/* start to send TCP header */
 
 	/* send TCP source port */
@@ -312,17 +370,17 @@ void smews_send_packet(struct http_connection *connection) {
 
 	/* send TCP sequence number */
 	DEV_PUT32(next_outseqno);
-	
+
 	/* send TCP acknowledgement number */
 	DEV_PUT32(current_inseqno);
-	
+
 	/* send TCP header length & flags */
 	DEV_PUT(GET_FLAGS(output_handler) & TCP_SYN ? 0x60 : 0x50);
 	DEV_PUT(GET_FLAGS(output_handler));
 
 	/* send TCP window */
 	DEV_PUT16_VAL(TCP_WINDOW);
-	
+
 	/* complete precalculated TCP checksum */
 
 	checksum_init();
@@ -339,7 +397,7 @@ void smews_send_packet(struct http_connection *connection) {
 	checksum_add16(segment_length + 20);
 
 	checksum_add32(next_outseqno);
-	
+
 	checksum_add(GET_FLAGS(output_handler) & TCP_SYN ? 0x60 : 0x50);
 	checksum_add(GET_FLAGS(output_handler));
 
@@ -351,7 +409,7 @@ void smews_send_packet(struct http_connection *connection) {
 #else
 	checksum_add32(ip_addr);
 #endif
-	
+
 	checksum_add16(UI16(port));
 
 	checksum_add32(current_inseqno);
@@ -365,7 +423,7 @@ void smews_send_packet(struct http_connection *connection) {
 			switch(curr_output.service_header) {
 				uint16_t length;
 				int16_t i;
-				case header_standard:					
+				case header_standard:
 					checksum_add16(SERVICE_HTTP_HEADER_CHK);
 					/* create the HTTP Content-Length string on a even number of chars and start computing service checksum */
 					checksum_add(0); /* odd bytes alignement */
@@ -404,7 +462,7 @@ void smews_send_packet(struct http_connection *connection) {
 		case type_control:
 			if(GET_FLAGS(output_handler) & TCP_SYN){ /* Checksum the syn ack tcp options (MSS) */
 				checksum_add16(MSS_OPT);
-				checksum_add16((uint16_t)connection->tcp_mss);
+				checksum_add16((uint16_t)connection->protocol.http.tcp_mss);
 			}
 			break;
 		case type_file: {
@@ -419,7 +477,7 @@ void smews_send_packet(struct http_connection *connection) {
 			break;
 		}
 	}
-	
+
 	checksum_end();
 
 	/* send TCP checksum */
@@ -453,7 +511,7 @@ void smews_send_packet(struct http_connection *connection) {
 			if(GET_FLAGS(output_handler) & TCP_SYN) {
 				/* Send the syn ack tcp options (MSS) */
 				DEV_PUT16_VAL(MSS_OPT);
-				DEV_PUT16_VAL((uint16_t)connection->tcp_mss);
+				DEV_PUT16_VAL((uint16_t)connection->protocol.http.tcp_mss);
 			}
 			break;
 		case type_file: {
@@ -463,17 +521,17 @@ void smews_send_packet(struct http_connection *connection) {
 			break;
 		}
 	}
-	
+
 	/* update next sequence number and inflight segments */
 	if(GET_FLAGS(output_handler) & TCP_SYN) {
-		UI32(connection->next_outseqno)++;
+		UI32(connection->protocol.http.next_outseqno)++;
 	} else if(connection) {
-		UI32(connection->next_outseqno) += segment_length;
-		UI16(connection->inflight) += segment_length;
+		UI32(connection->protocol.http.next_outseqno) += segment_length;
+		UI16(connection->protocol.http.inflight) += segment_length;
 		if(handler_type == type_generator) {
 			if(curr_output.service_header == header_standard || curr_output.content_length == 0) {
 				/* set final_outseqno as soon as it is known */
-				UI32(connection->final_outseqno) = UI32(connection->next_outseqno);
+				UI32(connection->protocol.http.final_outseqno) = UI32(connection->protocol.http.next_outseqno);
 			}
 		}
 	}
@@ -482,14 +540,27 @@ void smews_send_packet(struct http_connection *connection) {
 }
 
 /*-----------------------------------------------------------------------------------*/
-static inline int32_t able_to_send(const struct http_connection *connection) {
-	return something_to_send(connection)
-		&& UI16(connection->inflight) + (uint16_t)connection->tcp_mss <= UI16(connection->cwnd);
+static inline int32_t able_to_send(const struct connection *connection) {
+	if (!something_to_send(connection))
+		return 0;
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+		return 1;
+#endif
+#ifndef DISABLE_COMET
+	if (connection->protocol.http.comet_passive)
+		return 0;
+#endif
+	return UI16(connection->protocol.http.inflight) + (uint16_t)connection->protocol.http.tcp_mss <= UI16(connection->protocol.http.cwnd);
 }
+
+#ifndef DISABLE_GP_IP_HANDLER
+static char gpip_output_buffer[OUTPUT_BUFFER_SIZE];
+#endif
 
 /*-----------------------------------------------------------------------------------*/
 char smews_send(void) {
-	struct http_connection *connection = NULL;
+	struct connection *connection = NULL;
 #ifndef DISABLE_COMET
 	const struct output_handler_t * /*CONST_VAR*/ old_output_handler = NULL;
 #endif
@@ -502,35 +573,42 @@ char smews_send(void) {
 	}
 
 	/* we first choose a valid connection */
-#ifndef DISABLE_COMET
-	FOR_EACH_CONN(conn, {
-		if(able_to_send(conn) && conn->comet_passive == 0) {
-			connection = conn;
-			break;
-		}
-	})
-#else
 		FOR_EACH_CONN(conn, {
 		if(able_to_send(conn)) {
 			connection = conn;
 			break;
 		}
 	})
-#endif
 
 	if(connection == NULL) {
 		return 0;
 	}
 	/* enable a round robin */
 	all_connections = connection->next;
+#ifndef DISABLE_GP_IP_HANDLER
+	if (IS_GPIP(connection))
+	{
+		curr_output.buffer = gpip_output_buffer;/* mem_alloc(OUTPUT_BUFFER_SIZE); */
+		if (curr_output.buffer == NULL) /* no more memory */
+			return 0;
+		curr_output.content_length = 0;
+		curr_output.service = NULL;
+		connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(connection);
+		connection->protocol.gpip.want_to_send = 0;
+		smews_send_packet(connection);
+		/* mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE); */
+		free_connection(connection);
+		return 0;
+	}
+#endif
 
-	if(!connection->ready_to_send){
+	if(!connection->protocol.http.ready_to_send){
 		old_output_handler = connection->output_handler;
 		connection->output_handler = &ref_ack;
 	}
 #ifndef DISABLE_COMET
 	/* do we need to acknowledge a comet request without answering it? */
-	else if(connection->comet_send_ack == 1) {
+	else if(connection->protocol.http.comet_send_ack == 1) {
 		old_output_handler = connection->output_handler;
 		connection->output_handler = &ref_ack;
 	}
@@ -542,18 +620,22 @@ char smews_send(void) {
 			/* preparing to send TCP control data */
 			smews_send_packet(connection);
 			connection->output_handler = NULL;
-			if(connection->tcp_state == tcp_closing) {
+			if(connection->protocol.http.tcp_state == tcp_closing) {
+				/* WARNING: TODO: check what has to be done after this. In the actual state,
+				 * it seems that the freed connection is used after the free...
+				 */
 				free_connection(connection);
+				return 0; /* WARNING: this return has been put to "fix" previous comment. */
 			}
 
-			if(old_output_handler && !connection->ready_to_send)
+			if(old_output_handler && !connection->protocol.http.ready_to_send)
 				connection->output_handler = old_output_handler;
 #ifndef DISABLE_COMET
 			else if(old_output_handler) {
 				/* restore the right old output handler */
 				connection->output_handler = old_output_handler;
-				connection->comet_send_ack = 0;
-				UI32(connection->final_outseqno) = UI32(connection->next_outseqno);
+				connection->protocol.http.comet_send_ack = 0;
+				UI32(connection->protocol.http.final_outseqno) = UI32(connection->protocol.http.next_outseqno);
 				/* call initget (which must not generate any data) */
 				HANDLER_CALLBACK(connection,initget);
 			}
@@ -569,36 +651,36 @@ char smews_send(void) {
 			struct in_flight_infos_t *if_infos = NULL;
 
 			/* creation and initialization of the generator_service if needed */
-			if(connection->generator_service == NULL) {
-				connection->generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
-				if(connection->generator_service == NULL) {
+			if(connection->protocol.http.generator_service == NULL) {
+				connection->protocol.http.generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
+				if(connection->protocol.http.generator_service == NULL) {
 					return 1;
 				}
-				curr_output.service = connection->generator_service;
+				curr_output.service = connection->protocol.http.generator_service;
 				/* init generator service */
 				curr_output.service->service_header = header_standard;
 				curr_output.service->in_flight_infos = NULL;
 				curr_output.service->is_persistent = CONST_UI8(GET_GENERATOR(connection->output_handler).prop) == prop_persistent;
-				UI32(curr_output.service->curr_outseqno) = UI32(connection->next_outseqno);
+				UI32(curr_output.service->curr_outseqno) = UI32(connection->protocol.http.next_outseqno);
 				/* init coroutine */
 				cr_init(&curr_output.service->coroutine);
 #ifndef DISABLE_POST
-				if(connection->post_data && connection->post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED){
+				if(connection->protocol.http.post_data && connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED){
 					curr_output.service->coroutine.func.func_post_out = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.post.dopostout);
-					curr_output.service->coroutine.params.out.content_type = connection->post_data->content_type;
-					curr_output.service->coroutine.params.out.post_data = connection->post_data->post_data;
+					curr_output.service->coroutine.params.out.content_type = connection->protocol.http.post_data->content_type;
+					curr_output.service->coroutine.params.out.post_data = connection->protocol.http.post_data->post_data;
 				}
 				else{
 #endif
-					curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.doget);
+					curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.get.doget);
 #ifndef DISABLE_ARGS
-					curr_output.service->coroutine.params.args = connection->args;
+					curr_output.service->coroutine.params.args = connection->protocol.http.args;
 #endif
 #ifndef DISABLE_POST
 				}
 #endif
 				/* we don't know yet the final output sequence number for this service */
-				UI32(connection->final_outseqno) = UI32(connection->next_outseqno) - 1;
+				UI32(connection->protocol.http.final_outseqno) = UI32(connection->protocol.http.next_outseqno) - 1;
 #ifndef DISABLE_COMET
 				/* if this is a comet generator, manage all listenning clients */
 				if(CONST_UI8(connection->output_handler->handler_comet)) {
@@ -606,24 +688,24 @@ char smews_send(void) {
 					/* if this is a comet handler, this connection is active, others are set as passive */
 					FOR_EACH_CONN(conn, {
 						if(conn->output_handler == current_handler) {
-							conn->comet_passive = (conn != connection);
+							conn->protocol.http.comet_passive = (conn != connection);
 						}
 					})
 				}
 				/* manage streamed comet data */
 				if(CONST_UI8(connection->output_handler->handler_stream)) {
-					if(connection->comet_streaming) {
+					if(connection->protocol.http.comet_streaming) {
 						curr_output.service->service_header = header_none;
 					}
-					connection->comet_streaming = 1;
+					connection->protocol.http.comet_streaming = 1;
 				}
 #endif
 			}
-			
+
 			/* init the global curr_output structure (usefull for out_c) */
-			curr_output.service = connection->generator_service;
-			UI32(curr_output.next_outseqno) = UI32(connection->next_outseqno);
-			
+			curr_output.service = connection->protocol.http.generator_service;
+			UI32(curr_output.next_outseqno) = UI32(connection->protocol.http.next_outseqno);
+
 			/* is the service persistent or not? */
 			is_persistent = curr_output.service->is_persistent;
 			/* are we retransmitting a lost segment? */
@@ -641,7 +723,7 @@ char smews_send(void) {
 				/* setup the http header for this segment */
 				if(!is_persistent && is_retransmitting) {
 					/* if the current context is not the right one, restore it */
-					if_infos = context_restore(curr_output.service, connection->next_outseqno);
+					if_infos = context_restore(curr_output.service, connection->protocol.http.next_outseqno);
 					/* if_infos is NULL if the segment to be sent is the last void http chunck */
 					if(if_infos != NULL) {
 						curr_output.service_header = if_infos->service_header;
@@ -651,12 +733,12 @@ char smews_send(void) {
 				} else {
 					curr_output.service_header = curr_output.service->service_header;
 				}
-				
+
 				/* initializations before generating the segment */
 				curr_output.content_length = 0;
 				checksum_init();
 				curr_output.buffer = NULL;
-	
+
 				has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 				/* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
 				 * else, run the coroutine to generate one segment */
@@ -675,7 +757,7 @@ char smews_send(void) {
 							return 1;
 						}
 					}
-										
+
 					/* we generate new non persistent data. backup the context before running it */
 					if(!is_persistent && !is_retransmitting) {
 						if_infos->service_header = curr_output.service_header;
@@ -688,9 +770,9 @@ char smews_send(void) {
 
 					/* run the coroutine (generate one segment) */
 #ifndef DISABLE_POST
-					if(connection->post_data && connection->post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
+					if(connection->protocol.http.post_data && connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
 						cr_run(&curr_output.service->coroutine,cor_type_post_out);
-					else						
+					else
 #endif
 						cr_run(&curr_output.service->coroutine
 #ifndef DISABLE_POST
@@ -700,23 +782,23 @@ char smews_send(void) {
 					has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 #ifndef DISABLE_POST
 					/* cleaning post_data */
-					if(has_ended && connection->post_data){
-						mem_free(connection->post_data,sizeof(struct post_data_t));
-						connection->post_data = NULL;
+					if(has_ended && connection->protocol.http.post_data){
+						mem_free(connection->protocol.http.post_data,sizeof(struct post_data_t));
+						connection->protocol.http.post_data = NULL;
 					}
 #endif
 					/* save the generated buffer after generation if persistent */
 					if(is_persistent) {
 						/* add it to the in-flight segments list */
 						if_infos->service_header = curr_output.service_header;
-						UI32(if_infos->next_outseqno) = UI32(connection->next_outseqno);
+						UI32(if_infos->next_outseqno) = UI32(connection->protocol.http.next_outseqno);
 						if_infos->infos.buffer = curr_output.buffer;
-						if_infos->next = curr_output.service->in_flight_infos;	
+						if_infos->next = curr_output.service->in_flight_infos;
 						curr_output.service->in_flight_infos = if_infos;
-						
+
 					}
 				}
-				
+
 				/* finalizations after the segment generation */
 				checksum_end();
 				UI16(curr_output.checksum) = UI16(current_checksum);
@@ -725,12 +807,12 @@ char smews_send(void) {
 					UI16(if_infos->checksum) = UI16(current_checksum);
 				}
 			} else { /* the segment has to be resent from a buffer: restore it */
-				if_infos = if_select(curr_output.service, connection->next_outseqno);
+				if_infos = if_select(curr_output.service, connection->protocol.http.next_outseqno);
 				curr_output.buffer = if_infos->infos.buffer;
 				curr_output.service_header = if_infos->service_header;
 				UI16(curr_output.checksum) = UI16(if_infos->checksum);
 			}
-			
+
 			/* select the right HTTP header */
 			switch(curr_output.service_header) {
 				case header_standard:
@@ -744,7 +826,7 @@ char smews_send(void) {
 				default:
 					break;
 			}
-			
+
 			/* send the segment */
 #ifndef DISABLE_COMET
 			/* if this is a comet handler, send the segment to all listenning clients */
@@ -759,7 +841,7 @@ char smews_send(void) {
 								smews_send_packet(conn);
 							}
 							if(has_ended) {
-								UI32(conn->final_outseqno) = UI32(conn->next_outseqno);
+								UI32(conn->protocol.http.final_outseqno) = UI32(conn->protocol.http.next_outseqno);
 							}
 						}
 					}
@@ -779,15 +861,15 @@ char smews_send(void) {
 			if(!is_retransmitting) {
 				/* update next_outseqno for the current context */
 				curr_output.service->service_header = curr_output.service_header;
-				UI32(curr_output.service->curr_outseqno) = UI32(connection->next_outseqno);
+				UI32(curr_output.service->curr_outseqno) = UI32(connection->protocol.http.next_outseqno);
 			}
-			
+
 #ifndef DISABLE_COMET
 			/* clean comet service here (this is quite dirty) */
-			if(CONST_UI8(connection->output_handler->handler_stream) && has_ended && UI16(connection->inflight) == 0) {
-				clean_service(connection->generator_service, NULL);
-				mem_free(connection->generator_service, sizeof(struct generator_service_t));
-				connection->generator_service = NULL;
+			if(CONST_UI8(connection->output_handler->handler_stream) && has_ended && UI16(connection->protocol.http.inflight) == 0) {
+				clean_service(connection->protocol.http.generator_service, NULL);
+				mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+				connection->protocol.http.generator_service = NULL;
 			}
 #endif
 			break;

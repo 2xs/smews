@@ -6,9 +6,10 @@ IPADDR=192.168.100.200
 TARGET=mbed_ethernet
 APPS=:welcome
 MBED_PATH=$(shell mount | grep MBED | cut -d\  -f3)
+DISABLE=
 PROGRAM_CMD=cp bin/mbed_ethernet/smews.bin $(MBED_PATH)
 
 all:
-	scons ipaddr=$(IPADDR) target=$(TARGET) apps=$(APPS) && $(PROGRAM_CMD) && sync
+	scons ipaddr=$(IPADDR) target=$(TARGET) apps=$(APPS) disable=$(DISABLE) && $(PROGRAM_CMD) && sync
 clean:
 	scons -c

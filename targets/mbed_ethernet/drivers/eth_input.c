@@ -62,8 +62,8 @@ uint8_t mbed_eth_get_byte()
     uint8_t byte;
     if (current_rx_frame == NULL)
     {
-	MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
-	return 0;
+		MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
+		return 0;
     }
 
     byte = current_rx_frame[current_rx_frame_idx++];
@@ -151,10 +151,10 @@ int mbed_process_input(const uint8_t *packet, int size)
     }
 
     if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
-	return ETH_INPUT_FREE_PACKET;
+		return ETH_INPUT_FREE_PACKET;
 
     if (eth.type != PROTO_IP)
-	return ETH_INPUT_FREE_PACKET; /* drop packet */
+		return ETH_INPUT_FREE_PACKET; /* drop packet */
 
 
     /* IP Packet received */
