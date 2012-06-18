@@ -263,7 +263,7 @@ static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t prot
 	return NULL;
 }
 
-static struct connection *smews_gpip_get_connection(uint8_t protocol, unsigned char *source_ip)
+/*static struct connection *smews_gpip_get_connection(uint8_t protocol, unsigned char *source_ip)
 {
 	FOR_EACH_CONN(conn, {
 			if (IS_GPIP(conn))
@@ -276,7 +276,7 @@ static struct connection *smews_gpip_get_connection(uint8_t protocol, unsigned c
 			}
 	})
 	return NULL;
-}
+}*/
 #endif
 
 /*-----------------------------------------------------------------------------------*/
@@ -425,8 +425,10 @@ char smews_receive(void) {
 #ifndef DISABLE_GP_IP_HANDLER
 	if (protocol != IP_PROTO_TCP)
 	{
-		/* First, try to find an existing connection for this service */
-		connection = smews_gpip_get_connection(protocol, NULL);
+		/* Finaly, the decision has been made to create a new connection for each packet and to
+		 * free it after having called the output handler.
+		 * Previous code left in comments if we change our mind later */
+		connection = NULL; /* smews_gpip_get_connection(protocol, NULL);*/
 
 		if (connection == NULL) /* no connection found, create one */
 		{
@@ -826,7 +828,9 @@ char smews_receive(void) {
 							tmp_connection.protocol.http.post_data->boundary->multi_part_counter = 0;
 							tmp_connection.protocol.http.post_data->boundary->boundary_ref = "\r\n\r\n";
 							tmp_connection.protocol.http.post_data->boundary->boundary_buffer = mem_alloc(4*sizeof(char));
-							if(!tmp_connection.protocol.http.post_data->boundary->boundary_ref){
+							if(!tmp_connection.protocol.http.post_data->boundary->boundary_buffer){
+								/* If boundary buffer can not be allocated, also free the boundary itself */
+								mem_free(tmp_connection.protocol.http.post_data->boundary, sizeof(struct boundary_t));
 								output_handler = &http_404_handler;
 								break;
 							}
@@ -859,7 +863,10 @@ char smews_receive(void) {
 						else
 							tmp_connection.protocol.http.post_data->coroutine.params.in.part_number = 0;
 						if(cr_prepare(&(tmp_connection.protocol.http.post_data->coroutine)) == NULL)
+						{
+							/* TODO: shoudn't the boundary and boundary_buffer be free ? */
 							return 1;
+						}
 					}
 					curr_input.length = length_temp;
 					curr_input.connection = &tmp_connection;
@@ -1007,6 +1014,8 @@ char smews_receive(void) {
 							tmp_connection.protocol.http.post_data->boundary->index = -1;
 							tmp_connection.protocol.http.post_data->boundary->boundary_buffer = mem_alloc(tmp_connection.protocol.http.post_data->boundary->boundary_size*sizeof(char));
 							if(!tmp_connection.protocol.http.post_data->boundary->boundary_buffer){
+								/* If no space for boundary_ref, free boundary */
+								mem_free(tmp_connection.protocol.http.post_data->boundary, sizeof(struct boundary_t));
 								output_handler = &http_404_handler;
 								break;
 							}
@@ -1028,6 +1037,8 @@ char smews_receive(void) {
 						tmp_connection.protocol.http.post_data->boundary->ready_to_count = 0;
 						tmp_connection.protocol.http.post_data->boundary->boundary_ref = mem_alloc(10*sizeof(char));
 						if(!tmp_connection.protocol.http.post_data->boundary->boundary_ref){
+							/* If no space for boundary_ref, free boundary */
+							mem_free(tmp_connection.protocol.http.post_data->boundary, sizeof(struct boundary_t));
 							output_handler = &http_404_handler;
 							break;
 						}
@@ -1370,8 +1381,11 @@ char smews_receive(void) {
 			/* update the pointer in the tmp_connection because
 			 * it will be copied later so if the pointers do not have the right value, the list
 			 * will be screwed */
-			tmp_connection.prev = connection->prev;
-			tmp_connection.next = connection->next;
+			if (connection)
+			{
+				tmp_connection.prev = connection->prev;
+				tmp_connection.next = connection->next;
+			}
 		}
 
 		if(!connection) {

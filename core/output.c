@@ -554,6 +554,10 @@ static inline int32_t able_to_send(const struct connection *connection) {
 	return UI16(connection->protocol.http.inflight) + (uint16_t)connection->protocol.http.tcp_mss <= UI16(connection->protocol.http.cwnd);
 }
 
+#ifndef DISABLE_GP_IP_HANDLER
+static char gpip_output_buffer[OUTPUT_BUFFER_SIZE];
+#endif
+
 /*-----------------------------------------------------------------------------------*/
 char smews_send(void) {
 	struct connection *connection = NULL;
@@ -584,7 +588,7 @@ char smews_send(void) {
 #ifndef DISABLE_GP_IP_HANDLER
 	if (IS_GPIP(connection))
 	{
-		curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE);
+		curr_output.buffer = gpip_output_buffer;/* mem_alloc(OUTPUT_BUFFER_SIZE); */
 		if (curr_output.buffer == NULL) /* no more memory */
 			return 0;
 		curr_output.content_length = 0;
@@ -592,7 +596,8 @@ char smews_send(void) {
 		connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(connection);
 		connection->protocol.gpip.want_to_send = 0;
 		smews_send_packet(connection);
-		mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+		/* mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE); */
+		free_connection(connection);
 		return 0;
 	}
 #endif
@@ -616,7 +621,11 @@ char smews_send(void) {
 			smews_send_packet(connection);
 			connection->output_handler = NULL;
 			if(connection->protocol.http.tcp_state == tcp_closing) {
+				/* WARNING: TODO: check what has to be done after this. In the actual state,
+				 * it seems that the freed connection is used after the free...
+				 */
 				free_connection(connection);
+				return 0; /* WARNING: this return has been put to "fix" previous comment. */
 			}
 
 			if(old_output_handler && !connection->protocol.http.ready_to_send)
