@@ -19,15 +19,16 @@ u16 length;
 #ifdef DEBUG
 char chaine[256];
 #endif
+
 u08 ENC624J600Bank;
 volatile u16 NextPacketPtr,PacketPtr;
 volatile unsigned char head[8];
 
+volatile u08 packet_transmit;
 
 
 volatile packet_t IPPacketTab[MAX_PACKET];
 volatile unsigned char read_idx = 0, write_idx = 0;
-// a remplacer par les defines
 volatile const unsigned char my_mac[] = {ENC624J600_MAC0, ENC624J600_MAC1, ENC624J600_MAC2, ENC624J600_MAC3, ENC624J600_MAC4, ENC624J600_MAC5, 0x08, 0x00};
 
 
@@ -314,6 +315,7 @@ void ENC624J600PhyWrite(u08 address, u16 data)
 void ENC624J600Init(void)
 {
 	ENC624J600Bank=3;
+	packet_transmit=0;
 	
 	// initialize I/O
 	sbi(ENC624J600_CONTROL_DDR, ENC624J600_CONTROL_CS);
@@ -471,7 +473,8 @@ void ENC624J600Init(void)
 				
 			// enable interuption
 				ENC624J600Write(EIEH,0x80);
-				ENC624J600Write(EIEL,0x40);
+//				ENC624J600Write(EIEL,0x40);
+				ENC624J600Write(EIEL,0x48);
 				// configuration LED
 	// 				ENC624J600Write(EIDLEDH,0x54);
 	// 				ENC624J600PhyWrite(PHCON1,PHCON1_PFULDPX);
