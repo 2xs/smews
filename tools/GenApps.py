@@ -218,7 +218,6 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			global propertiesInfos
 			global contentTypeList
 			global controlByte
-			global protocolList
 			if name == 'args':
 				contentTypeList.append('application/x-www-form-urlencoded')
 				controlByte += 16
