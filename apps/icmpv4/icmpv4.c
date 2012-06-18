@@ -51,6 +51,7 @@ static char icmp_payload[OUTPUT_BUFFER_SIZE];
 static int buffer_size;
 static char sequence_number[2];
 static char identifier[2];
+static char checksum[2];
 
 #define ICMP_ECHO_REQUEST 	8
 #define ICMP_ECHO_REPLY		0
@@ -72,9 +73,9 @@ char icmp4_packet_in(const void *connection_info)
 	tmp = in(); /* code */
 	checksum_add(tmp);
 
-	tmp_short[S0] = in(); /* checksum */
-	tmp_short[S1] = in();
-	checksum_add16(UI16(tmp_short));
+	checksum[S0] = in();
+	checksum[S1] = in();
+	checksum_add16(UI16(checksum));
 
 	identifier[S0] = in();
 	identifier[S1] = in();
@@ -95,30 +96,26 @@ char icmp4_packet_in(const void *connection_info)
 		printf("invalid checksum\r\n");
 		return 0; /* invalid checksum */
 	}
+
 	return 1;
 }
 
 char icmp4_packet_out(const void *connection_info)
 {
 	int i;
-	/* compute checksum */
-	checksum_init();
-	checksum_add(ICMP_ECHO_REPLY);
-	checksum_add(0);
-	checksum_add16(UI16(sequence_number));
-	checksum_add16(UI16(identifier));
-	for (i = 0 ; i < buffer_size ; ++i)
-	{
-		checksum_add(icmp_payload[i]);
-	}
-	checksum_end();
-
 	/* generate reply */
 
 	out_c(ICMP_ECHO_REPLY); /* type */
 	out_c(0);  /* code */
-	out_c(current_checksum[S0]);
-	out_c(current_checksum[S1]);
+
+	/* Generate checksum from request one, only the type byte has change,
+	 * so the value can be reused to accelerate the computation of the checksum
+	 */
+	UI16(checksum) += (ICMP_ECHO_REQUEST << 8);
+	if ((UI16(checksum) >> 8) < ICMP_ECHO_REQUEST) /* overflow, should add one */
+		UI16(checksum)++;
+	out_c(checksum[S0]);
+	out_c(checksum[S1]);
 	out_c(identifier[S0]);
 	out_c(identifier[S1]);
 	out_c(sequence_number[S0]);
