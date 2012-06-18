@@ -214,9 +214,8 @@ void smews_send_packet(struct connection *connection) {
 #else
 		ip_addr = connection->ip_addr;
 #endif
-#ifndef DISABLE_GP_IP_HANDLER
-		if (!IS_GPIP(connection))
-#endif
+
+		if (IS_HTTP(connection))
 		{
 			port = connection->protocol.http.port;
 			next_outseqno = connection->protocol.http.next_outseqno;

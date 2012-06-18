@@ -141,7 +141,11 @@ struct connection {
 
 #ifndef DISABLE_GP_IP_HANDLER
 	#define IS_GPIP(connection) (connection && connection->output_handler && IS_GPIP_HANDLER(connection->output_handler))
+	#define IS_HTTP(connection) (!IS_GPIP(connection))
+#else
+	#define IS_HTTP(connection) (connection)
 #endif
+
 
 /* Loop on each connection */
 #define FOR_EACH_CONN(item, code) \

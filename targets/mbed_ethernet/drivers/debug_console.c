@@ -101,15 +101,17 @@ void mbed_console_connections_state(char *args)
 	int cpt = 0;
 	FOR_EACH_CONN(conn, {
 		printf("Connection: %d\r\n", cpt++);
-		if (!conn->output_handler || conn->output_handler->handler_type != type_general_ip_handler)
+		if (IS_HTTP(conn))
 		{
 			printf("\tport: %d\r\n", UI16(conn->protocol.http.port));
 			printf("\ttcp_state: %d\r\n", conn->protocol.http.tcp_state);
 		}
+#ifndef DISABLE_GP_IP_HANDLER
 		else
 		{
 			printf("\tGPIP for protocol %d\r\n", conn->output_handler->handler_data.generator.handlers.gp_ip.protocol);
 		}
+#endif
 		printf("\toutput_handler: ");
 		if(conn->output_handler)
 			printf("****\r\n");

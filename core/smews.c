@@ -45,9 +45,7 @@ void smews_retransmit(void) {
 
 	FOR_EACH_CONN(conn, {
 		if(conn->output_handler
-#ifndef DISABLE_GP_IP_HANDLER
-			&& !IS_GPIP(conn)
-#endif
+			&& IS_HTTP(conn)
 			&& last_transmission_time - conn->protocol.http.transmission_time > 4
 			&& UI16(conn->protocol.http.inflight) > 0) {
 			UI32(conn->protocol.http.next_outseqno) -= UI16(conn->protocol.http.inflight);

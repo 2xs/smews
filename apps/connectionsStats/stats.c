@@ -47,15 +47,17 @@ static char doGet(struct args_t *args) {
 	int cpt = 0;
 	FOR_EACH_CONN(conn, {
 		out_str("Connection: "); out_uint(cpt++); out_str("\n");
-		if (!IS_GPIP(conn))
+		if (IS_HTTP(conn))
 		{
 			out_str("\tport: "); out_uint(UI16(conn->protocol.http.port)); out_str("\n");
 			out_str("\ttcp_state: "); out_uint(conn->protocol.http.tcp_state); out_str("\n");
 		}
-		else
+#ifndef DISABLE_GP_IP_HANDLER
+		else if (IS_GPIP(conn))
 		{
 			out_str("\tGPIP for protocol "); out_uint(conn->output_handler->handler_data.generator.handlers.gp_ip.protocol); out_str("\n");
 		}
+#endif
 		out_str("\toutput_handler: ");
 		if(conn->output_handler)
 			out_str("****\n");

@@ -182,17 +182,14 @@ void free_connection(const struct connection *connection) {
 	} else {
 		all_connections = connection->next;
 	}
-#ifndef DISABLE_GP_IP_HANDLER
-	if (!IS_GPIP(connection))
+
+	if (IS_HTTP(connection))
 	{
-#endif
 		if(connection->protocol.http.generator_service) {
 			clean_service(connection->protocol.http.generator_service, NULL);
 			mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
 		}
-#ifndef DISABLE_GP_IP_HANDLER
 	}
-#endif
 
 #ifdef IPV6
 			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */

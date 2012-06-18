@@ -151,7 +151,10 @@ struct output_handler_t {
 };
 
 #ifndef DISABLE_GP_IP_HANDLER
-	#define IS_GPIP_HANDLER(handler) (CONST_UI8(handler->handler_type) == type_general_ip_handler)
+	#define IS_GPIP_HANDLER(handler) (handler && (CONST_UI8(handler->handler_type) == type_general_ip_handler))
+	#define IS_HTTP_HANDLER(handler) (!IS_GPIP_HANDLER(handler))
+#else
+	#define IS_HTTP_HANDLER(handler) (handler)
 #endif
 
 /* Macros for accessing output_handler structs */
