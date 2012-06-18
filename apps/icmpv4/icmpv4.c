@@ -39,6 +39,14 @@
 </generator>
  */
 
+#ifdef IPV6
+	#error "This application can only work for IPv4 smews"
+#endif
+
+#ifdef DISABLE_GP_IP_HANDLER
+	#error "This application can not work with disable_general_purpose_ip_handler
+#endif
+
 static char icmp_payload[OUTPUT_BUFFER_SIZE];
 static int buffer_size;
 static char sequence_number[2];
