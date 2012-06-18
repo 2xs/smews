@@ -45,7 +45,7 @@ char server_push(const struct output_handler_t *push_handler /*CONST_VAR*/) {
 	x = 0;
 	if(push_handler->handler_comet) {
 		FOR_EACH_CONN(conn, {
-			if(conn->output_handler == push_handler) {
+			if(IS_HTTP(conn) && conn->output_handler == push_handler) {
 				conn->protocol.http.comet_send_ack = 0;
 				UI32(conn->protocol.http.final_outseqno) = UI32(conn->protocol.http.next_outseqno) - 1;
 			}

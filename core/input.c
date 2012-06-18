@@ -475,14 +475,12 @@ char smews_receive(void) {
 	/* search an existing TCP connection using the current port */
 
 	FOR_EACH_CONN(conn, {
-#ifndef DISABLE_GP_IP_HANDLER
-		/* do not consider GPIP connections */
-		if (IS_GPIP(conn))
+		/* Only search http connection */
+		if (!IS_HTTP(conn))
 		{
 			NEXT_CONN(conn);
 			continue;
 		}
-#endif
 		if(UI16(conn->protocol.http.port) == UI16(tmp_connection.protocol.http.port) &&
 #ifdef IPV6
 			ipcmp(conn->ip_addr, comp_ipv6_addr)) {
