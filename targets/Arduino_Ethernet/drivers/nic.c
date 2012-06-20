@@ -12,16 +12,15 @@ void nicInit(void)
 void nicSend(unsigned int len, unsigned char* ptrpacket)
 {
 	ENC624J600PacketSend(len, ptrpacket);
-	#ifdef DEBUG
-	stateSend();
-	#endif
 }
+
 //maj 04_05_12
+#if 0
 unsigned int nicPoll(unsigned int maxlen)
 {
 	return ENC624J600PacketReceive(maxlen);
 }
-
+#endif
 void nicGetMacAddress(u08* macaddr)
 {
 	// read MAC address registers

@@ -103,11 +103,12 @@ extern volatile uint32_t global_timer;
 
 /* Smews configuration */
 //#define OUTPUT_BUFFER_SIZE 512
-#define OUTPUT_BUFFER_SIZE 256
+#define OUTPUT_BUFFER_SIZE 128
 //#define ALLOC_SIZE 2048
 //#define ALLOC_SIZE 768 // Arduino
 #define ALLOC_SIZE 512
-#define STACK_SIZE 64 // original
+#define STACK_SIZE 128
+//#define STACK_SIZE 64 // original
 //#define STACK_SIZE 256
 
 /* IP address */

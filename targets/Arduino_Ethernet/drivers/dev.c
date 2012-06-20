@@ -9,11 +9,11 @@
 #define TIME	16000
 
 
-extern volatile packet_t IPPacketTab[MAX_PACKET];
+extern volatile packet_t IPPacketTab[];
 extern volatile u08 read_idx, write_idx ;
 extern volatile u08 my_mac[] ;
 extern volatile unsigned int packet_size; 
-extern volatile u08 packet_transmit;
+//extern volatile u08 packet_transmit;
 
 
 
@@ -34,7 +34,7 @@ void dev_init(void)
 
 void dev_prepare_output(int size){
 		//PORTB |= _BV(0);
-	packet_transmit = 0;
+	//packet_transmit = 0;
 	//_delay_us(1);
 	packet_size = size + 14;
 	if (read_idx!=0)
@@ -81,14 +81,10 @@ char dev_get(void)
 {
 	volatile u08 byte=0;
 	static unsigned char first=1;
-	// sprintf(chaine,"read_idx=%02X size : %04X \n",read_idx,IPPacketTab[read_idx].size);
-	// displayString(chaine);
 	if(IPPacketTab[read_idx].size == 0)
 		return -1;
 	if(first && IPPacketTab[read_idx].size>0)
 	{
-		// displayString("je traite le new paquet\n");
-		// displayString("recoit :  \t\t");
 		ENC624J600WriteOp16(ENC624J600_WRITE_ERXRDPT,IPPacketTab[read_idx].packetPtr+7+15);
 		first = 0;
 	}
@@ -129,15 +125,17 @@ ISR(INT0_vect, ISR_BLOCK)
 	
 	if( (ENC624J600Read(EIRL) & EIR_PKTIF) )
 	// retrieve the packet
-		nicPoll(1500);
-	else if (ENC624J600Read(EIRL) & EIR_TXIF) 
+	//		nicPoll(1500);
+		ENC624J600PacketReceive();
+	/*
+	if (ENC624J600Read(EIRL) & EIR_TXIF) 
 	{
 		PORTB |= _BV(0);
 		packet_transmit = 1;
 	}
-
+*/
 	// réactiver les interruptions
-//	ENC624J600Write(EIEH,0x80);ENC624J600Write(EIEL,0x40);
-	ENC624J600Write(EIEH,0x80);ENC624J600Write(EIEL,0x48);
+	ENC624J600Write(EIEH,0x80);ENC624J600Write(EIEL,0x40);
+//	ENC624J600Write(EIEH,0x80);ENC624J600Write(EIEL,0x48);
 //	sei();
 }
