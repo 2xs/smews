@@ -50,7 +50,7 @@ void nicSend(unsigned int len, unsigned char* packet);
 /// Upper network layers may assume that an ethernet-like 802.3 header is at
 /// the beginning of the packet, and contains the packet addressing information.
 /// See net.h documentation for ethernet header format.
-unsigned int nicPoll(unsigned int maxlen);
+//unsigned int nicPoll(unsigned int maxlen);
 
 //! Return the 48-bit hardware node (MAC) address of this network interface.
 ///	This function can return a MAC address read from the NIC hardware, if available.

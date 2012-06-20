@@ -3,8 +3,8 @@
 
 #include "avrlibtypes.h"
 
-//#define MAX_PACKET	12
-#define MAX_PACKET	36
+#define MAX_PACKET	12
+//#define MAX_PACKET	36
 
 void dev_prepare_output(int size);
 void dev_put(unsigned char byte);

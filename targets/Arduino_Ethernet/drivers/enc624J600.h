@@ -519,7 +519,8 @@ void ENC624J600PacketSend(unsigned int len, unsigned char* packet);
 /// \param	maxlen	The maximum acceptable length of a retrieved packet.
 /// \param	packet	Pointer where packet data should be stored.
 /// \return Packet length in bytes if a packet was retrieved, zero otherwise.
-unsigned int ENC624J600PacketReceive(unsigned int maxlen);
+//unsigned int ENC624J600PacketReceive(unsigned int maxlen);
+unsigned int ENC624J600PacketReceive(void);
 
 void ENC624J600WriteOp16(u08 op, u16 data);
 
