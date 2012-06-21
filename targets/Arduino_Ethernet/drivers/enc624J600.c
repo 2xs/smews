@@ -153,49 +153,61 @@ void ENC624J600WriteOp16(u08 op, u16 data)
 	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
 }
 
-//MAJ 29_05_12
-void ENC624J600ReadBuffer(u16 len,u16 address,volatile u08* data)
-{
-	ENC624J600WriteOp16(ENC624J600_WRITE_ERXRDPT,address);
-//	while(!(SPSR & (1<<SPIF)));
-//	*data = ENC624J600ReadOp(ENC624J600_READ_ERXDATA,0);
-	//while(--len)
-	while(len--)
-	{
-		// read data
- //		SPDR = 0x00;
-//		while(!(SPSR & (1<<SPIF)));
- 		*data++ = ENC624J600ReadOp(ENC624J600_READ_ERXDATA,0);
- 		//SPDR = 0x00;
-
-	}
-	// release CS
-//	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
-}
-
-void ENC624J600ReadRXBuffer(uint16_t address, uint8_t *data, uint16_t len)
+void ENC624J600WritePTR(uint8_t instruction, uint16_t address, uint8_t disable_cs)
 {
 	// assert CS
 	ENC624J600_CONTROL_PORT &= ~(1<<ENC624J600_CONTROL_CS);
+	
+	SPDR = instruction;
+	while(!(SPSR & (1<<SPIF)));
+
+	SPDR = address&0x00FF;
+	while(!(SPSR & (1<<SPIF)));
+
+	SPDR = address>>8;
+	while(!(SPSR & (1<<SPIF)));
+
+	// release CS
+	if(disable_cs)
+		ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
+}
 
 
-	SPDR = 
+void ENC624J600ReadRXBuffer(uint16_t address, uint8_t *data, uint16_t len)
+{
+	ENC624J600WritePTR(ENC624J600_WRITE_ERXRDPT, address, 0);
 
+	SPDR = ENC624J600_READ_ERXDATA;
+	while(!(SPSR & (1<<SPIF)));
+
+	while(len--)
+	{
+		SPDR = 0x00;
+		while(!(SPSR & (1<<SPIF)));
+		*data++ = SPDR;
+	}
 	                  
 	// release CS
 	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
 }
 
-//MAJ 06_06_12
-void ENC624J600WriteBuffer(u16 len, volatile u08* data,u16 address)
+void ENC624J600WriteGPBuffer(uint16_t address, uint8_t *data, uint16_t len)
 {
-	// issue write command
-	ENC624J600WriteOp16(ENC624J600_WRITE_EGPWRPT,address);
+	ENC624J600WritePTR(ENC624J600_WRITE_EGPWRPT, address, 0);
+
+	SPDR = ENC624J600_WRITE_EGPDATA;
+	while(!(SPSR & (1<<SPIF)));
+
 	while(len--)
 	{
-		ENC624J600WriteOp(ENC624J600_WRITE_EGPDATA,0,*data++);
-	}	
+		SPDR = *data++;
+		while(!(SPSR & (1<<SPIF)));
+	}
+	                  
+	// release CS
+	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
 }
+
 
 //MAJ 06/06/12 : test OK !
 void ENC624J600SetBank(u08 address)
@@ -206,19 +218,15 @@ void ENC624J600SetBank(u08 address)
 		ENC624J600Bank = (address & BANK_MASK);
 		switch((ENC624J600Bank)>>5){
 			case 0 :
-				//ENC624J600WriteOp(ENC624J600_BANK0_SELECT, 0,ENC624J600_BANK0_SELECT);
 				ENC624J600SBI(ENC624J600_BANK0_SELECT);
 				break;
 			case 1 :
-				//ENC624J600WriteOp(ENC624J600_BANK1_SELECT, 0,ENC624J600_BANK1_SELECT);
 				ENC624J600SBI(ENC624J600_BANK1_SELECT);
 				break;
 			case 2 :
-				//ENC624J600WriteOp(ENC624J600_BANK2_SELECT, 0,ENC624J600_BANK2_SELECT);
 				ENC624J600SBI(ENC624J600_BANK2_SELECT);
 				break;
 			case 3 :
-				//ENC624J600WriteOp(ENC624J600_BANK3_SELECT, 0,ENC624J600_BANK3_SELECT);
 				ENC624J600SBI(ENC624J600_BANK3_SELECT);
 				break;
 		}
@@ -365,7 +373,6 @@ void ENC624J600Init(void)
 
 	//STEP FOUR
 	// reset command
-	//ENC624J600Write(ECON2L,ECON2_ETHRST);
 	ENC624J600SBI(ENC624J600_ETH_RESET);
 
 	//STEP FIVE
@@ -422,8 +429,6 @@ void ENC624J600Init(void)
 		ENC624J600Write(EPMM4H, 0x00);
 		//CheckSum
 		unsigned short check = ip_checksum(20, temp1);
-		//ENC624J600Write(EPMCSL,ip_checksum(20,temp1)&0xFF);
-		//ENC624J600Write(EPMCSH,ip_checksum(20,temp1)>>8);
 		ENC624J600Write(EPMCSL,(check&0x00FF));
 		ENC624J600Write(EPMCSH,(check>>8));
 		//exact pattern
@@ -458,7 +463,6 @@ void ENC624J600Init(void)
 	//	ENC624J600Write(EIDLEDH,0x54);
 	// 	ENC624J600PhyWrite(PHCON1,PHCON1_PFULDPX);
 		// enable reception
-		//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_RXEN);
 		ENC624J600SBI(ENC624J600_ENABLE_RX);
 	}
 	else
@@ -476,7 +480,7 @@ void ENC624J600PacketSend(uint16_t len, unsigned char* packet)
 {
 	while(ENC624J600Read(ECON1L) & ECON1_TXRTS);
 	// copy the packet into the transmit buffer
-	ENC624J600WriteBuffer(len, packet,TXSTART_INIT);
+	ENC624J600WriteGPBuffer(TXSTART_INIT, packet, len);
 	
 	// Set the write pointer to start of transmit buffer area
 	ENC624J600Write(ETXSTL, TXSTART_INIT&0x00FF);
@@ -486,7 +490,6 @@ void ENC624J600PacketSend(uint16_t len, unsigned char* packet)
 	ENC624J600Write(ETXLENH, (len>>8));
 
 	// send the contents of the transmit buffer onto the network
-	//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_TXRTS);
 	ENC624J600SBI(ENC624J600_SETTXRTS);
 }
 
@@ -519,59 +522,60 @@ void ENC624J600DMABuffer(u16 len,u16 source,u16 dest)
 
 
 //MAJ 05_05_12
-//unsigned int ENC624J600PacketReceive(unsigned int maxlen)
 uint16_t ENC624J600PacketReceive(void)
 {
+	uint8_t i;
 	volatile uint16_t length;
 	volatile unsigned char type[2];
 	volatile unsigned char head[8];
+	volatile uint8_t byte[4];
 
 	// check if a packet has been received and buffered
 	if( !(ENC624J600Read(EIRL) & EIR_PKTIF) )
 		return 0;
 
-	uint8_t i;
-	uint8_t byte[4];
 	PacketPtr=NextPacketPtr;
-	ENC624J600ReadBuffer(PACKET_HEADER_SIZE,PacketPtr,head);
+	ENC624J600ReadRXBuffer(PacketPtr,head,PACKET_HEADER_SIZE);
 	NextPacketPtr=head[1]<<8;
 	NextPacketPtr|=head[0];
 	length=head[3]<<8;
 	length|=head[2];
-	ENC624J600ReadBuffer(2,PacketPtr+PACKET_HEADER_SIZE+12,type);
+	ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+12,type,2);
 	/*-----------------------test si c'est un ARP-------------------------*/
 	if (type[0]==0x08 && type[1]==0x06)
 	{
-		ENC624J600ReadBuffer(MAC_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+6,arpResponse);
-		//strncpy(arpResponse+32, arpResponse, MAC_ADDR_SIZE);
+		ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+6,arpResponse,MAC_ADDR_SIZE);
 		strncpy(arpResponse+26, arpResponse, MAC_ADDR_SIZE);
 	
-		//ENC624J600ReadBuffer(IP_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+28,arpResponse + 38);
-		ENC624J600ReadBuffer(IP_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+28,arpResponse + 32);
+		ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+28,arpResponse + 32, IP_ADDR_SIZE);
 		ENC624J600PacketSend(ARP_PACKET_SIZE-6, arpResponse); 
+
+		// freed up memory by updating ERXTAIL if needed
+		uint8_t indice;
+		if (write_idx==0)
+			indice=MAX_PACKET-1;
+		else
+			indice=write_idx-1;
+
+		if (IPPacketTab[indice].size!=0){
+			IPPacketTab[indice].nextPtr=NextPacketPtr;
+		}
+		else{
+			ENC624J600Write(ERXTAILL, (NextPacketPtr-2)&0x00FF);
+			ENC624J600Write(ERXTAILH, (NextPacketPtr-2)>>8);
+		}
 	}
 	else 
 	{
-		ENC624J600ReadBuffer(1,PacketPtr+PACKET_HEADER_SIZE+23,byte);
+		ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+23,byte,1);
 		/*---------------------test si c'est un ping----------------------*/
 		if (type[0]==0x08 && type[1]==0x00 && byte[0] == 0x01)
 		{
 			/*------------------------traitement-------------------------*/
 			ENC624J600WriteUser(PacketPtr+7+35,0x00);
-		
-		/*	
-			for(i=0; i<6; i++)
-			{
-				ENC624J600ReadBuffer(1,PacketPtr+8+i+6,byte);
-				ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+i,byte[0]);
-			}
-		*/	
-
-			ENC624J600ReadBuffer(4,PacketPtr+PACKET_HEADER_SIZE+26,byte);
-			for(i=0;i<4;i++){
-				ENC624J600ReadBuffer(1,PacketPtr+8+i+26,byte);
-				ENC624J600WriteUser(PacketPtr+8+i+30,byte[0]);
-			}
+	
+			ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+26,byte,4);
+			ENC624J600WriteGPBuffer(PacketPtr+8+30, byte, 4);
 			
 			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+26,IP_ADDR_0);
 			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+27,IP_ADDR_1);
@@ -588,19 +592,36 @@ uint16_t ENC624J600PacketReceive(void)
 			ENC624J600Write(ETXLENH, (length-10)>>8);
 			// send the contents of the transmit buffer onto the network
 			ENC624J600SBI(ENC624J600_SETTXRTS);
+
+			// freed up memory by updating ERXTAIL if needed !
+			u08 indice;
+			if (write_idx==0)
+				indice=MAX_PACKET-1;
+			else
+				indice=write_idx-1;
+
+			if (IPPacketTab[indice].size!=0){
+				IPPacketTab[indice].nextPtr=NextPacketPtr;
+			}
+			else{
+				ENC624J600Write(ERXTAILL, (NextPacketPtr-2)&0x00FF);
+				ENC624J600Write(ERXTAILH, (NextPacketPtr-2)>>8);
+			}
+
 		}
 		else{
 			#ifdef DEBUG
 			displayString("TCP ou UDP\n");
 			#endif
 			u08 port[2];
-			ENC624J600ReadBuffer(2,PacketPtr+PACKET_HEADER_SIZE+36,port);
+			ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+36,port,2);
 			if (port[0]==0x00 && port[1]==0x50)
 			{
 				IPPacketTab[write_idx].packetPtr = PacketPtr;
 				IPPacketTab[write_idx].nextPtr = NextPacketPtr;
 				IPPacketTab[write_idx].size = length-18; // 6 for Mac Src, 6 for Mac Dst, 2 for ethernet type, 4 for ethernet CRC
-				ENC624J600ReadBuffer(6,PacketPtr+PACKET_HEADER_SIZE+6,IPPacketTab[write_idx].mac_src);
+				ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+6,IPPacketTab[write_idx].mac_src,6);
+				
 				if(write_idx < (MAX_PACKET-1))
 					write_idx++;
 				else
@@ -610,14 +631,14 @@ uint16_t ENC624J600PacketReceive(void)
 			}
 		}
 	}
-	 	
+	 /*	
 	// freed up memory by updating ERXTAIL
 	ENC624J600Write(ERXTAILL, (NextPacketPtr-2)&0x00FF);
 	ENC624J600Write(ERXTAILH, (NextPacketPtr-2)>>8);
-	
+	*/
 	// decrement the packet counter indicate we are done with this packet
-	//ENC624J600Write(ECON1H,ECON1_PKTDEC>>8);
 	ENC624J600SBI(ENC624J600_SETPKTDEC);
+	
 	return length;
 }
 
