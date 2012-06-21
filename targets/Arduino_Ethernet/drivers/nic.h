@@ -28,6 +28,7 @@
 #define NIC_H
 
 //#include <inttypes.h>
+#include <stdint.h>
 
 //! Initialize network interface hardware.
 /// Reset and bring up network interface hardware. This function should leave
@@ -41,7 +42,7 @@ void nicInit(void);
 ///	to the data.  This send command may assume an ethernet-like 802.3 header is at the
 /// beginning of the packet, and contains the packet addressing information.
 ///	See net.h documentation for ethernet header format.
-void nicSend(unsigned int len, unsigned char* packet);
+//void nicSend(uint16_t len, unsigned char* packet);
 
 //! Check network interface; return next received packet if avaialable.
 /// Function accepts the maximum allowable packet length (in bytes), and a
@@ -65,7 +66,7 @@ void nicSetMacAddress(uint8_t* macaddr);
 //! Print network interface hardware registers.
 /// Prints a formatted list of names and values of NIC registers for debugging
 /// purposes.
-inline void nicRegDump(void);
+//inline void nicRegDump(void);
 
 #endif
 //@}

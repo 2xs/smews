@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "enc624J600.h"
 
 
@@ -9,10 +11,12 @@ void nicInit(void)
 }
 
 //maj 04_05_12
-void nicSend(unsigned int len, unsigned char* ptrpacket)
+#if 0
+void nicSend(uint16_t len, unsigned char* ptrpacket)
 {
 	ENC624J600PacketSend(len, ptrpacket);
 }
+#endif
 
 //maj 04_05_12
 #if 0

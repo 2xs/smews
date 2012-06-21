@@ -127,7 +127,7 @@
 
 #define MICMDL 		(0x12|0x40)
 #define MICMDH		(0x13|0x40)
-#define MIREGADRL   	(0x14|0x40)
+#define MIREGADRL  	(0x14|0x40)
 #define MIREGADRH	(0x15|0x40)
 
 
@@ -174,7 +174,6 @@
 
 //MAJ 22/05/12
 // ENC624J600 ERXFCON Register Bit Definitions
-
 #define ERXFCON_HTEN	0x8000	//bit16	32768
 #define ERXFCON_MPEN	0x4000	//bit15	16384
 #define ERXFCON_NOTPM	0x1000	//bit13	4096
@@ -193,7 +192,6 @@
 
 //MAJ 22/05/12
 // ENC624J600 EIE Register Bit Definitions
-
 #define EIE_INTIE		0x8000
 #define EIE_MODEXIE		0x4000
 #define EIE_HASHIE		0x2000
@@ -222,7 +220,7 @@
 
 //MAJ 22/05/12
 // ENC624J600 ESTAT Register Bit Definitions
-#define ESTAT_INT	0x8000	//bit16	32768
+#define ESTAT_INT		0x8000	//bit16	32768
 #define ESTAT_FCIDLE	0x4000	//bit15	16384
 #define ESTAT_RXBUSY	0X2000	//bit13	8192
 #define ESTAT_CLKRDY	0x1000	//bit12	4096
@@ -239,17 +237,17 @@
 
 //MAJ 22/05/12
 // ENC624J600 ECON2 Register Bit Definitions
-#define ECON2_ETHEN	0x8000	//bit16	32768
-#define ECON2_STRCH	0x4000	//bit15	16384
-#define ECON2_TXMAC	0x2000	//bit14	8192
+#define ECON2_ETHEN		0x8000	//bit16	32768
+#define ECON2_STRCH		0x4000	//bit15	16384
+#define ECON2_TXMAC		0x2000	//bit14	8192
 #define ECON2_SHA1MD5	0x1000	//bit13	4096
 #define ECON2_COCON3	0x0800	//bit12	2048
 #define ECON2_COCON2	0x0400	//bit11	1024
 #define ECON2_COCON1	0x0200	//bit10	512
 #define ECON2_COCON0	0x0100	//bit9	256
 #define ECON2_AUTOFC	0x0080	//bit8	128
-#define ECON2_TXRST	0x0040	//bit7	64
-#define ECON2_RXRST	0x0020	//bit6	32
+#define ECON2_TXRST		0x0040	//bit7	64
+#define ECON2_RXRST		0x0020	//bit6	32
 #define ECON2_ETHRST	0x0010	//bit5	16
 #define ECON2_MODLEN1	0x0008	//bit4	8
 #define ECON2_MODLEN0	0x0004	//bit3	4
@@ -260,31 +258,31 @@
 // ENC624J600 ECON1 Register Bit Definitions
 #define ECON1_MODEXST	0x8000	//bit16	32768
 #define ECON1_HASHEN	0x4000	//bit15	16384
-#define ECON1_HASOP	0x2000	//bit14 8192
+#define ECON1_HASOP		0x2000	//bit14 8192
 #define ECON1_HASHLST	0x1000	//bit13	4096
-#define ECON1_AESST	0x800	//bit12	2048
+#define ECON1_AESST		0x800	//bit12	2048
 #define ECON1_AESOP1	0x400	//bit11	1024
 #define ECON1_AESOP0	0x200	//bit10	512
 #define ECON1_PKTDEC	0x100	//bit9	256
-#define ECON1_FCOP1	0x80	//bit8	128
-#define ECON1_FCOP0	0x40	//bit7	64
-#define ECON1_DMAST	0x20	//bit6	32
+#define ECON1_FCOP1		0x80	//bit8	128
+#define ECON1_FCOP0		0x40	//bit7	64
+#define ECON1_DMAST		0x20	//bit6	32
 #define ECON1_DMACPY	0x10	//bit5	16
 #define ECON1_DMACSSD	0x08	//bit4	8
 #define ECON1_DMANOCS	0x04	//bit3	4
-#define ECON1_TXRTS	0x02	//bit2	2
-#define ECON1_RXEN	0x01	//bit1	1
+#define ECON1_TXRTS		0x02	//bit2	2
+#define ECON1_RXEN		0x01	//bit1	1
 
 //MAJ 22/05/12
 // ENC624J600 MACON1 Register Bit Definitions
-#define MACON1_LOOPBK		0x10
-#define MACON1_RXPAUS		0x04
-#define MACON1_PASSALL		0x02
+#define MACON1_LOOPBK	0x10
+#define MACON1_RXPAUS	0x04
+#define MACON1_PASSALL	0x02
 
 //MAJ 22/05/12
 // ENC624J600 MACON2 Register Bit Definitions
 #define MACON2_DEFER	0x4000	//bit15	16384
-#define MACON2_BPEN	0x2000	//bi14 	8192
+#define MACON2_BPEN		0x2000	//bi14 	8192
 #define MACON2_NOBKOFF	0x1000	//bit13	4096
 #define MACON2_PADCFG2	0x80	//bit8	128
 #define MACON2_PADCFG1	0x40	//bit7	64
@@ -296,22 +294,22 @@
 
 //MAJ 22/05/12
 // ENC624J600 MICMD Register Bit Definitions
-#define MICMD_MIISCAN		0x02
+#define MICMD_MIISCAN	0x02
 #define MICMD_MIIRD		0x01
 
 //MAJ 22/05/12
 // ENC624J600 MISTAT Register Bit Definitions
-#define MISTAT_NVALID		0x04
+#define MISTAT_NVALID	0x04
 #define MISTAT_SCAN		0x02
 #define MISTAT_BUSY		0x01
 
 
 //MAJ 22/05/12
 // ENC624J600 PHCON1 Register Bit Definitions
-#define PHCON1_PRST	0x8000	//bit16	32768
+#define PHCON1_PRST		0x8000	//bit16	32768
 #define PHCON1_PLOOPBK	0x4000	//bit15	16384
 #define PHCON1_SPD100	0x2000	//bit14	8192
-#define PHCON1_ANEN	0x1000	//bit13	4096
+#define PHCON1_ANEN		0x1000	//bit13	4096
 #define PHCON1_PSLEEP	0x800	//bit12	2048
 #define PHCON1_RENEG	0x200	//bit10	512
 #define PHCON1_PFULDPX	0x100	//bit9	256
@@ -345,14 +343,14 @@
 
 //MAJ 22/05/12
 // ENC624J600 PHANA Register Bit Definitions
-#define PHANA_ADNP	0x8000	//bit16	32768
+#define PHANA_ADNP		0x8000	//bit16	32768
 #define PHANA_ADFAULT	0x2000	//bit14 8192
 #define PHANA_ADPAUS1	0x800	//bit12	2048
 #define PHANA_ADPAUS0	0x400	//bit11	1024
 #define PHANA_AD100FD	0x100	//bit9	256
-#define PHANA_AD100	0x80	//bit8	128
+#define PHANA_AD100		0x80	//bit8	128
 #define PHANA_AD10FD	0x40	//bit7	64
-#define PHANA_AD10	0x20	//bit6	32
+#define PHANA_AD10		0x20	//bit6	32
 #define PHANA_ADIEEE4	0x10	//bit5	16
 #define PHANA_ADIEEE3	0x08	//bit4	8
 #define PHANA_ADIEEE2	0x04	//bit3	4
@@ -386,7 +384,7 @@
 
 //MAJ 22/05/12
 // ENC624J600 PHANE Register Bit Definitions
-#define PHANE_PDFLT	0x10	//bit5	16
+#define PHANE_PDFLT		0x10	//bit5	16
 #define PHANE_LPARCD	0x02	//bit2	2
 #define PHANE_LPANABL	0x01	//bit1	1
 
@@ -406,54 +404,56 @@
 
 //MAJ 22/05/12
 // SPI operation codes
-
-#define ENC624J600_BANK0_SELECT			0xC0
-#define ENC624J600_BANK1_SELECT			0xC2
-#define ENC624J600_BANK2_SELECT			0xC4
-#define ENC624J600_BANK3_SELECT			0xC6
-#define ENC624J600_SYSTEM_RESET			0xCA
-#define ENC624J600_FLOW_CONTROL_DISABLE		0xE0
-#define ENC624J600_FLOW_SIGNLE			0xE2
-#define ENC624J600_FLOW_MULTIPLE		0xE4
-#define ENC624J600_FLOW_CLEAR			0xE6
-#define ENC624J600_DECREMENT_PACKET_COUNTER	0xCC
-#define ENC624J600_DMA_STOP			0xD2
-#define ENC624J600_DMA_START_CHEKSUM		0xD8
-#define ENC624J600_DMA_START_CHEKSUM_SEED	0xDA
-#define ENC624J600_DMA_START_COPY		0xDC
-#define ENC624J600_DMA_START_COPY_SEED		0xDE
-#define ENC624J600_REQUEST_PACKET_TRANSM	0xD4
-#define ENC624J600_ENABLE_RX			0xE8
-#define ENC624J600_DISABLE_RX			0xEA
-#define ENC624J600_ENABLE_INTERRUPTS		0xEC
-#define ENC624J600_DISABLE_INTERRUPTS		0xEE
-#define ENC624J600_READ_BANK_SELECT		0xC8
-#define ENC624J600_WRITE_EGPRDPT		0x60
-#define ENC624J600_READ_EGPRDPT			0x62
-#define ENC624J600_WRITE_ERXRDPT		0x64
-#define ENC624J600_READ_ERXRDPT			0x66
-#define ENC624J600_WRITE_EUDARDPT 		0xC8
-#define ENC624J600_READ_EUDARDPT 		0x6A
-#define ENC624J600_WRITE_EGPWRPT  		0x6C
-#define ENC624J600_READ_EGPWRPT  		0x6E
-#define ENC624J600_WRITE_ERXWRPT   		0x70
-#define ENC624J600_READ_ERXWRPT   		0x72
+// Single Byte Instructions
+#define ENC624J600_BANK0_SELECT				0xC0 // B0SEL
+#define ENC624J600_BANK1_SELECT				0xC2 // B1SEL
+#define ENC624J600_BANK2_SELECT				0xC4 // B2SEL
+#define ENC624J600_BANK3_SELECT				0xC6 // B3SEL
+#define ENC624J600_ETH_RESET				0xCA // SETETHRST
+#define ENC624J600_FLOW_CONTROL_DISABLE		0xE0 // FCDISABLE
+#define ENC624J600_FLOW_SINGLE				0xE2 // FCSINGLE
+#define ENC624J600_FLOW_MULTIPLE			0xE4 // FCMULTIPLE
+#define ENC624J600_FLOW_CLEAR				0xE6 // FCCLEAR
+#define ENC624J600_SETPKTDEC				0xCC // SETPKTDEC
+#define ENC624J600_DMA_STOP					0xD2 // DMASTOP
+#define ENC624J600_DMA_START_CHEKSUM		0xD8 // DMACKSUM
+#define ENC624J600_DMA_START_CHEKSUM_SEED	0xDA // DMACKSUMS
+#define ENC624J600_DMA_START_COPY			0xDC // DMACOPY
+#define ENC624J600_DMA_START_COPY_SEED		0xDE // DMACOPYS
+#define ENC624J600_SETTXRTS					0xD4 // SETTXRTS
+#define ENC624J600_ENABLE_RX				0xE8 // ENABLERX
+#define ENC624J600_DISABLE_RX				0xEA // DISABLERX
+#define ENC624J600_ENABLE_INTERRUPTS		0xEC // SETEIE
+#define ENC624J600_DISABLE_INTERRUPTS		0xEE // CLREIE
+// Two-Byte Instructions
+#define ENC624J600_READ_BANK_SELECT			0xC8 // RBSEL
+// Three-Byte Instructions
+#define ENC624J600_WRITE_EGPRDPT			0x60
+#define ENC624J600_READ_EGPRDPT				0x62
+#define ENC624J600_WRITE_ERXRDPT			0x64
+#define ENC624J600_READ_ERXRDPT				0x66
+#define ENC624J600_WRITE_EUDARDPT 			0xC8
+#define ENC624J600_READ_EUDARDPT 			0x6A
+#define ENC624J600_WRITE_EGPWRPT  			0x6C
+#define ENC624J600_READ_EGPWRPT 	 		0x6E
+#define ENC624J600_WRITE_ERXWRPT   			0x70
+#define ENC624J600_READ_ERXWRPT   			0x72
 #define ENC624J600_WRITE_EUDAWRPT    		0x74
 #define ENC624J600_READ_EUDAWRPT    		0x76
-#define ENC624J600_READ_CONTROL_REGISTER		0x00
-#define ENC624J600_WRITE_CONTROL_REGISTER		0x40	
+#define ENC624J600_READ_CONTROL_REGISTER	0x00
+#define ENC624J600_WRITE_CONTROL_REGISTER	0x40	
 #define ENC624J600_READ_CONTROL_REGISTER_UNBANK		0x20
 #define ENC624J600_WRITE_CONTROL_REGISTER_UNBANK	0x22
 #define ENC624J600_BIT_FIELD_SET			0x80
 #define ENC624J600_BIT_FIELD_CLEAR			0xA0
-#define ENC624J600_BIT_FIELD_SET_UNBANK			0x24
-#define ENC624J600_BIT_FIELD_CLEAR_UNBANK		0x26
-#define ENC624J600_READ_EGPDATA				0x28
-#define ENC624J600_WRITE_EGPDATA			0x2A
-#define ENC624J600_READ_ERXDATA 			0x2C
-#define ENC624J600_WRITE_ERXDATA 			0x2E
-#define ENC624J600_READ_EUDADATA  			0x30
-#define ENC624J600_WRITE_EUDADATA  			0x32
+#define ENC624J600_BIT_FIELD_SET_UNBANK		0x24 // BFSU
+#define ENC624J600_BIT_FIELD_CLEAR_UNBAN	0x26 // BFCU
+#define ENC624J600_READ_EGPDATA				0x28 // RGPDATA
+#define ENC624J600_WRITE_EGPDATA			0x2A // WGPDATA
+#define ENC624J600_READ_ERXDATA 			0x2C // RRXDATA
+#define ENC624J600_WRITE_ERXDATA 			0x2E // WRXDATA
+#define ENC624J600_READ_EUDADATA  			0x30 // RUDADATA
+#define ENC624J600_WRITE_EUDADATA  			0x32 // WUDADATA
 	
 
 
@@ -461,8 +461,11 @@
 #define TXSTART_INIT		0x0000
 #define TXSTOP_INIT			0x1339
 
-#define USER_START_INIT		0x2340
-#define USER_STOP_INIT		0x4339
+//#define USER_START_INIT		0x2340
+//#define USER_STOP_INIT		0x4339
+#define USER_START_INIT		0x6000
+#define USER_STOP_INIT		0x6001
+
 
 #define RXSTART_INIT   		0x1340	
 #define RXSTOP_INIT			0x5FFE
@@ -473,7 +476,7 @@
 #define	MAX_FRAMELEN	1500 //1518	// maximum ethernet frame length
 
 // Ethernet constants
-#define ETHERNET_MIN_PACKET_LENGTH	0x3CZ
+//#define ETHERNET_MIN_PACKET_LENGTH	0x3CZ
 //#define ETHERNET_HEADER_LENGTH		0x0E
 #define ARP_RESPONSE_PACKET_SIZE	42
 
@@ -500,9 +503,9 @@ u08 ENC624J600Read(u08 address);
 //! write ax88796 register
 void ENC624J600Write(u08 address, u08 data);
 //! read a PHY register
-u16 ENC624J600PhyRead(u08 address);
+//u16 ENC624J600PhyRead(u08 address);
 //! write a PHY register
-void ENC624J600PhyWrite(u08 address, u16 data);
+//void ENC624J600PhyWrite(u08 address, u16 data);
 
 //! initialize the ethernet interface for transmit/receive
 void ENC624J600Init(void);
@@ -511,7 +514,7 @@ void ENC624J600Init(void);
 /// Sends a packet on the network.  It is assumed that the packet is headed by a valid ethernet header.
 /// \param len		Length of packet in bytes.
 /// \param packet	Pointer to packet data.
-void ENC624J600PacketSend(unsigned int len, unsigned char* packet);
+void ENC624J600PacketSend(uint16_t len, unsigned char* packet);
 
 //! Packet receive function.
 /// Gets a packet from the network receive buffer, if one is available.
@@ -524,14 +527,11 @@ unsigned int ENC624J600PacketReceive(void);
 
 void ENC624J600WriteOp16(u08 op, u16 data);
 
-//! formatted print of important ENC624J600 registers
 
 
-void ENC624J600DMABufferBuffer(u16 len,u16 source,u16 dest);
+//void ENC624J600DMABufferBuffer(u16 len,u16 source,u16 dest);
 
 void ENC624J600WriteUser(u16 address,u08 data);
 
-//! etat de l'envois
-//u08 stateSend();
 #endif
 //@}
