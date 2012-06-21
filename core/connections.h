@@ -218,6 +218,7 @@ extern unsigned char *get_remote_ip(const void *connection, unsigned char *ip);
 
 /** Returns the ip address of the remote end of the currently handled output connection.
  * The main goal of this function is to allow targets to know which IP is the current output for (for MAC<->IP translation mainly)
+ * @warning This function has only a meaning between DEV_PREPARE_OUTPUT and DEV_OUTPUT_DONE code!
  * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned) *
  * @return pointer ip
  */
