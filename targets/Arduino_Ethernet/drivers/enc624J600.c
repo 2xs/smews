@@ -1,6 +1,8 @@
+#include <stdint.h>
+#include <string.h>
+
 #include <avr/io.h>
 #include <util/delay.h>
-#include <string.h>
 
 #include "nic.h"
 #include "enc624J600.h"
@@ -13,22 +15,17 @@
 
 
 // DATA 
-u08 ENC624J600Bank;
-volatile u16 NextPacketPtr,PacketPtr;
-//volatile u08 packet_transmit;
-
-
+volatile uint8_t ENC624J600Bank;
+volatile uint16_t NextPacketPtr,PacketPtr;
 volatile packet_t IPPacketTab[MAX_PACKET];
 volatile unsigned char read_idx = 0, write_idx = 0;
-volatile const unsigned char my_mac[] = {ENC624J600_MAC0, ENC624J600_MAC1, ENC624J600_MAC2, ENC624J600_MAC3, ENC624J600_MAC4, ENC624J600_MAC5, 0x08, 0x00};
 
 
-volatile unsigned int packet_size=0;
 
 
-unsigned char arpResponse[ARP_RESPONSE_PACKET_SIZE] = { 
+unsigned char arpResponse[ARP_RESPONSE_PACKET_SIZE-6] = { 
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-	ENC624J600_MAC0, ENC624J600_MAC1, ENC624J600_MAC2, ENC624J600_MAC3, ENC624J600_MAC4, ENC624J600_MAC5,
+//	ENC624J600_MAC0, ENC624J600_MAC1, ENC624J600_MAC2, ENC624J600_MAC3, ENC624J600_MAC4, ENC624J600_MAC5,
 	0x08, 0x06,
 	0x00, 0x01,
 	0x08, 0x00,
@@ -72,6 +69,22 @@ unsigned short temp1[] = {
 		0x00, 0x01,
 		IP_ADDR_0,IP_ADDR_1, IP_ADDR_2,IP_ADDR_3};
 
+
+/**
+ * Single Byte Instructions
+ **/
+void ENC624J600SBI(uint8_t instruction)
+{
+	// assert CS
+	ENC624J600_CONTROL_PORT &= ~(1<<ENC624J600_CONTROL_CS);
+
+	// issue the instruction
+	SPDR = instruction;
+	while(!(SPSR & (1<<SPIF)));
+
+	// release CS
+	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
+}
 
 
 
@@ -143,9 +156,6 @@ void ENC624J600WriteOp16(u08 op, u16 data)
 //MAJ 29_05_12
 void ENC624J600ReadBuffer(u16 len,u16 address,volatile u08* data)
 {
-	// assert CS
-//	ENC624J600_CONTROL_PORT &= ~(1<<ENC624J600_CONTROL_CS);
-	                  
 	ENC624J600WriteOp16(ENC624J600_WRITE_ERXRDPT,address);
 //	while(!(SPSR & (1<<SPIF)));
 //	*data = ENC624J600ReadOp(ENC624J600_READ_ERXDATA,0);
@@ -161,7 +171,19 @@ void ENC624J600ReadBuffer(u16 len,u16 address,volatile u08* data)
 	}
 	// release CS
 //	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
-	
+}
+
+void ENC624J600ReadRXBuffer(uint16_t address, uint8_t *data, uint16_t len)
+{
+	// assert CS
+	ENC624J600_CONTROL_PORT &= ~(1<<ENC624J600_CONTROL_CS);
+
+
+	SPDR = 
+
+	                  
+	// release CS
+	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
 }
 
 //MAJ 06_06_12
@@ -184,16 +206,20 @@ void ENC624J600SetBank(u08 address)
 		ENC624J600Bank = (address & BANK_MASK);
 		switch((ENC624J600Bank)>>5){
 			case 0 :
-				ENC624J600WriteOp(ENC624J600_BANK0_SELECT, 0,ENC624J600_BANK0_SELECT);
+				//ENC624J600WriteOp(ENC624J600_BANK0_SELECT, 0,ENC624J600_BANK0_SELECT);
+				ENC624J600SBI(ENC624J600_BANK0_SELECT);
 				break;
 			case 1 :
-				ENC624J600WriteOp(ENC624J600_BANK1_SELECT, 0,ENC624J600_BANK1_SELECT);
+				//ENC624J600WriteOp(ENC624J600_BANK1_SELECT, 0,ENC624J600_BANK1_SELECT);
+				ENC624J600SBI(ENC624J600_BANK1_SELECT);
 				break;
 			case 2 :
-				ENC624J600WriteOp(ENC624J600_BANK2_SELECT, 0,ENC624J600_BANK2_SELECT);
+				//ENC624J600WriteOp(ENC624J600_BANK2_SELECT, 0,ENC624J600_BANK2_SELECT);
+				ENC624J600SBI(ENC624J600_BANK2_SELECT);
 				break;
 			case 3 :
-				ENC624J600WriteOp(ENC624J600_BANK3_SELECT, 0,ENC624J600_BANK3_SELECT);
+				//ENC624J600WriteOp(ENC624J600_BANK3_SELECT, 0,ENC624J600_BANK3_SELECT);
+				ENC624J600SBI(ENC624J600_BANK3_SELECT);
 				break;
 		}
 	}
@@ -219,8 +245,41 @@ void ENC624J600Write(u08 address, u08 data)
 }
 
 
+/**
+ * Three-Byte Instructions
+ **/
+/*
+void ENC624J600TBI(uint8_t instruction, uint8_t *data)
+{
+
+}
+*/
+
+/**
+ * Three-Byte Write Instruction
+ **/
+void ENC624J600_Write_TBI(uint8_t instruction, uint8_t *data)
+{
+	// assert CS
+	ENC624J600_CONTROL_PORT &= ~(1<<ENC624J600_CONTROL_CS);
+
+	// issue the instruction
+	SPDR = instruction;
+	while(!(SPSR & (1<<SPIF)));
+
+	SPDR = data[0];
+	while(!(SPSR & (1<<SPIF)));
+
+	SPDR = data[1];
+	while(!(SPSR & (1<<SPIF)));
+
+	// release CS
+	ENC624J600_CONTROL_PORT |= (1<<ENC624J600_CONTROL_CS);
+}
+
 //MAJ 22/05/12
 // ACHTUNG Bug potentiel pour data
+#if 0
 u16 ENC624J600PhyRead(u08 address)
 {
 	u16 data;
@@ -241,8 +300,10 @@ u16 ENC624J600PhyRead(u08 address)
 	// return the data
 	return data;
 }
+#endif
 
 //MAJ 22/05/12
+#if 0
 void ENC624J600PhyWrite(u08 address, u16 data)
 {
 	// set the PHY register address
@@ -255,7 +316,7 @@ void ENC624J600PhyWrite(u08 address, u16 data)
 	// wait until the PHY write completes
 	while(ENC624J600Read(MISTATL) & MISTAT_BUSY);
 }
-
+#endif
 
 //MAJ 31/05/12
 void ENC624J600Init(void)
@@ -288,120 +349,132 @@ void ENC624J600Init(void)
 	sbi(SPCR, SPE);
 	
 	//8.1 RESET
-		//STEP ONE
-		ENC624J600Write(EUDASTL,0x12);
-		ENC624J600Write(EUDASTH,0x34);
-		//STEP TWO
-		while(ENC624J600Read(EUDASTL)!=0x12 || ENC624J600Read(EUDASTH)!=0x34 ){
-			ENC624J600Write(EUDASTL,0x12);
-			ENC624J600Write(EUDASTH,0x34);
+	//STEP ONE
+	ENC624J600Write(EUDASTL,0x34);
+	ENC624J600Write(EUDASTH,0x12);
+	
+	//STEP TWO
+	while(ENC624J600Read(EUDASTL)!=0x34 || ENC624J600Read(EUDASTH)!=0x12)
+	{
+		ENC624J600Write(EUDASTL,0x34);
+		ENC624J600Write(EUDASTH,0x12);
+	}
 
-		}
-		//STEP THREE
-		while(ENC624J600Read(ESTATH) & ESTAT_CLKRDY);
+	//STEP THREE
+	while(ENC624J600Read(ESTATH) & ESTAT_CLKRDY);
 
-		//STEP FOUR
+	//STEP FOUR
+	// reset command
+	//ENC624J600Write(ECON2L,ECON2_ETHRST);
+	ENC624J600SBI(ENC624J600_ETH_RESET);
 
-		ENC624J600Write(ECON2L,ECON2_ETHRST);
-
-		//STEP FIVE
-		_delay_us(25);
-		//STEP SIX
-		if (ENC624J600Read(EUDASTL)==0x00 && ENC624J600Read(EUDASTH)==0x00){
+	//STEP FIVE
+	_delay_us(25);
+		
+	//STEP SIX
+	if (ENC624J600Read(EUDASTL)==0x00 && ENC624J600Read(EUDASTH)==0x00)
+	{
+		_delay_us(260);		
+		//8.2 CLKOUT Frequency
+		// Arduino : 16MHz =>  COCON=0100 
+		// We do not use the clkout
+		//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON2H,ECON2_COCON2>>8);
+		//8.3 reception
+		NextPacketPtr = RXSTART_INIT;
+		ENC624J600Write(ERXSTL, RXSTART_INIT&0x00FF);
+		ENC624J600Write(ERXSTH, RXSTART_INIT>>8);
+		ENC624J600Write(ERXTAILL, RXSTOP_INIT&0x00FF);
+		ENC624J600Write(ERXTAILH, RXSTOP_INIT>>8);
 			
-			_delay_us(260);		
-			//8.2 CLKOUT Frequency
-			// Arduino : 16MHz =>  COCON=0100 
-				ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON2H,ECON2_COCON2>>8);
-			//8.3 reception
-				NextPacketPtr = RXSTART_INIT;
-				ENC624J600Write(ERXSTL, RXSTART_INIT&0x00FF);
-				ENC624J600Write(ERXSTH, RXSTART_INIT>>8);
-				ENC624J600Write(ERXTAILL, RXSTOP_INIT&0x00FF);
-				ENC624J600Write(ERXTAILH, RXSTOP_INIT>>8);
-				
-	// 		// USER buffer
-	// 				
-	// 				ENC624J600Write(EUDASTL, USER_START_INIT&0x00FF);
-	// 				ENC624J600Write(EUDASTH, USER_START_INIT>>8);
-	// 				ENC624J600Write(EUDANDL, USER_STOP_INIT&0x00FF);
-	// 				ENC624J600Write(EUDANDH, USER_STOP_INIT>>8);
-			//8.4 RAF
+ 		// USER buffer
+ 		ENC624J600Write(EUDASTL, USER_START_INIT&0x00FF);
+ 		ENC624J600Write(EUDASTH, USER_START_INIT>>8);
+ 		ENC624J600Write(EUDANDL, USER_STOP_INIT&0x00FF);
+ 		ENC624J600Write(EUDANDH, USER_STOP_INIT>>8);
+			
+		//8.4 RAF
 
-			//8.5 RECEIVE FILTER TODO!!!
-			  // crc ERROR FILTER => disabled
-			  // frames shorter than 64 bits => disabled
-			  // CRC error rejection => enabled
-			  // Unicast collection filter => enabled
-			  // Not me unicast filter => disabled
-			  // Multicast collection filter => ne pas activer le multicast
-				ENC624J600Write(ERXFCONL,ERXFCON_CRCEN|ERXFCON_RUNTEN|ERXFCON_UCEN);
-			// brodcast collection filter => enabled
-			  // Hash table collection filter.. compris mais je sais pas si c'est disabled ou enabled
-			  // Magic packet => desabled TODO
-				// PAttern
-				
-				//window 
-				ENC624J600Write(EPMOL,0x00);
-				ENC624J600Write(EPMOH,0x00);
-				
-				//pattern
-				
-				ENC624J600Write(EPMM1L, 0x3F);
-				ENC624J600Write(EPMM1H, 0xF0);
-				ENC624J600Write(EPMM2L, 0x3F);
-				ENC624J600Write(EPMM2H, 0x00);
-				ENC624J600Write(EPMM3L, 0xC0);
-				ENC624J600Write(EPMM3H, 0x03);
-				ENC624J600Write(EPMM4L, 0x00);
-				ENC624J600Write(EPMM4H, 0x00);
-				//CheckSum
-				ENC624J600Write(EPMCSL,ip_checksum(20,temp1)&0xFF);
-				ENC624J600Write(EPMCSH,ip_checksum(20,temp1)>>8);
-				//exact pattern
-				ENC624J600Write(ERXFCONH,0x01);
-						      
-			// 8.6 MAC initialization ...
-				//flow control ???
-				ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, MACON2L, MACON2_TXCRCEN|MACON2_PADCFG0|MACON2_PADCFG1|MACON2_HFRMEN);
-				// enable reception
-				ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_RXEN);
-				ENC624J600Write(MAMXFLL, MAX_FRAMELEN&0xFF);	
-				ENC624J600Write(MAMXFLH, MAX_FRAMELEN>>8);
-				
-				ENC624J600Write(MAADR1L, ENC624J600_MAC0);
-				ENC624J600Write(MAADR1H, ENC624J600_MAC1);
-				ENC624J600Write(MAADR2L, ENC624J600_MAC2);
-				ENC624J600Write(MAADR2H, ENC624J600_MAC3);
-				ENC624J600Write(MAADR3L, ENC624J600_MAC4);
-				ENC624J600Write(MAADR3H, ENC624J600_MAC5);
-				//8.7 PHY initialization 
-				// auto-negotiation ?
-				//ENC624J600PhyWrite(PHANA,0x05E1);
-			// 8.8 OTHER considerations
-				//half-duplex mode
-				//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, MACON2H,MACON2_DEFER|MACON2_BPEN|MACON2_NOBKOFF);$
-				
-			// enable interuption
-				ENC624J600Write(EIEH,0x80);
-				ENC624J600Write(EIEL,0x40);
-	//			ENC624J600Write(EIEL,0x48);
-				// configuration LED
-	// 				ENC624J600Write(EIDLEDH,0x54);
-	// 				ENC624J600PhyWrite(PHCON1,PHCON1_PFULDPX);
-		}
-		else{
-			#ifdef DEBUG
-			  displayString("-------initialization failed-----\n");
-			#endif
-		}
-		write_idx=0;
-		read_idx=0;
+		//8.5 RECEIVE FILTER TODO!!!
+		// crc ERROR FILTER => disabled
+		// frames shorter than 64 bits => disabled
+		// CRC error rejection => enabled
+		// Unicast collection filter => enabled
+		// Not me unicast filter => disabled
+		// Multicast collection filter => ne pas activer le multicast
+		ENC624J600Write(ERXFCONL,ERXFCON_CRCEN|ERXFCON_RUNTEN|ERXFCON_UCEN);
+		// brodcast collection filter => enabled
+		// Hash table collection filter.. compris mais je sais pas si c'est disabled ou enabled
+		// Magic packet => disabled TODO
+		// PAttern
+			
+		//window 
+		ENC624J600Write(EPMOL,0x00);
+		ENC624J600Write(EPMOH,0x00);
+			
+		//pattern
+		ENC624J600Write(EPMM1L, 0x3F);
+		ENC624J600Write(EPMM1H, 0xF0);
+		ENC624J600Write(EPMM2L, 0x3F);
+		ENC624J600Write(EPMM2H, 0x00);
+		ENC624J600Write(EPMM3L, 0xC0);
+		ENC624J600Write(EPMM3H, 0x03);
+		ENC624J600Write(EPMM4L, 0x00);
+		ENC624J600Write(EPMM4H, 0x00);
+		//CheckSum
+		unsigned short check = ip_checksum(20, temp1);
+		//ENC624J600Write(EPMCSL,ip_checksum(20,temp1)&0xFF);
+		//ENC624J600Write(EPMCSH,ip_checksum(20,temp1)>>8);
+		ENC624J600Write(EPMCSL,(check&0x00FF));
+		ENC624J600Write(EPMCSH,(check>>8));
+		//exact pattern
+		ENC624J600Write(ERXFCONH,0x01);
+					      
+		// 8.6 MAC initialization ...
+		//flow control ???
+		ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, MACON2L, MACON2_TXCRCEN|MACON2_PADCFG0|MACON2_PADCFG1|MACON2_HFRMEN);
+		ENC624J600Write(MAMXFLL, MAX_FRAMELEN&0xFF);	
+		ENC624J600Write(MAMXFLH, MAX_FRAMELEN>>8);
+			
+		ENC624J600Write(MAADR1L, ENC624J600_MAC0);
+		ENC624J600Write(MAADR1H, ENC624J600_MAC1);
+		ENC624J600Write(MAADR2L, ENC624J600_MAC2);
+		ENC624J600Write(MAADR2H, ENC624J600_MAC3);
+		ENC624J600Write(MAADR3L, ENC624J600_MAC4);
+		ENC624J600Write(MAADR3H, ENC624J600_MAC5);
+		//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON2H, ECON2_TXMAC>>8);
+		ENC624J600Write(ECON2H, 0xa0);
+		//8.7 PHY initialization 
+		// auto-negotiation ?
+		//ENC624J600PhyWrite(PHANA,0x05E1);
+		// 8.8 OTHER considerations
+		//half-duplex mode
+		//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, MACON2H,MACON2_DEFER|MACON2_BPEN|MACON2_NOBKOFF);$
+			
+		// enable interuption
+		ENC624J600Write(EIEL,0x40);
+//		ENC624J600Write(EIEL,0x48);
+		ENC624J600Write(EIEH,0x80);
+		// configuration LED
+	//	ENC624J600Write(EIDLEDH,0x54);
+	// 	ENC624J600PhyWrite(PHCON1,PHCON1_PFULDPX);
+		// enable reception
+		//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_RXEN);
+		ENC624J600SBI(ENC624J600_ENABLE_RX);
+	}
+	else
+	{
+		#ifdef DEBUG
+		displayString("-------initialization failed-----\n");
+		#endif
+	}
+	write_idx=0;
+	read_idx=0;
 }
 
 //MAJ 24_05_12
-void ENC624J600PacketSend(unsigned int len, unsigned char* packet)
+void ENC624J600PacketSend(uint16_t len, unsigned char* packet)
 {
+	while(ENC624J600Read(ECON1L) & ECON1_TXRTS);
 	// copy the packet into the transmit buffer
 	ENC624J600WriteBuffer(len, packet,TXSTART_INIT);
 	
@@ -409,11 +482,12 @@ void ENC624J600PacketSend(unsigned int len, unsigned char* packet)
 	ENC624J600Write(ETXSTL, TXSTART_INIT&0x00FF);
 	ENC624J600Write(ETXSTH, TXSTART_INIT>>8);
 	// Set the TXND pointer to correspond to the packet size given
-	ENC624J600Write(ETXLENL, (TXSTART_INIT+len)&0x00FF);
-	ENC624J600Write(ETXLENH, (TXSTART_INIT+len)>>8);
+	ENC624J600Write(ETXLENL, (len&0x00FF));
+	ENC624J600Write(ETXLENH, (len>>8));
 
 	// send the contents of the transmit buffer onto the network
-	ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_TXRTS);
+	//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_TXRTS);
+	ENC624J600SBI(ENC624J600_SETTXRTS);
 }
 
 //maj 05_05_12
@@ -424,6 +498,7 @@ void ENC624J600WriteUser(u16 address,u08 data)
 }
 
 //MAJ 06_06_12
+#if 0
 void ENC624J600DMABuffer(u16 len,u16 source,u16 dest)
 {
 	if ( (ENC624J600Read(ECON1L) & ECON1_DMAST )==0x00)
@@ -440,14 +515,14 @@ void ENC624J600DMABuffer(u16 len,u16 source,u16 dest)
 		while((ENC624J600Read(ECON1L) & ECON1_DMAST )!=0x00);
 	}
 }
-
+#endif
 
 
 //MAJ 05_05_12
 //unsigned int ENC624J600PacketReceive(unsigned int maxlen)
-unsigned int ENC624J600PacketReceive(void)
+uint16_t ENC624J600PacketReceive(void)
 {
-	volatile u16 length;
+	volatile uint16_t length;
 	volatile unsigned char type[2];
 	volatile unsigned char head[8];
 
@@ -455,8 +530,8 @@ unsigned int ENC624J600PacketReceive(void)
 	if( !(ENC624J600Read(EIRL) & EIR_PKTIF) )
 		return 0;
 
-	u08 i;
-	u08 byte[1];
+	uint8_t i;
+	uint8_t byte[4];
 	PacketPtr=NextPacketPtr;
 	ENC624J600ReadBuffer(PACKET_HEADER_SIZE,PacketPtr,head);
 	NextPacketPtr=head[1]<<8;
@@ -468,47 +543,51 @@ unsigned int ENC624J600PacketReceive(void)
 	if (type[0]==0x08 && type[1]==0x06)
 	{
 		ENC624J600ReadBuffer(MAC_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+6,arpResponse);
-		strncpy(arpResponse+32, arpResponse, MAC_ADDR_SIZE);
+		//strncpy(arpResponse+32, arpResponse, MAC_ADDR_SIZE);
+		strncpy(arpResponse+26, arpResponse, MAC_ADDR_SIZE);
 	
-		ENC624J600ReadBuffer(IP_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+28,arpResponse + 38);
-		nicSend(ARP_PACKET_SIZE, arpResponse); 
+		//ENC624J600ReadBuffer(IP_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+28,arpResponse + 38);
+		ENC624J600ReadBuffer(IP_ADDR_SIZE,PacketPtr+PACKET_HEADER_SIZE+28,arpResponse + 32);
+		ENC624J600PacketSend(ARP_PACKET_SIZE-6, arpResponse); 
 	}
-	else {
+	else 
+	{
 		ENC624J600ReadBuffer(1,PacketPtr+PACKET_HEADER_SIZE+23,byte);
 		/*---------------------test si c'est un ping----------------------*/
-		if (type[0]==0x08 && type[1]==0x00 && byte[0] == 0x01){
+		if (type[0]==0x08 && type[1]==0x00 && byte[0] == 0x01)
+		{
 			/*------------------------traitement-------------------------*/
 			ENC624J600WriteUser(PacketPtr+7+35,0x00);
-			for(i=0; i<6; i++){
+		
+		/*	
+			for(i=0; i<6; i++)
+			{
 				ENC624J600ReadBuffer(1,PacketPtr+8+i+6,byte);
-				ENC624J600WriteUser(PacketPtr+7+i+1,byte[0]);
+				ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+i,byte[0]);
 			}
-			ENC624J600WriteUser(PacketPtr+7+7,ENC624J600_MAC0);
-			ENC624J600WriteUser(PacketPtr+7+8,ENC624J600_MAC1);
-			ENC624J600WriteUser(PacketPtr+7+9,ENC624J600_MAC2);
-			ENC624J600WriteUser(PacketPtr+7+10,ENC624J600_MAC3);
-			ENC624J600WriteUser(PacketPtr+7+11,ENC624J600_MAC4);
-			ENC624J600WriteUser(PacketPtr+7+12,ENC624J600_MAC5);
+		*/	
+
+			ENC624J600ReadBuffer(4,PacketPtr+PACKET_HEADER_SIZE+26,byte);
 			for(i=0;i<4;i++){
 				ENC624J600ReadBuffer(1,PacketPtr+8+i+26,byte);
-				ENC624J600WriteUser(PacketPtr+7+i+30+1,byte[0]);
+				ENC624J600WriteUser(PacketPtr+8+i+30,byte[0]);
 			}
-			ENC624J600WriteUser(PacketPtr+7+27,IP_ADDR_0);
-			ENC624J600WriteUser(PacketPtr+7+28,IP_ADDR_1);
-			ENC624J600WriteUser(PacketPtr+7+29,IP_ADDR_2);
-			ENC624J600WriteUser(PacketPtr+7+30,IP_ADDR_3);
-
-			/*------------------------ENVOIE-------------------------*/
-			ENC624J600DMABuffer(length-3,PacketPtr+7,TXSTART_INIT);
 			
-			// Set the write pointer to start of transmit buffer area
-			ENC624J600Write(ETXSTL, (TXSTART_INIT+1)&0x00FF);
-			ENC624J600Write(ETXSTH, TXSTART_INIT>>8);
+			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+26,IP_ADDR_0);
+			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+27,IP_ADDR_1);
+			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+28,IP_ADDR_2);
+			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+29,IP_ADDR_3);
+			/*------------------------ENVOIE-------------------------*/
+			
+			while(ENC624J600Read(ECON1L) & ECON1_TXRTS);
+			// Set the write pointer to start of the packet
+			ENC624J600Write(ETXSTL,(PacketPtr+PACKET_HEADER_SIZE+6)&0x00FF);
+			ENC624J600Write(ETXSTH,(PacketPtr+PACKET_HEADER_SIZE+6)>>8);
 			// Set the TXND pointer to correspond to the packet size given
-			ENC624J600Write(ETXLENL, (TXSTART_INIT+length-4)&0x00FF);
-			ENC624J600Write(ETXLENH, (TXSTART_INIT+length-4)>>8);
+			ENC624J600Write(ETXLENL, (length-10)&0x00FF);
+			ENC624J600Write(ETXLENH, (length-10)>>8);
 			// send the contents of the transmit buffer onto the network
-			ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_TXRTS);
+			ENC624J600SBI(ENC624J600_SETTXRTS);
 		}
 		else{
 			#ifdef DEBUG
@@ -537,7 +616,8 @@ unsigned int ENC624J600PacketReceive(void)
 	ENC624J600Write(ERXTAILH, (NextPacketPtr-2)>>8);
 	
 	// decrement the packet counter indicate we are done with this packet
-	ENC624J600Write(ECON1H,ECON1_PKTDEC>>8);
+	//ENC624J600Write(ECON1H,ECON1_PKTDEC>>8);
+	ENC624J600SBI(ENC624J600_SETPKTDEC);
 	return length;
 }
 
