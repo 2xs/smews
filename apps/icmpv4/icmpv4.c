@@ -1,5 +1,5 @@
 /*
-* Copyright or © or Copr. 2011, Michael Hauspie
+* Copyright or © or Copr. 2012, Michael Hauspie
 *
 * Author e-mail: michael.hauspie@lifl.fr
 *
@@ -44,7 +44,7 @@
 #endif
 
 #ifdef DISABLE_GP_IP_HANDLER
-	#error "This application can not work with disable_general_purpose_ip_handler
+	#error "This application can not work with disable_general_purpose_ip_handler"
 #endif
 
 static char icmp_payload[OUTPUT_BUFFER_SIZE];
@@ -60,7 +60,6 @@ static char checksum[2];
 char icmp4_packet_in(const void *connection_info)
 {
 	uint8_t tmp;
-	uint8_t tmp_short[2];
 	uint16_t payload_size = get_payload_size(connection_info);
 	int i;
 
@@ -92,11 +91,7 @@ char icmp4_packet_in(const void *connection_info)
 	buffer_size = payload_size - ICMP_HEADER_SIZE;
 	checksum_end();
 	if(UI16(current_checksum) != 0xffff)
-	{
-		printf("invalid checksum\r\n");
 		return 0; /* invalid checksum */
-	}
-
 	return 1;
 }
 
