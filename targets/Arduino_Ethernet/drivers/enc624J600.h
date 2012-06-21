@@ -436,7 +436,7 @@
 #define ENC624J600_READ_EUDARDPT 			0x6A
 #define ENC624J600_WRITE_EGPWRPT  			0x6C
 #define ENC624J600_READ_EGPWRPT 	 		0x6E
-#define ENC624J600_WRITE_ERXWRPT   			0x70
+#define ENC624J600_WRITE_ERXWRPT   			0x70 // WRXWRPT
 #define ENC624J600_READ_ERXWRPT   			0x72
 #define ENC624J600_WRITE_EUDAWRPT    		0x74
 #define ENC624J600_READ_EUDAWRPT    		0x76
@@ -493,9 +493,9 @@ u08 ENC624J600ReadOp(u08 op, u08 address);
 //! do a ENC624J600 write operation
 void ENC624J600WriteOp(u08 op, u08 address, u08 data);
 //! read the packet buffer memory
-void ENC624J600ReadBuffer(u16 len, u16 address,volatile u08* data);
+//void ENC624J600ReadBuffer(u16 len, u16 address,volatile u08* data);
 //! write the packet buffer memory
-void ENC624J600WriteBuffer(u16 len,volatile u08* data,u16 address);
+void ENC624J600WriteGPBuffer(uint16_t address, uint8_t *data, uint16_t len);
 //! set the register bank for register at address
 void ENC624J600SetBank(u08 address);
 //! read ax88796 register

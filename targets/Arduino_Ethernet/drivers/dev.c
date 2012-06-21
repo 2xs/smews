@@ -35,20 +35,20 @@ void dev_init(void)
 
 void dev_prepare_output(uint16_t size)
 {
+	cli();
 	while(ENC624J600Read(ECON1L)&ECON1_TXRTS);
-		//PORTB |= _BV(0);
-	//packet_transmit = 0;
-	//_delay_us(1);
-	packet_size = size + 14;
+//	_delay_us(500);
+//	_delay_ms(1);
+	//packet_size = size + 14;
+	packet_size = size + 8;
 	if (read_idx!=0)
-		ENC624J600WriteBuffer(6, IPPacketTab[read_idx-1].mac_src,TXSTART_INIT); 
+		ENC624J600WriteGPBuffer(TXSTART_INIT+44, IPPacketTab[read_idx-1].mac_src, 6); 
 	else
-		ENC624J600WriteBuffer(6, IPPacketTab[MAX_PACKET-1].mac_src,TXSTART_INIT); 
+		ENC624J600WriteGPBuffer(TXSTART_INIT+44, IPPacketTab[MAX_PACKET-1].mac_src, 6); 
 
-	//ENC624J600WriteBuffer(8, my_mac,TXSTART_INIT+6);
-	ENC624J600WriteBuffer(2, ipProto,TXSTART_INIT+6);
+	ENC624J600WriteGPBuffer(TXSTART_INIT+6+44,ipProto, 2);
 	//ENC624J600WriteOp16(ENC624J600_WRITE_EGPWRPT,TXSTART_INIT+6+8);
-	ENC624J600WriteOp16(ENC624J600_WRITE_EGPWRPT,TXSTART_INIT+8);
+	////ENC624J600WriteOp16(ENC624J600_WRITE_EGPWRPT,TXSTART_INIT+8+44);
 }
 
 
@@ -63,15 +63,16 @@ void dev_put(unsigned char byte)
 
 void dev_output_done(void)
 {
-	ENC624J600Write(ETXSTL, (TXSTART_INIT)&0x00FF);
-	ENC624J600Write(ETXSTH, TXSTART_INIT>>8);
+	ENC624J600Write(ETXSTL, ((TXSTART_INIT+44)&0x00FF));
+	ENC624J600Write(ETXSTH, (TXSTART_INIT+44)>>8);
 	
-	ENC624J600Write(ETXLENL, (packet_size)&0x00FF);
-	ENC624J600Write(ETXLENH, (packet_size)>>8);
+	ENC624J600Write(ETXLENL, (packet_size&0x00FF));
+	ENC624J600Write(ETXLENH, (packet_size>>8));
 
 	// send the contents of the transmit buffer onto the network
-	ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_TXRTS);
-//	while(ENC624J600Read(ECON1L)&ECON1_TXRTS);
+	//ENC624J600WriteOp(ENC624J600_BIT_FIELD_SET, ECON1L, ECON1_TXRTS);
+	ENC624J600SBI(ENC624J600_SETTXRTS);
+	while(ENC624J600Read(ECON1L)&ECON1_TXRTS);
 //	while(!packet_transmit);
 //	_delay_ms(1);
 #if 0
@@ -80,13 +81,15 @@ void dev_output_done(void)
 	if(i!=TIME)
 		PORTB |= _BV(0);
 #endif
+	sei();
 }
 
 
 char dev_get(void)
 {
-	volatile u08 byte=0;
+	volatile uint8_t byte=0;
 	static unsigned char first=1;
+
 	if(IPPacketTab[read_idx].size == 0)
 		return -1;
 	if(first && IPPacketTab[read_idx].size>0)
@@ -108,6 +111,9 @@ char dev_get(void)
 			read_idx++;
 		else
 			read_idx=0;
+
+		ENC624J600Write(ERXTAILL, (IPPacketTab[read_idx].nextPtr-2)&0x00FF);
+		ENC624J600Write(ERXTAILH, (IPPacketTab[read_idx].nextPtr-2)>>8);
 	}
 	
 	return byte;
@@ -130,8 +136,6 @@ ISR(INT0_vect, ISR_BLOCK)
 	ENC624J600Write(EIEH,0x00);
 	
 	if( (ENC624J600Read(EIRL) & EIR_PKTIF) )
-	// retrieve the packet
-	//		nicPoll(1500);
 		ENC624J600PacketReceive();
 /*	
 	if (ENC624J600Read(EIRL) & EIR_TXIF) 
@@ -141,7 +145,6 @@ ISR(INT0_vect, ISR_BLOCK)
 	}
 */
 	// réactiver les interruptions
-	//ENC624J600Write(EIEH,0x80);ENC624J600Write(EIEL,0x40);
 	ENC624J600Write(EIEL,0x40);
 //	ENC624J600Write(EIEL,0x48);
 	ENC624J600Write(EIEH,0x80);
