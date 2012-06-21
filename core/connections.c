@@ -222,6 +222,17 @@ unsigned char *get_remote_ip(const void *connection, unsigned char *ip)
 	return ip;
 }
 
+unsigned char* get_current_remote_ip(unsigned char* ip)
+{
+	/* The current connection is all_connection->prev as the first thing made by smews_send is to round robin
+	 * the connection by setting all_connection to connection->next (where connection is the current output connection)
+	 */
+	if (!all_connections)
+		return NULL;
+	return get_remote_ip(all_connections->prev, ip);
+}
+
+
 #ifndef DISABLE_GP_IP_HANDLER
 uint16_t get_payload_size(const void *connection)
 {

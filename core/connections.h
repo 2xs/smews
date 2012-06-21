@@ -212,9 +212,16 @@ extern unsigned char *get_local_ip(const void *connection, unsigned char *ip);
 /** Returns the ip address of the remote end of a connection.
  * @param [in] connection
  * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned)
- * @param pointer ip
+ * @return pointer ip
  */
 extern unsigned char *get_remote_ip(const void *connection, unsigned char *ip);
+
+/** Returns the ip address of the remote end of the currently handled output connection.
+ * The main goal of this function is to allow targets to know which IP is the current output for (for MAC<->IP translation mainly)
+ * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned) *
+ * @return pointer ip
+ */
+extern unsigned char *get_current_remote_ip(unsigned char *ip);
 
 #ifndef DISABLE_GP_IP_HANDLER
 /** Returns the size of the last payload associated to a connection.
