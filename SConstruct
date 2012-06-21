@@ -1,22 +1,22 @@
 # Copyright or c or Copr. 2008, Simon Duquennoy
-# 
+#
 # Author e-mail: simon.duquennoy@lifl.fr
-# 
+#
 # This software is a computer program whose purpose is to design an
 # efficient Web server for very-constrained embedded system.
-# 
+#
 # This software is governed by the CeCILL license under French law and
-# abiding by the rules of distribution of free software.  You can  use, 
+# abiding by the rules of distribution of free software.  You can  use,
 # modify and/ or redistribute the software under the terms of the CeCILL
 # license as circulated by CEA, CNRS and INRIA at the following URL
-# "http://www.cecill.info". 
-# 
+# "http://www.cecill.info".
+#
 # As a counterpart to the access to the source code and  rights to copy,
 # modify and redistribute granted by the license, users are provided only
 # with a limited warranty  and the software's author,  the holder of the
 # economic rights,  and the successive licensors  have only  limited
-# liability. 
-# 
+# liability.
+#
 # In this respect, the user's attention is drawn to the risks associated
 # with loading,  using,  modifying and/or developing or reproducing the
 # software by the user in light of its specific status of free software,
@@ -24,10 +24,10 @@
 # therefore means  that it is reserved for developers  and  experienced
 # professionals having in-depth computer knowledge. Users are therefore
 # encouraged to load and test the software's suitability as regards their
-# requirements in conditions enabling the security of their systems and/or 
-# data to be ensured and,  more generally, to use and operate it in the 
-# same conditions as regards security. 
-# 
+# requirements in conditions enabling the security of their systems and/or
+# data to be ensured and,  more generally, to use and operate it in the
+# same conditions as regards security.
+#
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL license and that you accept its terms.
 
@@ -86,6 +86,7 @@ disabledHash['timers'] = 'DISABLE_TIMERS'
 disabledHash['comet'] = 'DISABLE_COMET'
 disabledHash['arguments'] = 'DISABLE_ARGS'
 disabledHash['post'] = 'DISABLE_POST'
+disabledHash['general_purpose_ip_handler'] = 'DISABLE_GP_IP_HANDLER'
 opts.Add(ListVariable('disable', 'Disable smews functionnalities', 'none', disabledHash.keys()))
 opts.Add(ListVariable('endian', 'Force endianness', 'none', ['little','big']))
 opts.Add('chuncksNbits', 'Set the checksum chuncks size', 5)
@@ -116,7 +117,7 @@ targets = map(lambda x: os.path.normpath(str(x)),globalEnv['target'])
 if globalEnv.has_key('ipaddr'):
 	ipVersion = IP(globalEnv['ipaddr']).version();
 
-	if (ipVersion == 4):	
+	if (ipVersion == 4):
 		parts = str(IP(globalEnv['ipaddr']).strFullsize()).split(".");
 		ipAdress = parts[3]+","+parts[2]+","+parts[1]+","+parts[0]
 		globalEnv.Append(CPPDEFINES = { 'IP_ADDR' : ipAdress })
@@ -131,11 +132,11 @@ if globalEnv.has_key('ipaddr'):
 			ipAdress += "0x"+hexIPAdress[low_index:high_index]+","
 			low_index = low_index - 2
 			high_index = high_index - 2
-	
+
 		ipAdress += "0x"+hexIPAdress[low_index:high_index]
 
 	globalEnv.Append(CPPDEFINES = { 'IP_ADDR' : ipAdress })
-	
+
 # applications to be embedded with smews
 if globalEnv.has_key('apps'):
 	originalAppDirs = globalEnv['apps']
@@ -145,7 +146,7 @@ else:
 # clean rule used if no target: clean all
 if len(targets) == 0:
 	pycFiles = []
-	definesh = os.path.join(coreDir,'defines.h')	
+	definesh = os.path.join(coreDir,'defines.h')
 	blobsh = os.path.join(coreDir,'blobs.h')
 	for file in os.listdir(toolsDir):
 		if file.endswith('.pyc'):
@@ -213,13 +214,13 @@ for target in targets:
 	# target dependent compilation options
 	env = globalEnv.Clone()
 	env.Replace(CPPPATH = [coreDir,driversDir,genDir])
-	
+
 	# required directories creation
 	if not env.GetOption('clean'):
 		for dir in [genBase,genDir,os.path.join(genDir,tmpBase)]:
 			if not os.path.isdir(dir):
 				os.mkdir(dir)
-			
+
 	# export variables for external SConscript files
 	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
 	Export('env targetDir binDir projectName elfName')
