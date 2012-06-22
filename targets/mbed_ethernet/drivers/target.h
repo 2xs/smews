@@ -40,23 +40,9 @@
 
 /* Types definition */
 #include <stdint.h>
-/*
-  Already defined in stdint.h
-typedef unsigned int uint32_t;
-typedef int int32_t;
-typedef unsigned short uint16_t;
-typedef short int16_t;
-typedef unsigned char uint8_t;
-typedef char int8_t;
-*/
-
 
 /* Target specific includes */
-#include <rflpc17xx/drivers/leds.h>
-#include <rflpc17xx/drivers/timer.h>
-#include <rflpc17xx/drivers/ethernet.h>
-#include <rflpc17xx/drivers/eth_const.h>
-#include <rflpc17xx/nxp/core_cm3.h>
+#include <rflpc17xx/rflpc17xx.h>
 
 #include "hardware.h"
 #include "eth_input.h"

@@ -50,7 +50,10 @@
 
 #include "hardware.h"
 #include "mbed_debug.h"
+#include "ip.h"
+#include "ethernet.h"
 #include "protocols.h"
+
 #include "out_buffers.h"
 #include "connections.h"
 #include "link_layer_cache.h"

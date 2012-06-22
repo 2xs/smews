@@ -37,15 +37,42 @@
   Created: 2011-08-31
   Time-stamp: <2011-09-27 17:45:58 (hauspie)>
 */
-#ifndef __PROTOCOLS_H__
-#define __PROTOCOLS_H__
+#ifndef __ETHERNET_H__
+#define __ETHERNET_H__
 #include <stdint.h>
 
 
-#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
+#define PROTO_MAC_HLEN  14
 
-#define PUT_TWO(dst, idx, src) (dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-#define PUT_FOUR(dst, idx, src) (dst)[(idx)++] = ((src) >> 24) & 0xFF; (dst)[(idx)++] = ((src) >> 16) & 0xFF;(dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
+#define GET_MAC(dst, src, idx)		\
+    dst[0] = src[idx++];			\
+    dst[1] = src[idx++];			\
+    dst[2] = src[idx++];			\
+    dst[3] = src[idx++];			\
+    dst[4] = src[idx++];			\
+    dst[5] = src[idx++]
 
+#define PUT_MAC(dst, idx, src)		\
+    dst[idx++] = src[0];			\
+    dst[idx++] = src[1];			\
+    dst[idx++] = src[2];			\
+    dst[idx++] = src[3];			\
+    dst[idx++] = src[4];			\
+    dst[idx++] = src[5]
+
+typedef struct
+{
+    uint8_t addr[6];
+} EthAddr;
+
+typedef struct
+{
+    EthAddr src;
+    EthAddr dst;
+    uint16_t type;
+} EthHead;
+
+extern void proto_eth_demangle(EthHead *eh, const uint8_t *data);
+extern void proto_eth_mangle(EthHead *eh, uint8_t *data);
+extern int 	proto_eth_addr_equal(EthAddr *a1, EthAddr *a2);
 #endif

@@ -43,16 +43,20 @@
 #include "connections.h"
 #include "eth_input.h"
 #include "mbed_debug.h"
-#include "protocols.h"
+#include "ip.h"
+#include "ethernet.h"
 #include "hardware.h"
 #include "link_layer_cache.h"
+
+#ifndef IPV6
+#include "arp.h"
+#endif
+
 
 /* These are information on the current frame read by smews */
 const uint8_t * volatile current_rx_frame = NULL;
 volatile uint32_t current_rx_frame_size = 0;
 volatile uint32_t current_rx_frame_idx = 0;
-
-uint8_t _arp_reply_buffer[PROTO_MAC_HLEN + PROTO_ARP_HLEN];
 
 volatile int byte_count = 0;
 
@@ -87,54 +91,6 @@ int mbed_eth_byte_available()
    return current_rx_frame != NULL;
 }
 
-void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
-{
-    ArpHead arp_rcv;
-    ArpHead arp_send;
-    rflpc_eth_descriptor_t *d;
-    rflpc_eth_tx_status_t *s;
-
-    proto_arp_demangle(&arp_rcv, packet + PROTO_MAC_HLEN);
-    if (arp_rcv.target_ip != MY_IP)
-	return;
-
-    if (arp_rcv.opcode == 1) /* ARP_REQUEST */
-    {
-	/* generate reply */
-	if (!rflpc_eth_get_current_tx_packet_descriptor(&d, &s,0))
-	{
-	    /* no more descriptor available */
-	    return;
-	}
-	/* Ethernet Header */
-	eth->dst = eth->src;
-	eth->src = local_eth_addr;
-	/* ARP  */
-	arp_send.hard_type = 1;
-	arp_send.protocol_type = PROTO_IP;
-	arp_send.hlen = 6;
-	arp_send.plen = 4;
-	arp_send.opcode = 2; /* reply */
-	arp_send.sender_mac = local_eth_addr;
-	arp_send.sender_ip = arp_rcv.target_ip;
-	arp_send.target_mac = arp_rcv.sender_mac;
-	arp_send.target_ip = arp_rcv.sender_ip;
-
-	proto_eth_mangle(eth, _arp_reply_buffer);
-	proto_arp_mangle(&arp_send, _arp_reply_buffer + PROTO_MAC_HLEN);
-
-	rflpc_eth_set_tx_control_word(PROTO_MAC_HLEN + PROTO_ARP_HLEN, &d->control, 0, 1);
-
-	d->packet = _arp_reply_buffer;
-	/* send packet */
-	rflpc_eth_done_process_tx_packet(1);
-    }
-    /* record entry in arp cache */
-    add_link_layer_address((unsigned char*)&arp_rcv.sender_ip, arp_rcv.sender_mac.addr );
-}
-
-void mbed_display_ip(const unsigned char *ip);
-
 int mbed_process_input(const uint8_t *packet, int size)
 {
 	EthHead eth;
@@ -150,17 +106,19 @@ int mbed_process_input(const uint8_t *packet, int size)
 
     proto_eth_demangle(&eth, packet);
 
+#ifndef IPV6
     if (eth.type == PROTO_ARP)
     {
 		mbed_process_arp(&eth, packet, size);
 		return ETH_INPUT_FREE_PACKET;
     }
-
-    if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
-		return ETH_INPUT_FREE_PACKET;
+#endif
 
     if (eth.type != PROTO_IP)
 		return ETH_INPUT_FREE_PACKET; /* drop packet */
+
+    if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
+		return ETH_INPUT_FREE_PACKET;
 
     /* IP Packet received */
 	proto_ip_get_src(packet + PROTO_MAC_HLEN, src_ip);
