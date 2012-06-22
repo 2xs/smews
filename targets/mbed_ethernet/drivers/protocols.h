@@ -43,12 +43,20 @@
 
 
 #define PROTO_MAC_HLEN  14
+#ifdef IPV6
+#define PROTO_IP_HLEN   40
+#else
 #define PROTO_IP_HLEN   20
+#endif
 #define PROTO_ARP_HLEN  28
 
 
 #define PROTO_ARP 0x0806
+#ifdef IPV6
+#define PROTO_IP  0x86dd
+#else
 #define PROTO_IP  0x0800
+#endif
 
 #define PROTO_IP_SRCIP_OFFSET 12
 #define PROTO_IP_DSTIP_OFFSET 16

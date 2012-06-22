@@ -133,6 +133,8 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
     add_link_layer_address((unsigned char*)&arp_rcv.sender_ip, arp_rcv.sender_mac.addr );
 }
 
+void mbed_display_ip(const unsigned char *ip);
+
 int mbed_process_input(const uint8_t *packet, int size)
 {
 	EthHead eth;
@@ -159,7 +161,6 @@ int mbed_process_input(const uint8_t *packet, int size)
 
     if (eth.type != PROTO_IP)
 		return ETH_INPUT_FREE_PACKET; /* drop packet */
-
 
     /* IP Packet received */
 	proto_ip_get_src(packet + PROTO_MAC_HLEN, src_ip);

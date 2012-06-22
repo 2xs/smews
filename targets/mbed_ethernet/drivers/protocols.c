@@ -44,7 +44,7 @@
 #define IP_DST_OFFSET 24
 #define IP_SRC_OFFSET 8
 #define IP_SIZE_OFFSET 4
-#define GET_IP(ip,data,idx) do {int i; for (i =0 ; i < 16 ; ++i) (ip)[i] = (data)[(idx)+i];} while(0)
+#define GET_IP(ip,data,idx) do {int i; for (i =0 ; i < 16 ; ++i) (ip)[15-i] = (data)[(idx)+i];} while(0)
 #else
 #define IP_DST_OFFSET 16
 #define IP_SRC_OFFSET 12
@@ -126,6 +126,9 @@ uint16_t proto_ip_get_size(const uint8_t *data)
     int idx = IP_SIZE_OFFSET; /* 2 */
     uint16_t size;
     GET_TWO(size, data, idx);
+#ifdef IPV6
+	size += PROTO_IP_HLEN;
+#endif
     return size;
 }
 
