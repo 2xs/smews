@@ -70,7 +70,7 @@ char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]) {
 	return 1;
 }
 
-unsigned char * decompress_ip(unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes) {
+unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes) {
 	uint16_t i, zeros_nb, start_index;
 
 	start_index = indexes>>4;
@@ -88,7 +88,7 @@ unsigned char * decompress_ip(unsigned char comp_ip_addr[], unsigned char full_i
 	return full_ip_addr;
 }
 
-unsigned char * compress_ip(unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes) {
+unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes) {
 	int32_t i, curr_index=0, max_index=0, curr_nb=0, max_nb=0;
 
 	for (i = 0; i < 16; i++) {
@@ -149,7 +149,7 @@ struct connection *add_connection(const struct connection *from)
 	struct connection *connection;
 #ifdef IPV6
 	/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-	connection = mem_alloc((sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+	connection = mem_alloc((sizeof(struct connection) + (17-((from->ip_addr[0])&15))) * sizeof(unsigned char));
 #else
 	connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
 #endif
@@ -193,7 +193,7 @@ void free_connection(const struct connection *connection) {
 
 #ifdef IPV6
 			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-	mem_free((void*)connection,(sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+	mem_free((void*)connection,(sizeof(struct connection) + (17-((connection->ip_addr[0])&15))) * sizeof(unsigned char));
 #else
 	mem_free((void*)connection, sizeof(struct connection));
 #endif

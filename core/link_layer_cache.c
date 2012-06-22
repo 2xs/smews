@@ -86,8 +86,7 @@ static inline int _ip_is_null(const unsigned char *ip)
 }
 #define IP_EQUAL(ip1, ip2) _ip_equal(ip1,ip2)
 #define IP_IS_NULL(ip) _ip_is_null(ip)
-#define COPY_IP(ip1,ip2) memcpy(ip1,ip2,16);
-#define
+#define COPY_IP(ip1,ip2) memcpy(ip1,ip2,16)
 #else
 #define IP_EQUAL(ip1, ip2) (UI32(ip1) == UI32(ip2))
 #define IP_IS_NULL(ip) (UI32(ip) == 0)
