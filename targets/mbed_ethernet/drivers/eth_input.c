@@ -41,12 +41,11 @@
 
 
 #include "connections.h"
-
 #include "eth_input.h"
 #include "mbed_debug.h"
 #include "protocols.h"
 #include "hardware.h"
-#include "arp_cache.h"
+#include "link_layer_cache.h"
 
 /* These are information on the current frame read by smews */
 const uint8_t * volatile current_rx_frame = NULL;
@@ -131,23 +130,28 @@ void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size)
 	rflpc_eth_done_process_tx_packet(1);
     }
     /* record entry in arp cache */
-    mbed_arp_add_mac(arp_rcv.sender_ip, &arp_rcv.sender_mac);
+    add_link_layer_address((unsigned char*)&arp_rcv.sender_ip, arp_rcv.sender_mac.addr );
 }
 
 int mbed_process_input(const uint8_t *packet, int size)
 {
-    EthHead eth;
+	EthHead eth;
+#ifdef IPV6
+	unsigned char src_ip[16];
+#else
+	unsigned char src_ip[4];
+#endif
 
-    MBED_ASSERT(packet);
-   if (packet == current_rx_frame)
+	MBED_ASSERT(packet);
+	if (packet == current_rx_frame)
         return ETH_INPUT_KEEP_PACKET; /* already processing this packet */
 
     proto_eth_demangle(&eth, packet);
 
     if (eth.type == PROTO_ARP)
     {
-	mbed_process_arp(&eth, packet, size);
-	return ETH_INPUT_FREE_PACKET;
+		mbed_process_arp(&eth, packet, size);
+		return ETH_INPUT_FREE_PACKET;
     }
 
     if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
@@ -158,8 +162,8 @@ int mbed_process_input(const uint8_t *packet, int size)
 
 
     /* IP Packet received */
-    /* update ARP cache */
-    mbed_arp_add_mac(proto_ip_get_src(packet + PROTO_MAC_HLEN), &eth.src);
+	proto_ip_get_src(packet + PROTO_MAC_HLEN, src_ip);
+    add_link_layer_address(src_ip, eth.src.addr);
 
     current_rx_frame = packet;
     current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;

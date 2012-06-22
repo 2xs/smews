@@ -54,11 +54,8 @@
 #define PROTO_IP_DSTIP_OFFSET 16
 
 
-#define GET_IP(data, offset)
-
-
-#define GET_TWO(dst, src, idx) dst = src[idx++] << 8; dst |= src[idx++]
-#define GET_FOUR(dst, src, idx) dst = src[idx++] << 24; dst |= src[idx++] << 16; dst |= src[idx++] << 8; dst |= src[idx++]
+#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
+#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
 
 #define GET_MAC(dst, src, idx)			\
     dst[0] = src[idx++];			\
@@ -117,8 +114,8 @@ void proto_eth_mangle(EthHead *eh, uint8_t *data);
 void proto_arp_demangle(ArpHead *ah, const uint8_t *data);
 void proto_arp_mangle(ArpHead *ah, uint8_t *data);
 
-extern uint32_t proto_ip_get_dst(const uint8_t *data);
-extern uint32_t proto_ip_get_src(const uint8_t *data);
+extern void proto_ip_get_dst(const uint8_t *data, unsigned char *ip);
+extern void proto_ip_get_src(const uint8_t *data, unsigned char *ip);
 extern uint16_t proto_ip_get_size(const uint8_t *data);
 extern int 	proto_eth_addr_equal(EthAddr *a1, EthAddr *a2);
 

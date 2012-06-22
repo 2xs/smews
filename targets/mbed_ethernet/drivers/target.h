@@ -180,6 +180,7 @@ typedef char int8_t;
 /* This indicates a threshold from which a DEV_PUTN_CONST will be implemented by a multi-fragment frame using the ethernet controller gather DMA */
 #define DMA_THRESHOLD 64
 
+#define LINK_LAYER_ADDRESS_SIZE 6
 
 
 #endif /* __TARGET_H__ */

@@ -38,7 +38,19 @@
   Time-stamp: <2011-09-02 10:51:03 (hauspie)>
 */
 #include "protocols.h"
+#include "types.h"
 
+#ifdef IPV6
+#define IP_DST_OFFSET 24
+#define IP_SRC_OFFSET 8
+#define IP_SIZE_OFFSET 4
+#define GET_IP(ip,data,idx) do {int i; for (i =0 ; i < 16 ; ++i) (ip)[i] = (data)[(idx)+i];} while(0)
+#else
+#define IP_DST_OFFSET 16
+#define IP_SRC_OFFSET 12
+#define IP_SIZE_OFFSET 2
+#define GET_IP(ip, data, idx) GET_FOUR(UI32(ip), data, idx)
+#endif
 
 void proto_eth_demangle(EthHead *eh, const uint8_t *data)
 {
@@ -96,24 +108,22 @@ void proto_arp_mangle(ArpHead *ah, uint8_t *data)
     PUT_FOUR(data, idx, ah->target_ip);
 }
 
-uint32_t proto_ip_get_dst(const uint8_t *data)
+void proto_ip_get_dst(const uint8_t *data, unsigned char *ip)
 {
-    int idx = 16;
-    uint32_t ip;
-    GET_FOUR(ip, data, idx);
+    int idx = IP_DST_OFFSET; /* 16 */
+    GET_IP(ip, data, idx);
     return ip;
 }
-uint32_t proto_ip_get_src(const uint8_t *data)
+void proto_ip_get_src(const uint8_t *data, unsigned char *ip)
 {
-    int idx = 12;
-    uint32_t ip;
-    GET_FOUR(ip, data, idx);
+    int idx = IP_SRC_OFFSET; /* 12 */
+    GET_IP(ip, data, idx);
     return ip;
 }
 
 uint16_t proto_ip_get_size(const uint8_t *data)
 {
-    int idx = 2;
+    int idx = IP_SIZE_OFFSET; /* 2 */
     uint16_t size;
     GET_TWO(size, data, idx);
     return size;

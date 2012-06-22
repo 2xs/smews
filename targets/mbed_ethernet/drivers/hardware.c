@@ -38,10 +38,6 @@
   Time-stamp: <2012-05-16 15:03:29 (hauspie)>
 */
 
-#ifdef IPV6
-#error "This target does not support IPv6 yet."
-#endif
-
 /* Mbed port includes */
 #include "target.h"
 #include "mbed_debug.h"
@@ -171,7 +167,7 @@ void mbed_eth_hardware_init(void)
 {
     rflpc_uart_init(RFLPC_UART0);
     /* Configure and start the timer. Timer 0 will be used for timestamping */
-    rflpc_timer_enable(RFLPC_TIMER0);   
+    rflpc_timer_enable(RFLPC_TIMER0);
     /* Clock the timer with the slower clock possible. Enough for millisecond precision */
     rflpc_timer_set_clock(RFLPC_TIMER0, RFLPC_CCLK_8);
     /* Set the pre scale register so that timer counter is incremented every 1ms */
@@ -204,7 +200,7 @@ void mbed_eth_hardware_init(void)
 
     /* Set the MAC addr from the flash serial number */
     mbed_auto_set_mac(&local_eth_addr);
-    
+
     printf("ETH Init...");
     rflpc_eth_init();
     rflpc_eth_set_mac_address(local_eth_addr.addr);

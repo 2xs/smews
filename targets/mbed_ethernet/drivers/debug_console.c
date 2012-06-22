@@ -48,7 +48,6 @@
 
 #include "out_buffers.h"
 #include "mbed_debug.h"
-#include "arp_cache.h"
 #include "connections.h"
 
 #define CONSOLE_BUFFER_SIZE 64
@@ -71,7 +70,7 @@ void mbed_console_tx_state(char *args);
 void mbed_console_rx_state(char *args);
 void mbed_console_eth_state(char *args);
 void mbed_console_mem_state(char *args);
-void mbed_console_arp_state(char *args);
+void mbed_console_ll_state(char *args);
 void mbed_console_stack_dump(char *args);
 void mbed_console_connections_state(char *args);
 
@@ -86,7 +85,7 @@ console_command_t _console_commands[] = {
     CONSOLE_COMMAND(rx_state, "rs", "Dump the state of the RX buffers"),
     CONSOLE_COMMAND(eth_state, "es", "Dump the state of ethernet device"),
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
-    CONSOLE_COMMAND(arp_state, "as", "Dump the state of arp resolve table"),
+    CONSOLE_COMMAND(ll_state, "ls", "Dump the state of link layer resolve table"),
     CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),
     CONSOLE_COMMAND(connections_state, "cs", "Show the connections state"),
 };
@@ -130,9 +129,10 @@ void mbed_console_help(char *args)
 
 extern void mbed_eth_dump_tx_buffer_status();
 
-void mbed_console_arp_state(char *args)
+void mbed_console_ll_state(char *args)
 {
-  mbed_arp_dump();
+	/* TODO */
+  /*mbed_arp_dump();*/
 }
 
 void mbed_console_tx_state(char *args)

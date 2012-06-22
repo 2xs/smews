@@ -51,8 +51,9 @@
 #include "hardware.h"
 #include "mbed_debug.h"
 #include "protocols.h"
-#include "arp_cache.h"
 #include "out_buffers.h"
+#include "connections.h"
+#include "link_layer_cache.h"
 
 
 /** This structure holds the buffer where the actual fragment data will be stored */
@@ -87,7 +88,7 @@ int mbed_eth_fill_header(uint32_t ip)
       first = 0;
    }
 
-   if (!mbed_arp_get_mac(ip, &dst_addr))
+   if (!get_link_layer_address((unsigned char*)&ip, dst_addr.addr))
    {
         MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
                    ip & 0xFF,
@@ -130,10 +131,10 @@ void mbed_eth_prepare_output(uint32_t size)
     {
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
-    }    
+    }
     /* allocated memory for output buffer */
     while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_buffer.size = 0;    
+    current_buffer.size = 0;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
@@ -183,7 +184,8 @@ void mbed_eth_output_done()
 {
    /* Generate frame from fragment using gather DMA */
    /* First get the DST IP to fill the DST MAC address */
-   uint32_t ip = proto_ip_get_dst(current_buffer.ptr);
+   uint32_t ip;
+   get_current_remote_ip((unsigned char*)&ip);
    /* Fill the ethernet header */
    mbed_eth_fill_header(ip);
 
