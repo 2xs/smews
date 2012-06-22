@@ -1,5 +1,5 @@
 /*
-* Copyright or © or Copr. 2011, Michael Hauspie
+* Copyright or © or Copr. 2012, Michael Hauspie
 *
 * Author e-mail: michael.hauspie@lifl.fr
 *
@@ -34,18 +34,37 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-08-31
-  Time-stamp: <2011-09-27 17:45:58 (hauspie)>
+  Created: 2011-07-13
+  Time-stamp: <2011-09-27 15:28:01 (hauspie)>
 */
-#ifndef __PROTOCOLS_H__
-#define __PROTOCOLS_H__
-#include <stdint.h>
+#ifndef __ARP_H__
+#define __ARP_H__
+
+#ifndef IPV6 /* No arp in IPV6 */
+
+#define PROTO_ARP_HLEN  28
+#define PROTO_ARP 0x0806
+
+typedef struct
+{
+    uint16_t hard_type;
+    uint16_t protocol_type;
+    uint8_t hlen;
+    uint8_t plen;
+    uint16_t opcode;
+    EthAddr sender_mac;
+    uint32_t sender_ip;
+    EthAddr target_mac;
+    uint32_t target_ip;
+} ArpHead;
 
 
-#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
 
-#define PUT_TWO(dst, idx, src) (dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-#define PUT_FOUR(dst, idx, src) (dst)[(idx)++] = ((src) >> 24) & 0xFF; (dst)[(idx)++] = ((src) >> 16) & 0xFF;(dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
+extern void proto_arp_demangle(ArpHead *ah, const uint8_t *data);
+extern void proto_arp_mangle(ArpHead *ah, uint8_t *data);
+
+extern void mbed_process_arp(EthHead *eth, const uint8_t *packet, int size);
+
+#endif
 
 #endif

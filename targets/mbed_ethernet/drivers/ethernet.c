@@ -37,7 +37,9 @@
   Created: 2011-08-31
   Time-stamp: <2011-09-02 10:51:03 (hauspie)>
 */
+#include "types.h"
 #include "protocols.h"
+#include "ethernet.h"
 
 
 void proto_eth_demangle(EthHead *eh, const uint8_t *data)
@@ -59,64 +61,6 @@ void proto_eth_mangle(EthHead *eh, uint8_t *data)
     PUT_MAC(data, idx, eh->src.addr);
     /* Type */
     PUT_TWO(data, idx, eh->type);
-}
-
-void proto_arp_demangle(ArpHead *ah, const uint8_t *data)
-{
-    int idx = 0;
-    /* hardware type */
-    GET_TWO(ah->hard_type, data, idx);
-    /* protocol type */
-    GET_TWO(ah->protocol_type, data, idx);
-    ah->hlen = data[idx++];
-    ah->plen = data[idx++];
-    /* opcode */
-    GET_TWO(ah->opcode, data, idx);
-    /* sender mac */
-    GET_MAC(ah->sender_mac.addr, data, idx);
-    /* sender IP */
-    GET_FOUR(ah->sender_ip, data, idx);
-    /* target mac */
-    GET_MAC(ah->target_mac.addr, data, idx);
-    /* target IP */
-    GET_FOUR(ah->target_ip, data, idx);
-}
-
-void proto_arp_mangle(ArpHead *ah, uint8_t *data)
-{
-    int idx = 0;
-    PUT_TWO(data, idx, ah->hard_type);
-    PUT_TWO(data, idx, ah->protocol_type);
-    data[idx++] = ah->hlen;
-    data[idx++] = ah->plen;
-    PUT_TWO(data, idx, ah->opcode);
-    PUT_MAC(data, idx, ah->sender_mac.addr);
-    PUT_FOUR(data, idx, ah->sender_ip);
-    PUT_MAC(data, idx, ah->target_mac.addr);
-    PUT_FOUR(data, idx, ah->target_ip);
-}
-
-uint32_t proto_ip_get_dst(const uint8_t *data)
-{
-    int idx = 16;
-    uint32_t ip;
-    GET_FOUR(ip, data, idx);
-    return ip;
-}
-uint32_t proto_ip_get_src(const uint8_t *data)
-{
-    int idx = 12;
-    uint32_t ip;
-    GET_FOUR(ip, data, idx);
-    return ip;
-}
-
-uint16_t proto_ip_get_size(const uint8_t *data)
-{
-    int idx = 2;
-    uint16_t size;
-    GET_TWO(size, data, idx);
-    return size;
 }
 
 int proto_eth_addr_equal(EthAddr *a1, EthAddr *a2)

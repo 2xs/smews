@@ -34,18 +34,44 @@
 */
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-08-31
-  Time-stamp: <2011-09-27 17:45:58 (hauspie)>
 */
-#ifndef __PROTOCOLS_H__
-#define __PROTOCOLS_H__
+#ifndef __IP_H__
+#define __IP_H__
 #include <stdint.h>
 
 
-#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
+#ifdef IPV6
+#define PROTO_IP_HLEN   40
+#else
+#define PROTO_IP_HLEN   20
+#endif
 
-#define PUT_TWO(dst, idx, src) (dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-#define PUT_FOUR(dst, idx, src) (dst)[(idx)++] = ((src) >> 24) & 0xFF; (dst)[(idx)++] = ((src) >> 16) & 0xFF;(dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
+#ifdef IPV6
+#define PROTO_IP  0x86dd
+#else
+#define PROTO_IP  0x0800
+#endif
+
+#define PROTO_IP_SRCIP_OFFSET 12
+#define PROTO_IP_DSTIP_OFFSET 16
+
+
+/** Gets the destination IP from a IP packet.
+ * @param [in] data pointer to the IP header of the packet
+ * @param [out] ip pointer to a buffer to store the ip
+ */
+extern void proto_ip_get_dst(const uint8_t *data, unsigned char *ip);
+
+/** Gets the source IP from a IP packet.
+ * @param [in] data pointer to the IP header of the packet
+ * @param [out] ip pointer to a buffer to store the ip
+ */
+extern void proto_ip_get_src(const uint8_t *data, unsigned char *ip);
+
+/** Gets the IP packet size from the IP data.
+ * It includes the header size (in v4 AND in v6).
+ * @param [in] data pointer to the IP header of the packet
+ */
+extern uint16_t proto_ip_get_size(const uint8_t *data);
 
 #endif

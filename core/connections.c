@@ -70,7 +70,7 @@ char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]) {
 	return 1;
 }
 
-unsigned char * decompress_ip(unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes) {
+unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes) {
 	uint16_t i, zeros_nb, start_index;
 
 	start_index = indexes>>4;
@@ -88,7 +88,7 @@ unsigned char * decompress_ip(unsigned char comp_ip_addr[], unsigned char full_i
 	return full_ip_addr;
 }
 
-unsigned char * compress_ip(unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes) {
+unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes) {
 	int32_t i, curr_index=0, max_index=0, curr_nb=0, max_nb=0;
 
 	for (i = 0; i < 16; i++) {
@@ -149,7 +149,7 @@ struct connection *add_connection(const struct connection *from)
 	struct connection *connection;
 #ifdef IPV6
 	/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-	connection = mem_alloc((sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+	connection = mem_alloc((sizeof(struct connection) + (17-((from->ip_addr[0])&15))) * sizeof(unsigned char));
 #else
 	connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
 #endif
@@ -193,7 +193,7 @@ void free_connection(const struct connection *connection) {
 
 #ifdef IPV6
 			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-	mem_free((void*)connection,(sizeof(struct connection) + (17-((comp_ipv6_addr[0])&15))) * sizeof(unsigned char));
+	mem_free((void*)connection,(sizeof(struct connection) + (17-((connection->ip_addr[0])&15))) * sizeof(unsigned char));
 #else
 	mem_free((void*)connection, sizeof(struct connection));
 #endif
@@ -221,6 +221,17 @@ unsigned char *get_remote_ip(const void *connection, unsigned char *ip)
 #endif
 	return ip;
 }
+
+unsigned char* get_current_remote_ip(unsigned char* ip)
+{
+	/* The current connection is all_connection->prev as the first thing made by smews_send is to round robin
+	 * the connection by setting all_connection to connection->next (where connection is the current output connection)
+	 */
+	if (!all_connections)
+		return NULL;
+	return get_remote_ip(all_connections->prev, ip);
+}
+
 
 #ifndef DISABLE_GP_IP_HANDLER
 uint16_t get_payload_size(const void *connection)

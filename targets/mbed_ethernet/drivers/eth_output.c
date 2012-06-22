@@ -50,9 +50,13 @@
 
 #include "hardware.h"
 #include "mbed_debug.h"
+#include "ip.h"
+#include "ethernet.h"
 #include "protocols.h"
-#include "arp_cache.h"
+
 #include "out_buffers.h"
+#include "connections.h"
+#include "link_layer_cache.h"
 
 
 /** This structure holds the buffer where the actual fragment data will be stored */
@@ -70,7 +74,7 @@ fragment_buffer_t current_buffer; /* in the bss, so initialized at NULL,0 by the
 uint8_t ethernet_header[PROTO_MAC_HLEN];
 
 
-int mbed_eth_fill_header(uint32_t ip)
+int mbed_eth_fill_header(const unsigned char *ip)
 {
    static int first = 1;
    EthAddr dst_addr;
@@ -87,13 +91,8 @@ int mbed_eth_fill_header(uint32_t ip)
       first = 0;
    }
 
-   if (!mbed_arp_get_mac(ip, &dst_addr))
+   if (!get_link_layer_address(ip, dst_addr.addr))
    {
-        MBED_DEBUG("No MAC address known for %d.%d.%d.%d, dropping\r\n",
-                   ip & 0xFF,
-                   (ip >> 8) & 0xFF,
-                   (ip >> 16) & 0xFF,
-                   (ip >> 24) & 0xFF);
       return 0;
    }
    idx = 0;
@@ -130,17 +129,17 @@ void mbed_eth_prepare_output(uint32_t size)
     {
 	MBED_DEBUG("Asking to send a new packet while previous not finished\r\n");
 	return;
-    }    
+    }
     /* allocated memory for output buffer */
     while ((current_buffer.ptr = mbed_eth_get_tx_buffer()) == NULL){mbed_eth_garbage_tx_buffers();};
-    current_buffer.size = 0;    
+    current_buffer.size = 0;
 }
 
 void mbed_eth_put_byte(uint8_t byte)
 {
     if (current_buffer.ptr == NULL)
     {
-	MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
+		MBED_DEBUG("Trying to add byte %02x (%c) while prepare_output has not been successfully called\r\n", byte, byte);
 	return;
     }
     current_buffer.ptr[current_buffer.size] = byte;
@@ -169,8 +168,8 @@ void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
 {
     if (current_buffer.ptr == NULL)
     {
-	MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
-	return;
+		MBED_DEBUG("Trying to add %d bytes while prepare_output has not been successfully called\r\n", n);
+		return;
     }
     if (n >= DMA_THRESHOLD)
        memcpy_dma(current_buffer.ptr + current_buffer.size, bytes, n);
@@ -178,14 +177,20 @@ void mbed_eth_put_nbytes(const void *bytes, uint32_t n)
        memcpy(current_buffer.ptr + current_buffer.size, bytes, n);
     current_buffer.size += n;
 }
+void mbed_display_ip(const unsigned char *ip);
 
 void mbed_eth_output_done()
 {
    /* Generate frame from fragment using gather DMA */
    /* First get the DST IP to fill the DST MAC address */
-   uint32_t ip = proto_ip_get_dst(current_buffer.ptr);
+#ifdef IPV6
+	unsigned char dst_ip[16];
+#else
+	unsigned char dst_ip[4];
+#endif
+   get_current_remote_ip(dst_ip);
    /* Fill the ethernet header */
-   mbed_eth_fill_header(ip);
+   mbed_eth_fill_header(dst_ip);
 
    /* first, ethernet header */
    mbed_eth_prepare_fragment(ethernet_header, PROTO_MAC_HLEN, 0, 0);

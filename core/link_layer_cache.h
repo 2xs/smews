@@ -1,5 +1,5 @@
 /*
-* Copyright or © or Copr. 2011, Michael Hauspie
+* Copyright or © or Copr. 2012, Michael Hauspie
 *
 * Author e-mail: michael.hauspie@lifl.fr
 *
@@ -32,20 +32,25 @@
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
-/*
-  Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-08-31
-  Time-stamp: <2011-09-27 17:45:58 (hauspie)>
-*/
-#ifndef __PROTOCOLS_H__
-#define __PROTOCOLS_H__
-#include <stdint.h>
+
+#ifndef DISABLE_LL_CACHE
+
+#ifndef __LINK_LAYER_CACHE_H__
+#define __LINK_LAYER_CACHE_H__
+
+/** Adds a couple ip<->link_layer to the cache.
+ * @param [in] ip IP (v4 or v6)
+ * @param [in] link_layer_address the associated link_layer
+ */
+extern void add_link_layer_address(const unsigned char *ip, const unsigned char *link_layer_address);
+
+/** Gets a link layer address from an ip address.
+ * @param [in] ip IP (v4 or v6)
+ * @param [out] link_layer_address pointer to a buffer that can store the associated link layer address
+ * @return true if the ip was found in the cache, false otherwise
+ */
+extern int get_link_layer_address(const unsigned char *ip, unsigned char *link_layer_address);
 
 
-#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-
-#define PUT_TWO(dst, idx, src) (dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-#define PUT_FOUR(dst, idx, src) (dst)[(idx)++] = ((src) >> 24) & 0xFF; (dst)[(idx)++] = ((src) >> 16) & 0xFF;(dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-
+#endif
 #endif

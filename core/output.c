@@ -284,7 +284,7 @@ void smews_send_packet(struct connection *connection) {
 	if (IS_GPIP(connection))
 	{
 		/* do not use TCP as Next Header but the protocol value of the gp_ip connection */
-		DEV_PUT16_VAL((IP_NH_TTL & 0xFF) | (connection->protocol.gp_ip.protocol << 8));
+		DEV_PUT16_VAL((IP_NH_TTL & 0xFF) | (connection->protocol.gpip.protocol << 8));
 	}
 	else
 #endif
@@ -476,6 +476,8 @@ void smews_send_packet(struct connection *connection) {
 			checksum_add32((const unsigned char*)&tmp_sum);
 			break;
 		}
+		case type_general_ip_handler: /* Should never happen */
+			return;
 	}
 
 	checksum_end();
@@ -520,6 +522,8 @@ void smews_send_packet(struct connection *connection) {
 			DEV_PUTN_CONST(tmpptr, segment_length);
 			break;
 		}
+		case type_general_ip_handler: /* Should never happen */
+			return;
 	}
 
 	/* update next sequence number and inflight segments */

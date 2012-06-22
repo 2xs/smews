@@ -179,9 +179,10 @@ extern struct http_rst_connection rst_connection;
 #ifdef IPV6
 extern unsigned char local_ip_addr[16];
 extern char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]);
-#define IP_CMP(ip1, ip2) ipcmp(ip1, ip2)
 extern unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes);
 extern unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes);
+
+#define IP_CMP(ip1, ip2) ipcmp(ip1, ip2)
 #else
 extern unsigned char local_ip_addr[4];
 #define IP_CMP(ip1, ip2) (UI32((ip1)) == UI32((ip2)))
@@ -212,9 +213,17 @@ extern unsigned char *get_local_ip(const void *connection, unsigned char *ip);
 /** Returns the ip address of the remote end of a connection.
  * @param [in] connection
  * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned)
- * @param pointer ip
+ * @return pointer ip
  */
 extern unsigned char *get_remote_ip(const void *connection, unsigned char *ip);
+
+/** Returns the ip address of the remote end of the currently handled output connection.
+ * The main goal of this function is to allow targets to know which IP is the current output for (for MAC<->IP translation mainly)
+ * @warning This function has only a meaning between DEV_PREPARE_OUTPUT and DEV_OUTPUT_DONE code!
+ * @param [out] ip an array that will be filled with the requested ip address (for IPv6, it is the uncompressed value that is returned) *
+ * @return pointer ip
+ */
+extern unsigned char *get_current_remote_ip(unsigned char *ip);
 
 #ifndef DISABLE_GP_IP_HANDLER
 /** Returns the size of the last payload associated to a connection.
