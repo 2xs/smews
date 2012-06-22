@@ -117,7 +117,8 @@ int mbed_process_input(const uint8_t *packet, int size)
     if (eth.type != PROTO_IP)
 		return ETH_INPUT_FREE_PACKET; /* drop packet */
 
-    if (!proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
+
+    if (!proto_eth_addr_is_multicast(&eth.dst) && !proto_eth_addr_equal(&eth.dst, &local_eth_addr)) /* not for me */
 		return ETH_INPUT_FREE_PACKET;
 
     /* IP Packet received */

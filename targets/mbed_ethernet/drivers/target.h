@@ -168,5 +168,7 @@
 
 #define LINK_LAYER_ADDRESS_SIZE 6
 
+extern EthAddr local_eth_addr;
+#define LINK_LAYER_ADDRESS (local_eth_addr.addr)
 
 #endif /* __TARGET_H__ */

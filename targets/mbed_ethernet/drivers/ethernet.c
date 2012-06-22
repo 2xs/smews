@@ -72,3 +72,8 @@ int proto_eth_addr_equal(EthAddr *a1, EthAddr *a2)
 	a1->addr[4] == a2->addr[4] &&
 	a1->addr[5] == a2->addr[5];
 }
+
+int proto_eth_addr_is_multicast(EthAddr *a)
+{
+	return a->addr[0] & 1;
+}

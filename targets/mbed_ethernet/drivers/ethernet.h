@@ -75,4 +75,5 @@ typedef struct
 extern void proto_eth_demangle(EthHead *eh, const uint8_t *data);
 extern void proto_eth_mangle(EthHead *eh, uint8_t *data);
 extern int 	proto_eth_addr_equal(EthAddr *a1, EthAddr *a2);
+extern int 	proto_eth_addr_is_multicast(EthAddr *a);
 #endif
