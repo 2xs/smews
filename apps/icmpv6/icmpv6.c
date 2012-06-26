@@ -159,7 +159,7 @@ char icmp6_packet_out(const void *connection_info)
 	out_c(0);out_c(0);out_c(0);
 	/* My ip */
 	for (i = 0 ; i < 16 ; ++i)
-		out_c(local_ip[i]);
+		out_c(local_ip[15-i]);
 	/* my link layer */
 	for (i = 0 ; i < LINK_LAYER_ADDRESS_SIZE ; ++i)
 		out_c(LINK_LAYER_ADDRESS[i]);

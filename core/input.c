@@ -441,15 +441,12 @@ char smews_receive(void) {
 			if (connection == NULL)
 				return 1;
 		}
-		else
-		{
 		/* update the connection */
 #ifdef IPV6
 			memcpy(connection->ip_addr, comp_ipv6_addr, (17-((comp_ipv6_addr[0])&15)));
 #else
 			memcpy(connection->ip_addr, tmp_connection.ip_addr, sizeof(tmp_connection.ip_addr));
 #endif
-		}
 
 #ifndef DISABLE_POST /* if post is available, must set the curr_input connection to null
 						so that the in function knows that we are in dopacketin */
