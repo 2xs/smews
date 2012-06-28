@@ -162,7 +162,7 @@ char icmp6_packet_out(const void *connection_info)
 	/*******************************************/
 	/* my link layer */
 	checksum_add(2); /* Option type: target link layer address */
-	checksum_add(LINK_LAYER_ADDRESS_SIZE);
+	checksum_add((LINK_LAYER_ADDRESS_SIZE + 2)>>3); /* The size is in unit of 8 bytes and includes type and length fields */
 	for (i = 0 ; i < LINK_LAYER_ADDRESS_SIZE ; ++i)
 		checksum_add(LINK_LAYER_ADDRESS[i]);
 	checksum_end();
@@ -196,7 +196,7 @@ char icmp6_packet_out(const void *connection_info)
 	/*******************************************/
 	/* my link layer */
 	out_c(2); /* Option type: target link layer address */
-	out_c(LINK_LAYER_ADDRESS_SIZE);
+	out_c((LINK_LAYER_ADDRESS_SIZE+2)>>3); /* The size is in unit of 8 bytes and includes type and length fields */
 	for (i = 0 ; i < LINK_LAYER_ADDRESS_SIZE ; ++i)
 		out_c(LINK_LAYER_ADDRESS[i]);
 	return 0;
