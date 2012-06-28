@@ -147,7 +147,7 @@ char icmp6_packet_out(const void *connection_info)
 
 	/*******************************************/
 	/* R/S/O bits*/
-	checksum_add(0x40);
+	checksum_add(0x60);
 
 	/*******************************************/
 	/* reserved */
@@ -184,7 +184,7 @@ char icmp6_packet_out(const void *connection_info)
 
 	/*******************************************/
 	/* R/S/O bits */
-	out_c(0x40);
+	out_c(0x60);
 	/* 3 more reserved bytes */
 	out_c(0);out_c(0);out_c(0);
 
