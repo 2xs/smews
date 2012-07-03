@@ -1,4 +1,7 @@
 Next version:
+	- Adds a IP to link layer cache table (opt-in)
+	- Adds ICMPv6 application to answer neighbor solicitation packets
+	- MBED Ethernet now support IPv6
 	- Adds an application type that allows a developer to add support for a protocol other than TCP
 		above smews IP stack
 	- Now uses the rflpc v0.9
