@@ -284,7 +284,7 @@ void smews_send_packet(struct connection *connection) {
 	if (IS_GPIP(connection))
 	{
 		/* do not use TCP as Next Header but the protocol value of the gp_ip connection */
-		DEV_PUT16_VAL((IP_NH_TTL & 0xFF) | (connection->protocol.gpip.protocol << 8));
+		DEV_PUT16_VAL((0xFF) | (connection->protocol.gpip.protocol << 8));
 	}
 	else
 #endif
@@ -314,7 +314,7 @@ void smews_send_packet(struct connection *connection) {
 	if (IS_GPIP(connection))
 	{
 		/* do not use TCP as protocol number but the protocol value of the gpip connection */
-		DEV_PUT16_VAL((IP_TTL_PROTOCOL & 0xFF00) | connection->protocol.gpip.protocol);
+		DEV_PUT16_VAL(0xFF00 | connection->protocol.gpip.protocol);
 	}
 	else
 #endif
@@ -329,7 +329,7 @@ void smews_send_packet(struct connection *connection) {
 		checksum_add16(IP_ID);
 		checksum_add16(IP_OFFSET);
 		/* The BASIC_IP_CHK can not be used here as we changed the protocol number */
-		checksum_add16((IP_TTL_PROTOCOL & 0xFF00) | connection->protocol.gpip.protocol);
+		checksum_add16(0xFF00 | connection->protocol.gpip.protocol);
 	}
 	else
 #endif
