@@ -5,6 +5,7 @@
 \usepackage[babel=true,final]{microtype}
 \usepackage{listings}
 \usepackage{url}
+\usepackage[linktocpage]{hyperref}
 \usepackage{geometry}
 \usepackage{tikz}
 \usetikzlibrary{shapes,snakes,arrows,calc,decorations,shadows}
@@ -152,7 +153,7 @@ The Game Boy Advance is based on a 32-bits Arm7 processor at 16 Mhz. Communicati
 
 \paragraph{MBED}
 
-The MBED platform is a popular prototyping board based on the LPC1768 SoC by NXP. It includes an ARM Cortex-M3 32bits processor at 100Mhz as well as an ethernet mac 100Mbps full duplex. Smews as been ported to this platform using SLIP and ethernet. Note that before compiling for the \verb+mbed_ethernet+ target, you have to run the \verb+targets/mbed_ethernet/summon-rflpc+ script. This port does not support IPv6 yet.
+The MBED platform is a popular prototyping board based on the LPC1768 SoC by NXP. It includes an ARM Cortex-M3 32bits processor at 100Mhz as well as an ethernet mac 100Mbps full duplex. Smews as been ported to this platform using SLIP and ethernet. Note that before compiling for the \verb+mbed_ethernet+ target, you have to run the \verb+targets/mbed_ethernet/summon-rflpc+ script. In order to make the port work in IPv6, you should add the \verb!icmpv6! application that will handle neighbor solicitation packets.
 
 \paragraph{Linux}
 
@@ -216,7 +217,7 @@ The Smews compilation chain has many arguments enabling different options. The o
 {\tt endian=little|big}
 \par\hspace{0.1\textwidth} data endianness
 
-{\tt disable=[arguments|comet|retransmit|post]+}
+{\tt disable=[arguments|comet|retransmit|post|general\_purpose\_ip\_handler]+}
 \par\hspace{0.1\textwidth} disable internal functionalities
 
 		\end{minipage}
@@ -974,6 +975,278 @@ interaction="rest|alert|stream" channel="<channelNem>" />}
 \label{tab:appssyscalls}
 \end{table}
 
+
+\chapter{Creating an application for managing non-TCP packets}
+\label{ch:gpip}
+
+Smews now includes a feature called \textit{general purpose ip handler
+  (GPIP)}. This features allows one to develop an application that will handle
+non-TCP packets.
+
+This new feature emerged from a discussion on how to correctly implement the
+ICMPv6 Neighbor Solicitation packets to finish the IPv6 port on the mbed
+ethernet target. It has been clear to us that handling those messages should
+neither be in core nor in target specific code. Indeed, ICMPv6 should benefit
+more than just a target and is outside smews main core (as smews core is
+designed to handle HTTP). Thus, the decision was to implement a way for a
+developper to add a Smews application that has 2 handler functions and
+associate them to a IP protocol number (e.g. 1 for ICMPv4 or 58 for ICMPv6, 17
+for UDP...). The functions are for processing input packets and generate an
+output.
+
+GPIP applications are standard smews applications that can define a new type of
+generator. Thus, they can also integrates an associated web application,
+although it is not mandatory. To illustrate this feature, this section will
+describe an application for answering ICMPv4 echo request protocol.
+
+\section{Declaring GPIP generators}
+\label{sec:gpipgenerators}
+
+As for a web dynamic application, a GPIP application consists in at least one
+\textbf{.c} file with XML metadata to describe the application generator. The
+metadata must declare two handlers and a protocol number.
+
+The two handlers are called when a packet is received and when smews is ready
+to generate a response. The XML metadata for our application will thus be:
+
+\begin{lstlisting}
+/*
+<generator>
+        <handlers doPacketIn="icmp4_packet_in" doPacketOut="icmp4_packet_out"/>
+        <properties protocol="1" />
+</generator>
+ */
+\end{lstlisting}
+
+The \verb!doPacketIn! attribute declares the function that will be called by
+smews when a packet is received. The \verb!doPacketOut! attribute declares the
+function that will be called when smews is ready to generate an answer. In our
+example, the handlers are the two C functions \verb!icmp4_packet_in! and
+\verb!icmp4_packet_out!.
+
+The protocol number is given by the \verb!protocol! property and is set to
+1 which is the protocol number of ICMPv4. This value is the \textbf{Protocol}
+field of an IPv4 packet and the \textbf{Next Header} field of an IPv6 packet.
+
+
+\section{Handlers}
+\label{sec:handlers}
+
+The prototype of the handler functions is as follows:
+
+\begin{lstlisting}
+  char handler_func(const void *connection);
+\end{lstlisting}
+
+The \verb!connection! parameter is a handle that will allow the developer to
+get some information on the incoming packet such as its remote IP address, its
+payload size... 
+
+\subsection{Packet information}
+\label{sec:packetattributes}
+
+To get information on an incoming packet, the application can use the following
+functions. All the functions take the connection handle as parameter.
+
+\begin{enumerate}
+\item \verb!get_local_ip!~: returns the ip to which the packet was sent. Yet,
+  smews has only one IP address so it returns the IP that was defined at
+  compile time, but a smews version that can have multiple local IP (for
+  example with multiple interfaces) may be developed later,
+\item \verb!get_remote_ip!~: returns the ip from which the packet was sent,
+\item \verb!get_payload_size!~: returns the payload size of the packet (it does not include IP header size),
+\item \verb!get_protocol!~: returns the protocol that triggered the call to
+  this functions. It allows one to have the same handler for multiple protocols
+\item \verb!get_send_code!~: to be used in the \texttt{doPacketOut}
+  handler. This returns the return value of the corresponding
+  \texttt{doPacketIn} function. This is needed because due to the smews
+  scheduler, the \texttt{doPacketOut} is not guaranteed to be called right
+  after the \texttt{doPacketIn} that triggered it.
+\end{enumerate}
+
+\subsection{\texttt{doPacketIn} handler}
+\label{sec:dopacketin}
+
+
+The handler is called when a packet with the corresponding protocol number is
+received by smews. After decoding the IP header, smews called the
+\texttt{doPacketIn} handler. The handler can then call the \verb!in()! function
+to get the content of the packet, byte per byte.
+
+The function must return 0 if \textbf{no} reply has to be generated. Thus, in
+the \texttt{doPacketIn} function returns 0, then the \texttt{doPacketOut} will
+\textbf{not} be called.
+
+If an answer needs to be generated, the function can return any non-zero
+value. It will be possible to get this return value back when generating the
+reply is generated in the \texttt{doPacketOut} function use the
+\verb!get_send_code()! function.
+
+Here is a sample code that interprets an ICMPv4 echo request packet (the
+\verb!checksum_*! functions are provided by smews)~:
+
+\begin{lstlisting}
+char icmp4_packet_in(const void *connection_info)
+{
+	uint8_t tmp;
+	uint16_t payload_size = get_payload_size(connection_info);
+	int i;
+
+	checksum_init();
+	tmp = in(); /* type */
+
+	if (tmp != ICMP_ECHO_REQUEST)
+		return 0; /* drop packet and do not generate a reply */
+	checksum_add(tmp);
+	tmp = in(); /* code */
+	checksum_add(tmp);
+
+	checksum[S0] = in();
+	checksum[S1] = in();
+	checksum_add16(UI16(checksum));
+
+	identifier[S0] = in();
+	identifier[S1] = in();
+	checksum_add16(UI16(identifier));
+
+	sequence_number[S0] = in();
+	sequence_number[S1] = in();
+	checksum_add16(UI16(sequence_number));
+	for (i = 0 ; i < payload_size - ICMP_HEADER_SIZE; ++i)
+	{
+		icmp_payload[i] = in();
+		checksum_add(icmp_payload[i]);
+	}
+	buffer_size = payload_size - ICMP_HEADER_SIZE;
+	checksum_end();
+	if(UI16(current_checksum) != 0xffff)
+		return 0; /* invalid checksum */
+	return 1;
+}
+\end{lstlisting}
+
+
+\subsection{\texttt{doPacketOut} handler}
+\label{sec:dopacketout}
+
+This handler is called by Smews when it is ready to generate a reply. This
+function is quite similar to a \texttt{doGet} handler. It simply generate the
+response packet, byte per byte, using the \verb!out_c()! function. 
+
+In the \texttt{doPacketOut}, the \verb!get_*! functions described earlier can
+still be called to get information on the incoming packet that triggered the
+reply. Here is an example that implements the ICMPv4 reply associated to the
+previously described request~:
+
+\begin{lstlisting}
+char icmp4_packet_out(const void *connection_info)
+{
+	int i;
+	/* generate reply */
+
+	out_c(ICMP_ECHO_REPLY); /* type */
+	out_c(0);  /* code */
+
+	/* Generate checksum from request one, only the type byte has change,
+	 * so the value can be reused to accelerate the computation of the checksum
+	 */
+	UI16(checksum) += (ICMP_ECHO_REQUEST << 8);
+	if ((UI16(checksum) >> 8) < ICMP_ECHO_REQUEST) /* overflow, should add one */
+		UI16(checksum)++;
+	out_c(checksum[S0]);
+	out_c(checksum[S1]);
+	out_c(identifier[S0]);
+	out_c(identifier[S1]);
+	out_c(sequence_number[S0]);
+	out_c(sequence_number[S1]);
+	for (i = 0 ; i < buffer_size ; ++i)
+	{
+		out_c(icmp_payload[i]);
+	}
+	return 0;
+}
+\end{lstlisting}
+
+
+\section{Synthesis of the features}
+
+We give here an synthetic and exhaustive list of the features available when writing a GPIP generator in Smews:
+
+\begin{itemize}
+\item \rtab{gpip-appsxml} details the XML markers available for sue in comment of C the files that need to be considered as a GPIP generator,
+\item \rtab{gpip-appscallbacks} gives the list of the callbacks a GPIP generator can implement,
+\item \rtab{gpip-appssyscalls} lists the functions provided by Smews that can be called in any GPIP application.
+\end{itemize}
+
+\begin{table}[htb]
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt <generator />}
+\begin{quote} root of the applicative meta-data \end{quote}
+
+{\tt <handlers init="<funcName>" doPacketIn="<funcName>" doPacketOut="<funcName>" />}
+\begin{quote} callback functions definition \end{quote}
+
+{\tt <properties protocol="<protocolNumber>" />}
+\begin{quote} defines the protocol number associated to the GPIP generator \end{quote}
+\end{minipage}
+}
+} 
+\caption{XML markers for GPIP application}
+\label{tab:gpip-appsxml}
+\end{table}
+
+\begin{table}[htb]
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt char (init\_app\_func\_t)(void)}
+\begin{quote} initialization of the applications, returning 1 if ok, 0 if ko. \end{quote}
+
+{\tt char (do\_packet\_in\_func\_t)(struct args\_t *)}
+\begin{quote} called as soon as a packet is received, returning non zero value if the \texttt{doPacketOut} callback has to be called.\end{quote}
+
+{\tt char (do\_packet\_out\_func\_t)(struct args\_t *)}
+\begin{quote} called when the response is ready to be sent. This function is in charge of generating the response {\it via} {\tt out\_c} calls. \end{quote}
+
+	\end{minipage}
+ 	}
+ } 
+\caption{Functions handlers provided by GPIP applications}
+\label{tab:gpip-appscallbacks}
+\end{table}
+
+\begin{table}[htb]
+    \fbox{
+      \colorbox{black!10}{
+		\begin{minipage}{1\textwidth}
+{\tt out\_c(char c)}
+\begin{quote} to be used in the {\tt doPacketOut} callback, thus adding the {\tt c} byte to the response that is currently generated \end{quote}
+
+{\tt short in()}
+\begin{quote} to be used in the {\tt doPacketIn} callback, thus receiving packet data \end{quote}
+
+{\tt unsigned char *get\_local\_ip(const void *connection, unsigned char *ip)}
+\begin{quote} Gets the local ip associated to a packet. Can be called in \texttt{doPacketIn} and \texttt{doPacketOut}. \end{quote}
+
+{\tt unsigned char *get\_remote\_ip(const void *connection, unsigned char *ip)}
+\begin{quote} Gets the remote ip associated to a packet. Can be called in \texttt{doPacketIn} and \texttt{doPacketOut}. \end{quote}
+
+{\tt unsigned char *get\_payload\_size(const void *connection)}
+\begin{quote} Gets size of the packet (without IP header). Can be called in \texttt{doPacketIn} and \texttt{doPacketOut}. \end{quote}
+
+{\tt unsigned char *get\_send\_code(const void *connection)}
+\begin{quote} Gets the return value of the \texttt{doPacketIn} callback. Can be called in \texttt{doPacketOut}. \end{quote}
+
+		\end{minipage}
+      }
+   } 
+\caption{Functions provided by Smews}
+\label{tab:gpip-appssyscalls}
+\end{table}
+
+
 \chapter{Credits}
 
 \section{Contributors}
@@ -986,10 +1259,11 @@ interaction="rest|alert|stream" channel="<channelNem>" />}
 implementation (only available in the svn repos)
  \item[Geoffrey Chavepeyer \textnormal{and} Fabien Duchêne] implemented the IPv6
 support
- \item[Emilien Hidden \textnormal{and} Olivier Szika] -- implemented the support
-for POST requests
+\item[Emilien Hidden \textnormal{and} Olivier Szika] implemented the support
+  for POST requests
  \item[Thomas Vantroys] wrote the Arduino port
- \item[Michaël Hauspie] wrote the MBED ethernet port
+ \item[Michaël Hauspie] wrote the MBED ethernet port, the GPIP feature and the
+   ICMPv4 and ICMPv6 applications
  \item[Jean-Fran\c{c}ois Hren] designed the Smew (bird) in the Smews logo ;)
 \end{description}
 Thanks to \textbf{Gilles Grimaud} for his kind supervision and his wise advices.
