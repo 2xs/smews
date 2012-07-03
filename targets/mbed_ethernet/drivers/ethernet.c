@@ -35,17 +35,45 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-27 17:45:58 (hauspie)>
+  Time-stamp: <2011-09-02 10:51:03 (hauspie)>
 */
-#ifndef __PROTOCOLS_H__
-#define __PROTOCOLS_H__
-#include <stdint.h>
+#include "types.h"
+#include "protocols.h"
+#include "ethernet.h"
 
 
-#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
+void proto_eth_demangle(EthHead *eh, const uint8_t *data)
+{
+    int idx = 0;
+    /* Dst Address */
+    GET_MAC(eh->dst.addr, data, idx);
+    /* Source Address */
+    GET_MAC(eh->src.addr, data, idx);
+    /* Type */
+    GET_TWO(eh->type, data, idx);
+}
+void proto_eth_mangle(EthHead *eh, uint8_t *data)
+{
+    int idx = 0;
+    /* Dst Address */
+    PUT_MAC(data, idx, eh->dst.addr);
+    /* Source Address */
+    PUT_MAC(data, idx, eh->src.addr);
+    /* Type */
+    PUT_TWO(data, idx, eh->type);
+}
 
-#define PUT_TWO(dst, idx, src) (dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-#define PUT_FOUR(dst, idx, src) (dst)[(idx)++] = ((src) >> 24) & 0xFF; (dst)[(idx)++] = ((src) >> 16) & 0xFF;(dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
+int proto_eth_addr_equal(EthAddr *a1, EthAddr *a2)
+{
+    return a1->addr[0] == a2->addr[0] &&
+	a1->addr[1] == a2->addr[1] &&
+	a1->addr[2] == a2->addr[2] &&
+	a1->addr[3] == a2->addr[3] &&
+	a1->addr[4] == a2->addr[4] &&
+	a1->addr[5] == a2->addr[5];
+}
 
-#endif
+int proto_eth_addr_is_multicast(EthAddr *a)
+{
+	return a->addr[0] & 1;
+}
