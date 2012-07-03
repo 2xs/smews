@@ -35,17 +35,43 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-27 17:45:58 (hauspie)>
+  Time-stamp: <2011-09-02 10:51:03 (hauspie)>
 */
-#ifndef __PROTOCOLS_H__
-#define __PROTOCOLS_H__
-#include <stdint.h>
+#include "types.h"
+#include "protocols.h"
+#include "ip.h"
 
 
-#define GET_TWO(dst, src, idx) (dst) = (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-#define GET_FOUR(dst, src, idx) (dst) = (src)[(idx)++] << 24; (dst) |= (src)[(idx)++] << 16; (dst) |= (src)[(idx)++] << 8; (dst) |= (src)[(idx)++]
-
-#define PUT_TWO(dst, idx, src) (dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-#define PUT_FOUR(dst, idx, src) (dst)[(idx)++] = ((src) >> 24) & 0xFF; (dst)[(idx)++] = ((src) >> 16) & 0xFF;(dst)[(idx)++] = ((src) >> 8) & 0xFF; (dst)[(idx)++] = (src) & 0xFF
-
+#ifdef IPV6
+#define IP_DST_OFFSET 24
+#define IP_SRC_OFFSET 8
+#define IP_SIZE_OFFSET 4
+#define GET_IP(ip,data,idx) do {int i; for (i =0 ; i < 16 ; ++i) (ip)[15-i] = (data)[(idx)+i];} while(0)
+#else
+#define IP_DST_OFFSET 16
+#define IP_SRC_OFFSET 12
+#define IP_SIZE_OFFSET 2
+#define GET_IP(ip, data, idx) GET_FOUR(UI32(ip), data, idx)
 #endif
+
+void proto_ip_get_dst(const uint8_t *data, unsigned char *ip)
+{
+    int idx = IP_DST_OFFSET;
+    GET_IP(ip, data, idx);
+}
+void proto_ip_get_src(const uint8_t *data, unsigned char *ip)
+{
+    int idx = IP_SRC_OFFSET;
+    GET_IP(ip, data, idx);
+}
+
+uint16_t proto_ip_get_size(const uint8_t *data)
+{
+    int idx = IP_SIZE_OFFSET;
+    uint16_t size;
+    GET_TWO(size, data, idx);
+#ifdef IPV6
+	size += PROTO_IP_HLEN;
+#endif
+    return size;
+}

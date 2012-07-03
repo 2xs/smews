@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2008, Simon Duquennoy
-* 
+*
 * Author e-mail: simon.duquennoy@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -93,7 +93,7 @@ void cr_run(struct coroutine_t *coroutine
 			if(type == cor_type_post_out)
 				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);
 			else if(type == cor_type_post_in)
-			    current_cr->func.func_post_in(current_cr->params.in.content_type,current_cr->params.in.part_number,current_cr->params.in.filename,&current_cr->params.in.post_data);
+			    current_cr->func.func_post_in(current_cr->params.in.content_type,current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
 			else
 #endif
 				current_cr->func.func_get(current_cr->params.args);
@@ -159,14 +159,14 @@ void clean_service(struct generator_service_t *service, unsigned char inack[]) {
 				first_if_out = first_if_out->next;
 			}
 		}
-		
+
 		/* shorten the list */
 		if(last_if_ok) {
 			last_if_ok->next = NULL;
 		} else {
 			service->in_flight_infos = NULL;
 		}
-		
+
 		/* free all acknowledged segment information */
 		while(first_if_out) {
 			struct in_flight_infos_t *next = first_if_out->next;
@@ -184,7 +184,7 @@ void clean_service(struct generator_service_t *service, unsigned char inack[]) {
 
 /* select the in-flight segment related to a given sequence number */
 struct in_flight_infos_t *if_select(struct generator_service_t *service, unsigned char next_outseqno[]) {
-	struct in_flight_infos_t *if_infos = service->in_flight_infos;	
+	struct in_flight_infos_t *if_infos = service->in_flight_infos;
 	while(if_infos && UI32(if_infos->next_outseqno) != UI32(next_outseqno)) {
 		if_infos = if_infos->next;
 	}
@@ -196,10 +196,10 @@ struct cr_context_t *context_backup(struct generator_service_t *service, unsigne
 	char *sp = service->coroutine.curr_context.sp[0];
 	uint16_t stack_size = shared_stack + STACK_SIZE - sp;
 	char *new_stack = NULL;
-	
+
 	/* try to allocate a context and a stack (exactly fitting the coroutine stack usage) */
 	struct cr_context_t *new_context = mem_alloc(sizeof(struct cr_context_t)); /* test NULL: done */
-	if(new_context == NULL) {	
+	if(new_context == NULL) {
 		return NULL;
 	}
 	if(stack_size) {
@@ -226,9 +226,9 @@ struct cr_context_t *context_backup(struct generator_service_t *service, unsigne
 	UI32(new_if_infos->next_outseqno) = UI32(next_outseqno);
 	new_if_infos->infos.context = new_context;
 	new_if_infos->next = service->in_flight_infos;
-	
+
 	service->in_flight_infos = new_if_infos;
-	
+
 	return new_context;
 }
 

@@ -40,23 +40,9 @@
 
 /* Types definition */
 #include <stdint.h>
-/*
-  Already defined in stdint.h
-typedef unsigned int uint32_t;
-typedef int int32_t;
-typedef unsigned short uint16_t;
-typedef short int16_t;
-typedef unsigned char uint8_t;
-typedef char int8_t;
-*/
-
 
 /* Target specific includes */
-#include <rflpc17xx/drivers/leds.h>
-#include <rflpc17xx/drivers/timer.h>
-#include <rflpc17xx/drivers/ethernet.h>
-#include <rflpc17xx/drivers/eth_const.h>
-#include <rflpc17xx/nxp/core_cm3.h>
+#include <rflpc17xx/rflpc17xx.h>
 
 #include "hardware.h"
 #include "eth_input.h"
@@ -180,6 +166,9 @@ typedef char int8_t;
 /* This indicates a threshold from which a DEV_PUTN_CONST will be implemented by a multi-fragment frame using the ethernet controller gather DMA */
 #define DMA_THRESHOLD 64
 
+#define LINK_LAYER_ADDRESS_SIZE 6
 
+extern EthAddr local_eth_addr;
+#define LINK_LAYER_ADDRESS (local_eth_addr.addr)
 
 #endif /* __TARGET_H__ */

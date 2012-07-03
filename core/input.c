@@ -441,28 +441,19 @@ char smews_receive(void) {
 			if (connection == NULL)
 				return 1;
 		}
-		else
-		{
 		/* update the connection */
 #ifdef IPV6
 			memcpy(connection->ip_addr, comp_ipv6_addr, (17-((comp_ipv6_addr[0])&15)));
 #else
 			memcpy(connection->ip_addr, tmp_connection.ip_addr, sizeof(tmp_connection.ip_addr));
 #endif
-		}
 
 #ifndef DISABLE_POST /* if post is available, must set the curr_input connection to null
 						so that the in function knows that we are in dopacketin */
 			curr_input.connection = NULL;
 #endif
 		connection->protocol.gpip.payload_size = packet_length;
-		if (connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(connection))
-		{
-			/* If the function returns 1, then it requests an out */
-			connection->protocol.gpip.want_to_send = 1;
-		}
-		else
-			connection->protocol.gpip.want_to_send = 0;
+		connection->protocol.gpip.want_to_send = connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(connection);
 		return 1;
 	}
 #endif
