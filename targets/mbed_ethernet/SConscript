@@ -48,6 +48,7 @@ env.Append(CCFLAGS = '-fno-builtin -fomit-frame-pointer -fno-strict-aliasing -Wa
 # Library configuration
 env.Append(CCFLAGS = '-include ' + os.path.join(targetDir,'rflpc/rflpc17xx/config/config.h'))
 # Smews mbed specific option
+env.Append(CCFLAGS = '-DENABLE_LL_CACHE')
 env.Append(CCFLAGS = '-DMBED_USE_CONSOLE')
 env.Append(LINKFLAGS = '-nostdlib -Wl,-T,rflpc17xx.ld')
 env.Append(LIBS = 'rflpc17xx')

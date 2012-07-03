@@ -33,7 +33,7 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef DISABLE_LL_CACHE
+#ifdef ENABLE_LL_CACHE
 
 #ifndef __LINK_LAYER_CACHE_H__
 #define __LINK_LAYER_CACHE_H__
@@ -50,7 +50,6 @@ extern void add_link_layer_address(const unsigned char *ip, const unsigned char 
  * @return true if the ip was found in the cache, false otherwise
  */
 extern int get_link_layer_address(const unsigned char *ip, unsigned char *link_layer_address);
-
 
 #endif
 #endif

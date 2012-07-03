@@ -87,7 +87,6 @@ disabledHash['comet'] = 'DISABLE_COMET'
 disabledHash['arguments'] = 'DISABLE_ARGS'
 disabledHash['post'] = 'DISABLE_POST'
 disabledHash['general_purpose_ip_handler'] = 'DISABLE_GP_IP_HANDLER'
-disabledHash['ll_cache'] = 'DISABLE_LL_CACHE'
 opts.Add(ListVariable('disable', 'Disable smews functionnalities', 'none', disabledHash.keys()))
 opts.Add(ListVariable('endian', 'Force endianness', 'none', ['little','big']))
 opts.Add('chuncksNbits', 'Set the checksum chuncks size', 5)
