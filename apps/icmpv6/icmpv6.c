@@ -62,7 +62,6 @@ char icmp6_decode_ns(const void *connection_info)
 {
 	unsigned char target_ip[16];
 	unsigned char local_ip[16];
-	unsigned char lladdr[LINK_LAYER_ADDRESS_SIZE];
 	int i;
 
 	/* Code */
@@ -80,10 +79,7 @@ char icmp6_decode_ns(const void *connection_info)
 
 	/* Source link address */
 	for (i = 0 ; i < LINK_LAYER_ADDRESS_SIZE ; ++i)
-		lladdr[i] = in();
-
-	/* Record the address */
-	add_link_layer_address(target_ip, lladdr);
+		in();
 
 	/* check if request is for me */
 	get_local_ip(connection_info, local_ip);
