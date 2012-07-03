@@ -476,7 +476,7 @@ void smews_send_packet(struct connection *connection) {
 			checksum_add32((const unsigned char*)&tmp_sum);
 			break;
 		}
-		case type_general_ip_handler: /* Should never happen */
+		default: /* Should never happen but avoids compile warnings */
 			return;
 	}
 
@@ -522,7 +522,7 @@ void smews_send_packet(struct connection *connection) {
 			DEV_PUTN_CONST(tmpptr, segment_length);
 			break;
 		}
-		case type_general_ip_handler: /* Should never happen */
+		default: /* Should never happen but avoid warnings*/
 			return;
 	}
 
