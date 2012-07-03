@@ -56,6 +56,8 @@
 #define ICMP_NEIGHBOR_SOLICITATION 	135
 #define ICMP_NEIGHBOR_ADVERTISEMENT	136
 
+char icmp6_send_na(const void *connection_info);
+
 char icmp6_answer_ns(const void *connection_info)
 {
 	unsigned char target_ip[16];
@@ -110,6 +112,11 @@ char icmp6_packet_in(const void *connection_info)
 }
 
 char icmp6_packet_out(const void *connection_info)
+{
+	return icmp6_send_na(connection_info);
+}
+
+char icmp6_send_na(const void *connection_info)
 {
 	unsigned char local_ip[16];
 	unsigned char remote_ip[16];
