@@ -247,4 +247,12 @@ uint16_t get_protocol(const void *connection)
 		return 0;
 	return ((const struct connection *)connection)->protocol.gpip.protocol;
 }
+
+char get_send_code(const void *connection)
+{
+	if (!IS_GPIP(((const struct connection *)connection)))
+		return 0;
+	return ((const struct connection*)connection)->protocol.gpip.want_to_send;
+}
+
 #endif

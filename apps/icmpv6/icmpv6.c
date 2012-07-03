@@ -58,7 +58,7 @@
 
 char icmp6_send_na(const void *connection_info);
 
-char icmp6_answer_ns(const void *connection_info)
+char icmp6_decode_ns(const void *connection_info)
 {
 	unsigned char target_ip[16];
 	unsigned char local_ip[16];
@@ -88,7 +88,7 @@ char icmp6_answer_ns(const void *connection_info)
 			return 0;
 
 	/* request for me, have to answer */
-	return 1;
+	return ICMP_NEIGHBOR_SOLICITATION;
 }
 
 char icmp6_packet_in(const void *connection_info)
@@ -104,7 +104,7 @@ char icmp6_packet_in(const void *connection_info)
 		case ICMP_ECHO_REQUEST:
 			return 0;
 		case ICMP_NEIGHBOR_SOLICITATION:
-			return icmp6_answer_ns(connection_info);
+			return icmp6_decode_ns(connection_info);
 		default:
 			break;
 	}
@@ -113,9 +113,16 @@ char icmp6_packet_in(const void *connection_info)
 
 char icmp6_packet_out(const void *connection_info)
 {
-	return icmp6_send_na(connection_info);
+	switch (get_send_code(connection_info))
+	{
+		case ICMP_NEIGHBOR_SOLICITATION:
+			return icmp6_send_na(connection_info);
+	}
+	return 0;
 }
 
+
+/* Generates a Neighbor Advertisement packet */
 char icmp6_send_na(const void *connection_info)
 {
 	unsigned char local_ip[16];

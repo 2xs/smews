@@ -237,6 +237,17 @@ extern uint16_t get_payload_size(const void *connection);
  * @param [in] connection
  */
 extern uint16_t get_protocol(const void *connection);
+
+/** Returns the send code of a GPIP connection.
+ *
+ * The send code is the return value of the doPacketIn callback. If the return code is not 0,
+ * the doPacketOut is called and it can call this function to know what was the return value
+ * of the corresponding doPacketIn.
+ * This is useful when the doPacketOut action depends on the doPacketIn (see the icmpv6 app where
+ * this code is used to differenciate the need to answer a ECHO REQUEST or a NEIGHBOR SOLICITATION)
+ */
+extern char get_send_code(const void *connection);
+
 #endif
 
 #endif /* __CONNECTIONS_H__ */
