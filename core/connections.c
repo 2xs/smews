@@ -61,7 +61,7 @@ struct http_rst_connection rst_connection;
 /*-----------------------------------------------------------------------------------*/
 
 char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]) {
-	uint16_t i;
+	uint8_t i;
 
 	for (i=0; i < (17 - ((source_addr[0])&15)); i++)
 		if (source_addr[i] != check_addr[i])
@@ -71,7 +71,7 @@ char ipcmp(unsigned char source_addr[],  unsigned char check_addr[]) {
 }
 
 unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char full_ip_addr[], unsigned char indexes) {
-	uint16_t i, zeros_nb, start_index;
+	uint8_t i, zeros_nb, start_index;
 
 	start_index = indexes>>4;
 	zeros_nb = ((indexes)&15);
@@ -89,7 +89,7 @@ unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigned char 
 }
 
 unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes) {
-	int32_t i, curr_index=0, max_index=0, curr_nb=0, max_nb=0;
+	int8_t i, curr_index=0, max_index=0, curr_nb=0, max_nb=0;
 
 	for (i = 0; i < 16; i++) {
 		comp_ip_addr[i] = 0;
@@ -122,7 +122,7 @@ unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char co
 /*-----------------------------------------------------------------------------------*/
 char something_to_send(const struct connection *connection) {
 
-	#ifndef DISABLE_GP_IP_HANDLER
+#ifndef DISABLE_GP_IP_HANDLER
 	if(IS_GPIP(connection))
 		return connection->protocol.gpip.want_to_send;
 #endif

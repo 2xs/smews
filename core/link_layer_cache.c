@@ -70,7 +70,7 @@ static uint32_t _current_time = 0;
 #ifdef IPV6
 static inline int _ip_equal(const unsigned char *ip1, const unsigned char *ip2)
 {
-	int i;
+	uint8_t i;
 	for (i = 0 ; i < 16 ; ++i)
 		if (ip1[i] != ip2[i])
 			return 0;
@@ -78,7 +78,7 @@ static inline int _ip_equal(const unsigned char *ip1, const unsigned char *ip2)
 }
 static inline int _ip_is_null(const unsigned char *ip)
 {
-	int i;
+	uint8_t i;
 	for (i = 0 ; i < 16 ; ++i)
 		if (ip[i])
 			return 0;
@@ -95,7 +95,7 @@ static inline int _ip_is_null(const unsigned char *ip)
 
 void add_link_layer_address(unsigned char *ip, unsigned char *link_layer)
 {
-    int i, min_time_idx = 0;
+    uint8_t i, min_time_idx = 0;
     uint32_t min_time;
 
     min_time = _link_layer_table[0].timestamp;
@@ -125,7 +125,7 @@ void add_link_layer_address(unsigned char *ip, unsigned char *link_layer)
 
 int get_link_layer_address(const unsigned char *ip, unsigned char *link_layer)
 {
-    int i;
+    uint8_t i;
     for (i = 0 ; i < LINK_LAYER_CACHE_MAX_ENTRY ; ++i)
     {
 		if (IP_EQUAL(_link_layer_table[i].ip,ip))

@@ -139,7 +139,7 @@
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
-#define OUTPUT_BUFFER_SIZE 1300
+#define OUTPUT_BUFFER_SIZE (DEV_MTU - 140)
 /* size of the shared stack used by all dynamic content generators */
 #define STACK_SIZE 1024
 /* size of the dynamic memory allocator pool */
@@ -148,7 +148,7 @@
 /* Ethernet configuration */
 /* Number of frame descriptors for reception. For each descriptor,
  * 16 bytes will be needed */
-#define RX_DESCRIPTORS 8
+#define RX_DESCRIPTORS 10
 /* Size of the reception buffers. One buffer will be needed per reception descriptor
    The buffers will be store in the external SRAM. So 32K of RAM is available ONLY for this buffers
  */

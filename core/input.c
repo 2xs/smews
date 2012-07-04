@@ -57,7 +57,7 @@ extern CONST_VAR(struct output_handler_t, apps_httpCodes_404_html_handler);
 #ifndef DEV_MTU
 	#define MAX_MSS 0xffff
 #else
-	#define MAX_MSS (DEV_MTU - 40)
+	#define MAX_MSS (DEV_MTU - (IP_HEADER_SIZE+ TCP_HEADER_SIZE))
 #endif
 
 /* IP and TCP constants */
@@ -252,7 +252,7 @@ short in(){
 static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol)
 {
 	/* Try to find a handler that match the protocol number */
-	int i;
+	uint8_t i;
 	for (i = 0 ; resources_index[i] != NULL ; ++i)
 	{
 		if (!IS_GPIP_HANDLER(resources_index[i]))
