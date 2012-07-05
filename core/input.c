@@ -368,7 +368,8 @@ char smews_receive(void) {
 	/* Compress the received IPv6 adress
 		compress_ip(FullIPv6, IP's Offset, Indexe's offset) */
 	compress_ip(full_ipv6_addr, comp_ipv6_addr+1, &comp_ipv6_addr[0]);
-
+	/* copy compressed ip */
+	copy_compressed_ip(tmp_connection.ip_addr, comp_ipv6_addr);
 	/* discard the dest IP */
 	DEV_GET32(tmp_ui32);
 	DEV_GET32(tmp_ui32);
@@ -443,7 +444,7 @@ char smews_receive(void) {
 		}
 		/* update the connection */
 #ifdef IPV6
-			memcpy(connection->ip_addr, comp_ipv6_addr, (17-((comp_ipv6_addr[0])&15)));
+			copy_compressed_ip(connection->ip_addr, comp_ipv6_addr);
 #else
 			memcpy(connection->ip_addr, tmp_connection.ip_addr, sizeof(tmp_connection.ip_addr));
 #endif
@@ -454,6 +455,8 @@ char smews_receive(void) {
 #endif
 		connection->protocol.gpip.payload_size = packet_length;
 		connection->protocol.gpip.want_to_send = connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(connection);
+		if (!connection->protocol.gpip.want_to_send)
+			free_connection(connection);
 		return 1;
 	}
 #endif
@@ -1368,7 +1371,7 @@ char smews_receive(void) {
 		}
 
 		if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
-			connection = add_connection(NULL);
+			connection = add_connection(&tmp_connection);
 			/* update the pointer in the tmp_connection because
 			 * it will be copied later so if the pointers do not have the right value, the list
 			 * will be screwed */
@@ -1377,6 +1380,8 @@ char smews_receive(void) {
 				tmp_connection.prev = connection->prev;
 				tmp_connection.next = connection->next;
 			}
+			else
+				printf("connection allocation failed (port: %d)\r\n", UI16(tmp_connection.protocol.http.port));
 		}
 
 		if(!connection) {
@@ -1397,7 +1402,7 @@ char smews_receive(void) {
 				/* update the current connection */
 				*connection = tmp_connection;
 #ifdef IPV6
-				memcpy((*(connection)).ip_addr, comp_ipv6_addr, (17-((comp_ipv6_addr[0])&15)));
+				copy_compressed_ip(connection->ip_addr, comp_ipv6_addr);
 #endif
 			}
 		}

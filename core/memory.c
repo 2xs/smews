@@ -1,23 +1,23 @@
 /*
 * Copyright or © or Copr. 2008, Simon Duquennoy
-* 
+*
 * Author e-mail: simon.duquennoy@lifl.fr
-* 
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,10 +25,10 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
@@ -52,6 +52,18 @@ int get_free_mem() {
 		curr_free += curr_free->to_next;
 	}
 	return sum_free * 4;
+}
+
+/* gets the biggest free memory slot, used only for monitoring/debugging */
+int get_max_free_mem() {
+	int max_free = 0;
+	struct free_bloc_s *curr_free = first_free;
+	while(curr_free->to_next) {
+		if (curr_free->size > max_free)
+			max_free = curr_free->size;
+		curr_free += curr_free->to_next;
+	}
+	return max_free * 4;
 }
 
 /* reset the allocator (free all) */
@@ -133,10 +145,20 @@ void mem_free(void *ptr, uint16_t size) {
 		}
 		/* test if there is a free bloc before ptr */
 		if(prev_free) {
-			chain_free_blocs(prev_free, to_free);	
+			chain_free_blocs(prev_free, to_free);
 		} else {
 			first_free = to_free;
 		}
+	}
+}
+
+void print_mem_state()
+{
+	struct free_bloc_s *curr_free = first_free;
+	while(curr_free->to_next) {
+		printf("free: %p, size: %d, to_next: %d (%p), current+size: %p\r\n", curr_free, curr_free->size*4,
+			   curr_free->to_next*4, curr_free + curr_free->to_next, curr_free + curr_free->size);
+		curr_free += curr_free->to_next;
 	}
 }
 

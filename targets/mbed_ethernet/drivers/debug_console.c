@@ -169,9 +169,13 @@ void mbed_console_eth_state(char *args)
 {
     rflpc_eth_dump_internals();
 }
+extern int get_max_free_mem();
+extern void print_mem_state();
 void mbed_console_mem_state(char *args)
 {
     printf("%d bytes free\r\n", get_free_mem());
+	printf("Biggest free chunk: %d bytes\r\n", get_max_free_mem());
+	print_mem_state();
 }
 
 void mbed_console_stack_dump(char *args)
