@@ -1,4 +1,5 @@
 Next version:
+	- Fixes a bug in dynamic content (tcp mss was not taken into account)
 	- Adds an IP to link layer cache table (opt-in)
 	- Adds ICMPv6 application to answer neighbor solicitation packets
 	- MBED Ethernet now support IPv6
