@@ -139,7 +139,7 @@
 /* Smews configuration */
 
 /* size of the buffer used to generate dynamic content */
-#define OUTPUT_BUFFER_SIZE (DEV_MTU - 140)
+#define OUTPUT_BUFFER_SIZE (DEV_MTU)
 /* size of the shared stack used by all dynamic content generators */
 #define STACK_SIZE 1024
 /* size of the dynamic memory allocator pool */

@@ -103,6 +103,7 @@ struct curr_output_t {
 	char *buffer;
 	unsigned char checksum[2];
 	uint16_t content_length;
+	uint16_t max_bytes;
 	unsigned char next_outseqno[4];
 	enum service_header_e service_header: 2;
 };
@@ -160,10 +161,31 @@ static void dev_put32_val(uint32_t word) {
 	}
 #endif
 
+#define CONTENT_LENGTH_SIZE 6
+#define CHUNK_LENGTH_SIZE 4
+
+static uint8_t _service_headers_size(enum service_header_e service_header)
+{
+	uint8_t size = 0;
+	switch(service_header) {
+		case header_standard:
+			size += sizeof(serviceHttpHeader) - 1 + sizeof(serviceHttpHeaderPart2) - 1 + CONTENT_LENGTH_SIZE;
+			break;
+		case header_chunks:
+			size += sizeof(serviceHttpHeaderChunked) - 1;
+		case header_none:
+			size += CHUNK_LENGTH_SIZE + 4;
+			break;
+		default:
+			break;
+	}
+	return size;
+}
 
 /*-----------------------------------------------------------------------------------*/
 char out_c(char c) {
-	if(curr_output.content_length == OUTPUT_BUFFER_SIZE) {
+	/* Must not generate a segment that is more than mss */
+	if(curr_output.content_length == curr_output.max_bytes) {
 #ifndef DISABLE_GP_IP_HANDLER
 		if (curr_output.service == NULL) /* no service generator is when out is called from a dopacketout */
 			return 0;
@@ -193,8 +215,7 @@ void smews_send_packet(struct connection *connection) {
 	const struct output_handler_t * /*CONST_VAR*/ output_handler;
 	enum handler_type_e handler_type;
 	/* buffer used to store the current content-length */
-	#define CONTENT_LENGTH_SIZE 6
-	#define CHUNK_LENGTH_SIZE 4
+
 	char content_length_buffer[CONTENT_LENGTH_SIZE];
 #ifdef IPV6
 	/* Full IPv6 adress of the packet */
@@ -239,7 +260,7 @@ void smews_send_packet(struct connection *connection) {
 		case type_file: {
 			uint16_t max_out_size;
 			uint32_t file_remaining_bytes;
-			max_out_size = MAX_OUT_SIZE((uint16_t)connection->protocol.http.tcp_mss);
+			max_out_size = MAX_OUT_SIZE(connection->protocol.http.tcp_mss);
 			file_remaining_bytes = UI32(connection->protocol.http.final_outseqno) - UI32(next_outseqno);
 			segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
 			index_in_file = CONST_UI32(GET_FILE(output_handler).length) - file_remaining_bytes;
@@ -247,16 +268,7 @@ void smews_send_packet(struct connection *connection) {
 		}
 		case type_generator:
 			segment_length = curr_output.content_length;
-			switch(curr_output.service_header) {
-				case header_standard:
-					segment_length += sizeof(serviceHttpHeader) - 1 + sizeof(serviceHttpHeaderPart2) - 1 + CONTENT_LENGTH_SIZE;
-					break;
-				case header_chunks:
-					segment_length += sizeof(serviceHttpHeaderChunked) - 1;
-				case header_none:
-					segment_length += CHUNK_LENGTH_SIZE + 4;
-					break;
-			}
+			segment_length += _service_headers_size(curr_output.service_header);
 			break;
 #ifndef DISABLE_GP_IP_HANDLER
 		case type_general_ip_handler:
@@ -593,6 +605,11 @@ char smews_send(void) {
 	if (IS_GPIP(connection))
 	{
 		curr_output.buffer = gpip_output_buffer;/* mem_alloc(OUTPUT_BUFFER_SIZE); */
+#ifndef DEV_MTU
+		curr_output.max_bytes = OUTPUT_BUFFER_SIZE;
+#else
+		curr_output.max_bytes = (OUTPUT_BUFFER_SIZE + IP_HEADER_SIZE > DEV_MTU) ? DEV_MTU - IP_HEADER_SIZE : OUTPUT_BUFFER_SIZE;
+#endif
 		if (curr_output.buffer == NULL) /* no more memory */
 			return 0;
 		curr_output.content_length = 0;
@@ -654,6 +671,11 @@ char smews_send(void) {
 			char has_ended;
 			struct in_flight_infos_t *if_infos = NULL;
 
+			/* Set the maximum available size for generator so that the mss is respected */
+			/* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
+			 * thus, the http header size used is only the no header one (the chunk size).
+			 * If the segment that we will generate ends to be the first, the value is lowered in the following if block */
+			curr_output.max_bytes = MAX_OUT_SIZE(connection->protocol.http.tcp_mss) - _service_headers_size(header_none);
 			/* creation and initialization of the generator_service if needed */
 			if(connection->protocol.http.generator_service == NULL) {
 				connection->protocol.http.generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
@@ -661,6 +683,10 @@ char smews_send(void) {
 					return 1;
 				}
 				curr_output.service = connection->protocol.http.generator_service;
+				/* if we create the service, it is the first segment of the answer stream, we need
+				 * to reduce its size to fit the mss if the segment is not the last.
+				 * Thus, we use the biggest http header size possible to compute the available space for data */
+				curr_output.max_bytes = MAX_OUT_SIZE(connection->protocol.http.tcp_mss) - _service_headers_size(header_chunks);
 				/* init generator service */
 				curr_output.service->service_header = header_standard;
 				curr_output.service->in_flight_infos = NULL;
