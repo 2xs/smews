@@ -98,6 +98,8 @@ static CONST_VAR(char, serviceHttpHeaderChunked[]) = "HTTP/1.1 200 OK\r\nContent
 #define SERVICE_HTTP_HEADER_CHK 0x1871u
 #define SERVICE_HTTP_HEADER_CHUNKED_CHK 0x2876u
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 struct curr_output_t {
 	struct generator_service_t *service;
 	char *buffer;
@@ -675,7 +677,7 @@ char smews_send(void) {
 			/* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
 			 * thus, the http header size used is only the no header one (the chunk size).
 			 * If the segment that we will generate ends to be the first, the value is lowered in the following if block */
-			curr_output.max_bytes = MAX_OUT_SIZE(connection->protocol.http.tcp_mss) - _service_headers_size(header_none);
+			curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(connection->protocol.http.tcp_mss) - _service_headers_size(header_none));
 			/* creation and initialization of the generator_service if needed */
 			if(connection->protocol.http.generator_service == NULL) {
 				connection->protocol.http.generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
@@ -686,7 +688,7 @@ char smews_send(void) {
 				/* if we create the service, it is the first segment of the answer stream, we need
 				 * to reduce its size to fit the mss if the segment is not the last.
 				 * Thus, we use the biggest http header size possible to compute the available space for data */
-				curr_output.max_bytes = MAX_OUT_SIZE(connection->protocol.http.tcp_mss) - _service_headers_size(header_chunks);
+				curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(connection->protocol.http.tcp_mss) - _service_headers_size(header_chunks));
 				/* init generator service */
 				curr_output.service->service_header = header_standard;
 				curr_output.service->in_flight_infos = NULL;
