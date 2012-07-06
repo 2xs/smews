@@ -28,8 +28,7 @@ function build_smews()
     echo "Building Smews for $1"
     if ! scons ipaddr=$1 apps=:welcome,smews_check,connectionsStats target=linux debug=0 > /dev/null
     then
-	clean_exit 0
-	fail 4 "BUILD $1"
+	fail 30 "BUILD $1"
     fi
 }
 
@@ -37,40 +36,48 @@ function build_smews()
 function check_smews()
 {
     ip_addr=$1
-    echo "Testing static 1 seg"
-    # Request the static big file
-    if ! $CURL  http://$ip_addr/smews_check/one_seg >& /dev/null
+    echo "Testing extra small static"
+    if ! $CURL  http://$ip_addr/smews_check/extra_small >& /dev/null
     then
-	fail 1 "$ip_addr STATIC"
+	fail 10 "$ip_addr STATIC"
     fi
 
-    echo "Testing static 2 seg"
-    # Request the static big file
-    if ! $CURL  http://$ip_addr/smews_check/two_seg >& /dev/null
+    echo "Testing small static"
+    if ! $CURL  http://$ip_addr/smews_check/small >& /dev/null
     then
-	fail 1 "$ip_addr STATIC"
+	fail 11 "$ip_addr STATIC"
     fi
 
-    echo "Testing static 3 seg"
-    # Request the static big file
-    if ! $CURL  http://$ip_addr/smews_check/three_seg >& /dev/null
+    echo "Testing medium static"
+    if ! $CURL  http://$ip_addr/smews_check/medium >& /dev/null
     then
-	fail 1 "$ip_addr STATIC"
+	fail 12 "$ip_addr STATIC"
+    fi
+
+    echo "Testing large static"
+    if ! $CURL  http://$ip_addr/smews_check/large >& /dev/null
+    then
+	fail 13 "$ip_addr STATIC"
     fi
 
 
-    echo "Testing dynamic 1 segment"
-    # Request the dynamic resource, 1 segment
-    if ! $CURL -g http://$ip_addr/smews_check/dynamic?size=1 >& /dev/null
+    echo "Testing dynamic one segment"
+    if ! $CURL -g http://$ip_addr/smews_check/dynamic?size=0 >& /dev/null
     then
-	fail 2 "$ip_addr dynamic 1 segment"
+	fail 20 "$ip_addr dynamic 1 segment"
     fi
 
-    echo "Testing dynamic multiple segments"
-    # Request the dynamic resource, multiple segments
+    echo "Testing dynamic small"
+    if ! $CURL -g http://$ip_addr/smews_check/dynamic?size=2 >& /dev/null
+    then
+	fail 21 "$ip_addr dynamic small"
+    fi
+
+
+    echo "Testing dynamic large"
     if ! $CURL -g http://$ip_addr/smews_check/dynamic?size=4000 >& /dev/null
     then
-	fail 3 "$ip_addr dynamic multiple segment"
+	fail 22 "$ip_addr dynamic large"
     fi
 }
 
@@ -93,7 +100,7 @@ check_smews $IPV4_ADDR
 echo Checking for process $pid
 if ! pgrep smews.elf > /dev/null
 then
-    fail 5 "Smews crashed"
+    fail 1 "Smews crashed"
 fi
 
 clean_exit 0

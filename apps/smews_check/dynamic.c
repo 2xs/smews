@@ -71,6 +71,8 @@ static char init_dynamic(void)
 static char get_dynamic(struct args_t *args)
 {
     uint32_t i = 0;
+	if (args->size == 0)
+		out_c('0');
     while (i++ < args->size)
 		out_str(array);
     return 1;
