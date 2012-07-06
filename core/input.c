@@ -1380,8 +1380,6 @@ char smews_receive(void) {
 				tmp_connection.prev = connection->prev;
 				tmp_connection.next = connection->next;
 			}
-			else
-				printf("connection allocation failed (port: %d)\r\n", UI16(tmp_connection.protocol.http.port));
 		}
 
 		if(!connection) {

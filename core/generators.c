@@ -41,8 +41,7 @@
 #ifndef DISABLE_COMET
 /*-----------------------------------------------------------------------------------*/
 char server_push(const struct output_handler_t *push_handler /*CONST_VAR*/) {
-	uint16_t x;
-	x = 0;
+
 	if(push_handler->handler_comet) {
 		FOR_EACH_CONN(conn, {
 			if(IS_HTTP(conn) && conn->output_handler == push_handler) {

@@ -152,7 +152,7 @@ void mem_free(void *ptr, uint16_t size) {
 	}
 }
 
-void print_mem_state()
+/* void print_mem_state()
 {
 	struct free_bloc_s *curr_free = first_free;
 	while(curr_free->to_next) {
@@ -161,6 +161,7 @@ void print_mem_state()
 		curr_free += curr_free->to_next;
 	}
 }
+*/
 
 /* very basic realloc
  * this function must be reimplemented to avoid memory fragmentation

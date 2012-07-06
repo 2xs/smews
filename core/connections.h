@@ -187,7 +187,7 @@ static inline uint8_t compressed_ip_size(const unsigned char ip[])
 }
 static inline unsigned char * copy_compressed_ip(unsigned char dst[], const unsigned char src[])
 {
-	memcpy(dst, src, compressed_ip_size(src));
+	return memcpy(dst, src, compressed_ip_size(src));
 }
 
 
