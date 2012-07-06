@@ -169,7 +169,7 @@ extern fd_set fdset;
 
 /* Smews configuration */
 
-#define OUTPUT_BUFFER_SIZE 256
+#define OUTPUT_BUFFER_SIZE 1500
 #define STACK_SIZE 4*1024
 #define ALLOC_SIZE 32*1024
 
