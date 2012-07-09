@@ -146,12 +146,10 @@ else:
 # clean rule used if no target: clean all
 if len(targets) == 0:
 	pycFiles = []
-	definesh = os.path.join(coreDir,'defines.h')
-	blobsh = os.path.join(coreDir,'blobs.h')
 	for file in os.listdir(toolsDir):
 		if file.endswith('.pyc'):
 			pycFiles.append(os.path.join(toolsDir,file))
-	Clean('.',[binBase,genBase,sconsCache,pycFiles,definesh,blobsh])
+	Clean('.',[binBase,genBase,sconsCache,pycFiles])
 
 # the appDirs map contains associations between application URLs and real paths
 # ex.: apps = :smews,myApp:myApplication,test
