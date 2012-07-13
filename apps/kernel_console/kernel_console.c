@@ -79,7 +79,7 @@ void kernel_console_parse_command();
 
 #define CONSOLE_COMMAND(command, shortcut, help) {#command, shortcut, kernel_console_##command, help}
 
-static console_command_t _console_commands[] = {
+static console_command_t _console_commands[KERNEL_CONSOLE_COMMAND_SIZE] = {
     CONSOLE_COMMAND(help,"h", "Display this help message"),
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
     CONSOLE_COMMAND(ll_state, "ls", "Dump the state of link layer resolve table"),
@@ -225,5 +225,7 @@ extern char kernel_console_add_handler(const char *command, const char *shortcut
 	_console_commands[idx].shortcut = shortcut;
 	_console_commands[idx].help_message = help_message;
 	_console_commands[idx].handler = handler;
+	if (idx < KERNEL_CONSOLE_COMMAND_SIZE - 1)
+		_console_commands[idx+1].command = NULL;
 	return 1;
 }
