@@ -292,7 +292,10 @@ void mbed_configure_eth(void)
 	printf("\r\n");
 }
 
+#ifdef KERNEL_CONSOLE
 void mbed_console_init();
+#endif
+
 void mbed_eth_hardware_init(void)
 {
     /* Init the UART for printf */
@@ -304,8 +307,9 @@ void mbed_eth_hardware_init(void)
 
     rflpc_dma_init();
 
+#ifdef KERNEL_CONSOLE
 	mbed_console_init();
-
+#endif
     /* Init output buffers */
     mbed_eth_init_tx_buffers();
 
