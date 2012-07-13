@@ -42,7 +42,6 @@
 /* Mbed port includes */
 #include "target.h"
 #include "mbed_debug.h"
-#include "debug_console.h"
 #include "eth_input.h"
 #include "protocols.h"
 #include "out_buffers.h"
@@ -107,11 +106,15 @@ RFLPC_IRQ_HANDLER _eth_irq_handler()
     rflpc_eth_irq_clear(rflpc_eth_irq_get_status());
 }
 
+#ifdef KERNEL_CONSOLE
+#include "kernel_console.h"
+#endif
+
 RFLPC_IRQ_HANDLER _uart_irq()
 {
     char c = rflpc_uart_getchar(RFLPC_UART0);
-#ifdef MBED_USE_CONSOLE
-    mbed_console_add_char(c);
+#ifdef KERNEL_CONSOLE
+    kernel_console_add_char(c);
 #endif
 }
 
@@ -289,6 +292,7 @@ void mbed_configure_eth(void)
 	printf("\r\n");
 }
 
+void mbed_console_init();
 void mbed_eth_hardware_init(void)
 {
     /* Init the UART for printf */
@@ -300,12 +304,13 @@ void mbed_eth_hardware_init(void)
 
     rflpc_dma_init();
 
+	mbed_console_init();
+
     /* Init output buffers */
     mbed_eth_init_tx_buffers();
 
     mbed_configure_eth();
 
     printf("Starting system takes %d ms\r\n", rflpc_timer_get_counter(RFLPC_TIMER0));
-    mbed_console_prompt();
     rflpc_uart_set_rx_callback(RFLPC_UART0, _uart_irq);
 }

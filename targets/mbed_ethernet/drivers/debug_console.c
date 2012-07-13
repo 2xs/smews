@@ -39,8 +39,9 @@
 */
 
 
-#ifdef MBED_USE_CONSOLE
+#ifdef KERNEL_CONSOLE
 
+#include "kernel_console.h"
 
 #include "target.h"
 
@@ -48,94 +49,31 @@
 
 #include "out_buffers.h"
 #include "mbed_debug.h"
-#include "connections.h"
 
-#define CONSOLE_BUFFER_SIZE 64
+#define DECLARE_MBED_CONSOLE_COMMAND(command, shortcut, help) \
+	static const char *command_##command = #command; \
+	static const char *shortcut_##command = shortcut; \
+	static const char *help_##command = help; \
+	void mbed_console_##command(const char *args);
 
+#define ADD_HANDLER(command) printf("Adding %s %d\r\n", #command, kernel_console_add_handler(command_##command, shortcut_##command, help_##command, mbed_console_##command))
 
-int get_free_mem();
+DECLARE_MBED_CONSOLE_COMMAND(tx_state, "ts", "show the state of transmit buffers");
+DECLARE_MBED_CONSOLE_COMMAND(rx_state, "rs", "show the state of reception buffers");
+DECLARE_MBED_CONSOLE_COMMAND(eth_state, "es", "show the state of ethernet device");
+DECLARE_MBED_CONSOLE_COMMAND(stack_dump, "sd", "show the state of the stack");
 
-
-typedef struct
+void mbed_console_init()
 {
-    const char *command;
-    const char *shortcut;
-    void (*handler)(char *args);
-    const char *help_message;
-} console_command_t;
-
-
-void mbed_console_help(char *args);
-void mbed_console_tx_state(char *args);
-void mbed_console_rx_state(char *args);
-void mbed_console_eth_state(char *args);
-void mbed_console_mem_state(char *args);
-void mbed_console_ll_state(char *args);
-void mbed_console_stack_dump(char *args);
-void mbed_console_connections_state(char *args);
-
-void mbed_console_parse_command();
-
-
-#define CONSOLE_COMMAND(command, shortcut, help) {#command, shortcut, mbed_console_##command, help}
-
-console_command_t _console_commands[] = {
-    CONSOLE_COMMAND(help,"h", "Display this help message"),
-    CONSOLE_COMMAND(tx_state, "ts", "Dump the state of TX buffers"),
-    CONSOLE_COMMAND(rx_state, "rs", "Dump the state of the RX buffers"),
-    CONSOLE_COMMAND(eth_state, "es", "Dump the state of ethernet device"),
-    CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
-    CONSOLE_COMMAND(ll_state, "ls", "Dump the state of link layer resolve table"),
-    CONSOLE_COMMAND(stack_dump, "sd", "Dump the stack"),
-    CONSOLE_COMMAND(connections_state, "cs", "Show the connections state"),
-};
-
-static int _console_command_count = sizeof(_console_commands) / sizeof(_console_commands[0]);
-
-static char _console_buffer[CONSOLE_BUFFER_SIZE];
-static int _console_buffer_idx;
-
-void mbed_console_connections_state(char *args)
-{
-	int cpt = 0;
-	FOR_EACH_CONN(conn, {
-		printf("Connection: %d\r\n", cpt++);
-		if (IS_HTTP(conn))
-		{
-			printf("\tport: %d\r\n", UI16(conn->protocol.http.port));
-			printf("\ttcp_state: %d\r\n", conn->protocol.http.tcp_state);
-		}
-#ifndef DISABLE_GP_IP_HANDLER
-		else
-		{
-			printf("\tGPIP for protocol %d\r\n", conn->output_handler->handler_data.generator.handlers.gp_ip.protocol);
-		}
-#endif
-		printf("\toutput_handler: ");
-		if(conn->output_handler)
-			printf("****\r\n");
-		else
-			printf("NULL\r\n");
-		printf("\tsomething to send: %d\r\n", something_to_send(conn));
-	})
-}
-
-void mbed_console_help(char *args)
-{
-    int i;
-    for (i = 0 ; i < _console_command_count ; ++i)
-	printf("\t- %s (%s) : %s\r\n", _console_commands[i].command, _console_commands[i].shortcut, _console_commands[i].help_message);
+	ADD_HANDLER(tx_state);
+	ADD_HANDLER(rx_state);
+	ADD_HANDLER(eth_state);
+	ADD_HANDLER(stack_dump);
 }
 
 extern void mbed_eth_dump_tx_buffer_status();
 
-void mbed_console_ll_state(char *args)
-{
-	/* TODO */
-  /*mbed_arp_dump();*/
-}
-
-void mbed_console_tx_state(char *args)
+void mbed_console_tx_state(const char *args)
 {
     mbed_eth_dump_tx_buffer_status();
 }
@@ -145,40 +83,32 @@ extern const uint8_t * volatile current_rx_frame;
 extern volatile uint32_t current_rx_frame_size;
 extern volatile uint32_t current_rx_frame_idx;
 
-void mbed_console_rx_state(char *args)
+void mbed_console_rx_state(const char *args)
 {
-   printf("Rx frame ptr: %p\r\n", current_rx_frame);
-   printf("Rx frame idx: %d\r\n", current_rx_frame_idx);
-   printf("Rx frame size: %d\r\n", current_rx_frame_size);
+   KERNEL_CONSOLE_PRINT("Rx frame ptr: %p\r\n", current_rx_frame);
+   KERNEL_CONSOLE_PRINT("Rx frame idx: %d\r\n", current_rx_frame_idx);
+   KERNEL_CONSOLE_PRINT("Rx frame size: %d\r\n", current_rx_frame_size);
    if (current_rx_frame)
    {
       MBED_DUMP_BYTES(current_rx_frame, current_rx_frame_size);
    }
-   printf("Dumping rx descriptors\r\n");
+   KERNEL_CONSOLE_PRINT("Dumping rx descriptors\r\n");
    rflpc_eth_descriptor_t *d = (rflpc_eth_descriptor_t*)LPC_EMAC->RxDescriptor;
    rflpc_eth_rx_status_t *s = (rflpc_eth_rx_status_t*)LPC_EMAC->RxStatus;
    int i;
    for (i = 0 ; i <= LPC_EMAC->RxDescriptorNumber ; ++i)
    {
-      printf("Descriptor %d: packet: %p, status: %0x\r\n", i, d[i].packet, s[i].status_info);
+      KERNEL_CONSOLE_PRINT("Descriptor %d: packet: %p, status: %0x\r\n", i, d[i].packet, s[i].status_info);
       if (d[i].packet)
          MBED_DUMP_BYTES(d[i].packet, rflpc_eth_get_packet_size(s[i].status_info));
    }
 }
-void mbed_console_eth_state(char *args)
+void mbed_console_eth_state(const char *args)
 {
     rflpc_eth_dump_internals();
 }
-extern int get_max_free_mem();
-extern void print_mem_state();
-void mbed_console_mem_state(char *args)
-{
-    printf("%d bytes free\r\n", get_free_mem());
-	printf("Biggest free chunk: %d bytes\r\n", get_max_free_mem());
-	/*print_mem_state();*/
-}
 
-void mbed_console_stack_dump(char *args)
+void mbed_console_stack_dump(const char *args)
 {
    uint32_t *mstack =(uint32_t*) __get_MSP();
    int i;
@@ -196,89 +126,18 @@ void mbed_console_stack_dump(char *args)
       if (mstack[i] == 0xFFFFFFF9)
       {
          ++i;
-         printf("Current PC: %p\r\n", mstack[i+5]);
+         KERNEL_CONSOLE_PRINT("Current PC: %p\r\n", mstack[i+5]);
          /* Dump from here */
          int j;
          for (j = 0 ; j < 128 ; ++j)
          {
             if (j % 16 == 0)
-               printf("\n\r%p: ", ((uint8_t*)(mstack+i))  + j);
-            printf("%02x ", ((uint8_t*)(mstack+i))[j]);
+               KERNEL_CONSOLE_PRINT("\n\r%p: ", ((uint8_t*)(mstack+i))  + j);
+            KERNEL_CONSOLE_PRINT("%02x ", ((uint8_t*)(mstack+i))[j]);
          }
-         printf("\n\r");
+         KERNEL_CONSOLE_PRINT("\n\r");
          break;
       }
    }
 }
-
-void mbed_console_prompt()
-{
-    _console_buffer_idx = 0;
-    printf("smews> ");
-}
-
-void mbed_console_add_char(char c)
-{
-    if (c != '\r')
-	printf("%c", c);
-    else
-	printf("\r\n");
-    if (c == '\b') /* backspace */
-    {
-       if (_console_buffer_idx)
-       {
-         --_console_buffer_idx;
-         printf(" \b");
-       }
-       return;
-    }
-    if (c == '\r' || _console_buffer_idx == (CONSOLE_BUFFER_SIZE - 1))
-    {
-	_console_buffer[_console_buffer_idx] = '\0';
-	mbed_console_parse_command();
-	mbed_console_prompt();
-	return;
-    }
-    _console_buffer[_console_buffer_idx++] = c;
-}
-
-int mbed_console_strcmp(const char *s1, const char *s2)
-{
-    while (*s1 && *s1 == *s2)
-    {
-	s1++;
-	s2++;
-    }
-    return *s1 - *s2;
-}
-
-char *mbed_console_strchr(char *s1, int c)
-{
-    while (*s1 && *s1++ != c);
-    if (*s1)
-	return s1;
-    return NULL;
-}
-
-void mbed_console_parse_command()
-{
-    int i;
-    char *args = mbed_console_strchr(_console_buffer, ' ');
-    if (args != NULL)
-    {
-	*args = '\0';
-	args++;
-    }
-    for (i = 0 ; i < _console_command_count ; ++i)
-    {
-	if (mbed_console_strcmp(_console_buffer, _console_commands[i].command) == 0 || mbed_console_strcmp(_console_buffer, _console_commands[i].shortcut) == 0)
-	{
-	    _console_commands[i].handler(args);
-	    return;
-	}
-    }
-    printf("Bad command: %s\r\n", _console_buffer);
-}
-
-
 #endif
