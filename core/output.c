@@ -42,6 +42,7 @@
 #include "connections.h"
 #include "memory.h"
 #include "input.h" /* for *_HEADER_SIZE defines */
+#include "handlers.h"
 
 #ifndef DISABLE_POST
 	#include "defines.h"
@@ -87,7 +88,7 @@
 #else
 #define HANDLER_CALLBACK(connection,handler) { \
 	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
-		((handler generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))(NULL);}
+		((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))(NULL);}
 #endif
 
 /* Partially pre-calculated HTTP/1.1 header with checksum */

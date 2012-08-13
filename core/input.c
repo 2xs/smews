@@ -1331,11 +1331,13 @@ char smews_receive(void) {
 						mem_free(tmp_connection.protocol.http.post_data,sizeof(struct post_data_t));
 						tmp_connection.protocol.http.post_data = NULL;
 					}
+#ifndef DISABLE_ARGS
 					/* cleaning args data if error */
 					if(tmp_connection.protocol.http.args){
 						mem_free(tmp_connection.protocol.http.args,tmp_args_size_ref);
 						tmp_connection.protocol.http.args = NULL;
 					}
+#endif
 				}
 #endif
 				tmp_connection.protocol.http.parsing_state = parsing_out;
