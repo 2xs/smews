@@ -579,9 +579,8 @@ static char gpip_output_buffer[OUTPUT_BUFFER_SIZE];
 /*-----------------------------------------------------------------------------------*/
 char smews_send(void) {
 	struct connection *connection = NULL;
-#ifndef DISABLE_COMET
 	const struct output_handler_t * /*CONST_VAR*/ old_output_handler = NULL;
-#endif
+
 
 	/* sending reset has the highest priority */
 	if(UI16(rst_connection.port)) {

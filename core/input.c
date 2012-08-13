@@ -558,9 +558,11 @@ char smews_receive(void) {
 			defer_free_args_size = CONST_UI16(tmp_connection.output_handler->handler_args.args_size);
 #endif
 		}
+#ifndef DISABLE_COMET
 		if(/*tmp_connection.protocol.http.parsing_state == parsing_out &&*/ tmp_connection.protocol.http.comet_streaming == 0) {
 		  tmp_connection.output_handler = NULL;
 		}
+#endif
 	}
 
 	/* get TCP offset and flags */
