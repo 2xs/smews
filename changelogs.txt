@@ -1,4 +1,6 @@
 Next version:
+	- rfLPC is automatically cloned and built when build for mbed_ethernet target
+	- Fixes compilation issues when disabling comet or arguments
 	- Fixes a bug in dynamic content (tcp mss was not taken into account)
 	- Adds an IP to link layer cache table (opt-in)
 	- Adds ICMPv6 application to answer neighbor solicitation packets
