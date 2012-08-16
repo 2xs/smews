@@ -33,9 +33,22 @@
 
 
 import os
-import sys
+import sys,subprocess
+
+
+def execute(args):
+    try:
+        devnull = open(os.devnull, mode="a+")
+        subprocess.check_call(args, stdout=devnull)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write("{} returned {}\n".format(args, e.returncode))
+    except OSError as e:
+        sys.stderr.write("failed to execute process: {}\n".format(args))
 
 Import('env binDir projectName elfName targetDir')
+
+args = [os.path.join('..', '..', targetDir, 'summon-rflpc')]
+execute(args)
 
 env.Replace(CC = 'arm-none-eabi-gcc')
 env.Replace(AS = 'arm-none-eabi-as')
