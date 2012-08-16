@@ -236,9 +236,29 @@ void mbed_init_timer(void)
     rflpc_timer_start(RFLPC_TIMER0);
 }
 
+void mbed_print_configuration(void)
+{
+	printf("Disabled options: ");
+#ifdef DISABLE_COMET
+	printf("comet ");
+#endif
+#ifdef DISABLE_POST
+	printf("post ");
+#endif
+#ifdef DISABLE_GP_IP_HANDLER
+	printf("gpip ");
+#endif
+#ifdef DISABLE_ARGS
+	printf("args ");
+#endif
+#ifdef DISABLE_TIMERS
+	printf("timers");
+#endif
+	printf("\r\n");
+}
+
 void mbed_print_motd(void)
 {
-
     printf("\r\n  ______\r\n");
     printf(" / _____)                             \r\n");
     printf("( (____   ____   _____  _ _ _   ___\r\n");
@@ -259,6 +279,7 @@ void mbed_print_motd(void)
     printf("|_|   |_||______/ |_______)|_____/\r\n");
 
     printf("Compiled on %s %s\r\n", __DATE__, __TIME__);
+	mbed_print_configuration();
     printf("\r\n");
 
     printf(".data  size: %d B\r\n", &_data_end - &_data_start);
