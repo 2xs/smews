@@ -40,16 +40,26 @@
  */
 
 #ifndef IPV6
-	#error "This application can only work for IPv6 smews"
+	#warning "icmpv6 application can only work for IPv6 smews, disabling it"
+#define DISABLE_ICMPV6
 #endif
 
 #ifdef DISABLE_GP_IP_HANDLER
-	#error "This application can not work with disable_general_purpose_ip_handler"
+	#error "icmpv6 application can not work with disable_general_purpose_ip_handler, disabling it"
+#define DISABLE_ICMPV6
 #endif
 
-#ifndef LINK_LAYER_ADDRESS
-	#error "This application can only work if the target has defined a LINK_LAYER_ADDRESS"
+#if !defined(LINK_LAYER_ADDRESS) || !defined(LINK_LAYER_ADDRESS_SIZE)
+	#warning "icmpv6 application can not work without LINK_LAYER_ADDRESS and LINK_LAYER_ADDRESS_SIZE defined in your target, disabling it"
+#define DISABLE_ICMPV6
 #endif
+
+
+#ifdef DISABLE_ICMPV6
+/* Just implement empty callbacks for link purpose */
+char icmp6_packet_in(const void *connection_info){return 0;}
+char icmp6_packet_out(const void *connection_info){return 0;}
+#else
 
 #define ICMP_ECHO_REQUEST 			128
 #define ICMP_ECHO_REPLY				129
@@ -215,3 +225,4 @@ char icmp6_send_na(const void *connection_info)
 		out_c(LINK_LAYER_ADDRESS[i]);
 	return 0;
 }
+#endif
