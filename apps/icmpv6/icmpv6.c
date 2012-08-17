@@ -46,7 +46,6 @@
 
 #ifdef DISABLE_GP_IP_HANDLER
 	#error "icmpv6 application can not work with disable_general_purpose_ip_handler, disabling it"
-#define DISABLE_ICMPV6
 #endif
 
 #if !defined(LINK_LAYER_ADDRESS) || !defined(LINK_LAYER_ADDRESS_SIZE)
