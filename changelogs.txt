@@ -7,7 +7,7 @@ Next version:
 	- MBED Ethernet now support IPv6
 	- Adds an application type that allows a developer to add support for a protocol other than TCP
 		above smews IP stack
-	- Now uses the rflpc v0.9
+	- Now uses the rflpc v0.9a
 	- Checksum can be inlined by define INLINE_CHECKSUM at compile time.
 		- Provides small performance boost for platform like mbed at the cost of memory footprint
 		- Nothing changed from the previous behavior if INLINE_CHECKSUM is not defined
