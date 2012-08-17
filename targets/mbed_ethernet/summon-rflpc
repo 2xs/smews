@@ -2,9 +2,9 @@
 
 # This script allows to clone and compile rflpc so that it can be used to
 # compile smews
-# 
+#
 # Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-# Created: 
+# Created:
 # Time-stamp: <2012-05-16 14:48:37 (hauspie)>
 #
 
@@ -20,23 +20,22 @@ then
     cd $RFLPC_FOLDER
     if ! git fetch
     then
-	echo "Failed to update rflpc" 1>&2
-	exit 1
+		echo "Failed to update rflpc" 1>&2
+		exit 1
     fi
 else
     if ! git clone $RFLPC_REPOSITORY $RFLPC_FOLDER
     then
-	echo "Failed to clone rflpc repository. Do you have git installed?" 1>&2
-	exit 1
+		echo "Failed to clone rflpc repository. Do you have git installed?" 1>&2
+		exit 1
     fi
     cd $RFLPC_FOLDER
 fi
 
-git checkout -B $RFLPC_RELEASE
+git checkout -B $RFLPC_RELEASE >& /dev/null
 
 TMP_LOG_FILE=`mktemp`
 echo "Compiling library"
-make mrproper >& /dev/null
 # Creating config file
 cp $RFLPC_CONFIG_FILE_SRC $RFLPC_CONFIG_FOLDER
 # Compile
