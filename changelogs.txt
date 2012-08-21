@@ -1,4 +1,5 @@
 Next version:
+	- compile and link flags for mbed_ethernet are extracted from rflpc-config
 	- rfLPC is automatically cloned and built when build for mbed_ethernet target
 	- Fixes compilation issues when disabling comet or arguments
 	- Fixes a bug in dynamic content (tcp mss was not taken into account)
