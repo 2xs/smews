@@ -47,25 +47,30 @@ def execute(args):
 
 Import('env binDir projectName elfName targetDir')
 
+
+# Clone rflpc if needed
 args = [os.path.join('..', '..', targetDir, 'summon-rflpc')]
 execute(args)
+
+# Get the cflags and ldflags from rflpc-config
+args = [os.path.join('..','..',targetDir,'rflpc', 'rflpc-config'), '--cflags']
+cflags = subprocess.check_output(args)
+
+args[1] = '--ldflags'
+ldflags = subprocess.check_output(args)
+
+args[1] = '--lib'
+lib = subprocess.check_output(args)
+
 
 env.Replace(CC = 'arm-none-eabi-gcc')
 env.Replace(AS = 'arm-none-eabi-as')
 env.Replace(AR = 'arm-none-eabi-ar')
 env.Replace(RANLIB = 'arm-none-eabi-ranlib')
-# Architecture
-env.Append(CCFLAGS = '-mthumb -mcpu=cortex-m3')
-# Tweaks
-env.Append(CCFLAGS = '-fno-builtin -fomit-frame-pointer -fno-strict-aliasing -Wall -Os -I' + os.path.join(targetDir, 'rflpc'))
-# Library configuration
-env.Append(CCFLAGS = '-include ' + os.path.join(targetDir,'rflpc/rflpc17xx/config/config.h'))
-# Smews mbed specific option
+env.Append(CCFLAGS = cflags)
 env.Append(CCFLAGS = '-DENABLE_LL_CACHE')
-env.Append(CCFLAGS = '-DMBED_USE_CONSOLE')
-env.Append(LINKFLAGS = '-nostdlib -Wl,-T,rflpc17xx.ld')
-env.Append(LIBS = 'rflpc17xx')
-env.Append(LIBPATH = os.path.join(targetDir,'rflpc/rflpc17xx'))
+env.Append(LIBS = lib)
+env.Append(LINKFLAGS = ldflags)
 
 binaryName = projectName + '.bin'
 env.Command(binaryName, elfName, ['arm-none-eabi-objcopy -O binary -j .text -j .data $SOURCE $TARGET'])
