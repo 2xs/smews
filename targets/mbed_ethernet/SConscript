@@ -36,6 +36,19 @@ import os
 import sys,subprocess
 
 
+def check_output(args):
+    str = ""
+    try:
+        process = subprocess.Popen(args, stdout=subprocess.PIPE)
+        output,void = process.communicate()
+        str += output
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write("{} returned {}\n".format(args, e.returncode))
+    except OSError as e:
+        sys.stderr.write("failed to execute process: {}".format(args))
+    finally:
+        return str
+
 def execute(args):
     try:
         devnull = open(os.devnull, mode="a+")
@@ -54,14 +67,13 @@ execute(args)
 
 # Get the cflags and ldflags from rflpc-config
 args = [os.path.join('..','..',targetDir,'rflpc', 'rflpc-config'), '--cflags']
-cflags = subprocess.check_output(args)
+cflags = check_output(args)
 
 args[1] = '--ldflags'
-ldflags = subprocess.check_output(args)
+ldflags = check_output(args)
 
 args[1] = '--lib'
-lib = subprocess.check_output(args)
-
+lib = check_output(args)
 
 env.Replace(CC = 'arm-none-eabi-gcc')
 env.Replace(AS = 'arm-none-eabi-as')
