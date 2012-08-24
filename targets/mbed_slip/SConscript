@@ -41,8 +41,8 @@ env.Replace(CC = 'arm-none-eabi-gcc')
 env.Replace(AS = 'arm-none-eabi-as')
 env.Replace(AR = 'arm-none-eabi-ar')
 env.Replace(RANLIB = 'arm-none-eabi-ranlib')
-env.Append(CCFLAGS = '-fno-strict-aliasing -Itargets/mbed_slip/drivers/CMSIS')
-env.Append(LINKFLAGS = '-nostartfiles -static -Wl,-T ' + os.path.join(targetDir,'LPC17xx.ld'))
+env.Append(CCFLAGS = '-mthumb -mcpu=cortex-m3 -fno-strict-aliasing -Itargets/mbed_slip/drivers/CMSIS')
+env.Append(LINKFLAGS = '-mthumb -mcpu=cortex-m3 -nostartfiles -Wl,-T ' + os.path.join(targetDir,'LPC17xx.ld'))
 
 binaryName = projectName + '.bin'
 env.Command(binaryName, elfName, ['arm-none-eabi-objcopy -O binary $SOURCE $TARGET'])
