@@ -8,5 +8,5 @@ env.Append(LIBS = 'dl')
 env.Program('bin/panManager', Glob('bin/*.c'))
 
 for plugin in os.listdir('plugins'):
-        if not plugin.startswith('.'):
+        if not plugin.startswith('disabled-'):
 	      SConscript('plugins/%s/SConscript' %plugin)
