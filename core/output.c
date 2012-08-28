@@ -199,6 +199,8 @@ char out_c(char c) {
 				,cor_type_get
 #endif
 				);
+#else
+    return 0;
 #endif
 	}
 #ifndef DISABLE_GP_IP_HANDLER
@@ -844,6 +846,18 @@ char smews_send(void) {
 
 					}
 				}
+#else
+			    /* allocate buffer for data generation */
+				curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE); /* test NULL: done */
+				if(curr_output.buffer == NULL) {
+					return 1;
+				}
+#ifndef DISABLE_ARGS
+                GET_GENERATOR(connection->output_handler).handlers.get.doget(connection->protocol.http.args);
+#else
+                GET_GENERATOR(connection->output_handler).handlers.get.doget(NULL);
+#endif
+                has_ended = 1;
 #endif
 
 				/* finalizations after the segment generation */
