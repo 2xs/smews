@@ -33,10 +33,6 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifdef RFLPC_PLATFORM_MBED
-#include <string.h> /* memcpy */
-#endif
-
 #include "coroutines.h"
 #include "output.h"
 #include "connections.h"
