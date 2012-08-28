@@ -193,11 +193,13 @@ char out_c(char c) {
 		if (curr_output.service == NULL) /* no service generator is when out is called from a dopacketout */
 			return 0;
 #endif
+#ifndef DISABLE_COROUTINES
 		cr_run(NULL
 #ifndef DISABLE_POST
 				,cor_type_get
 #endif
 				);
+#endif
 	}
 #ifndef DISABLE_GP_IP_HANDLER
 	if (curr_output.service != NULL) /* only compute checksum for http generator, not for gpip */
@@ -694,8 +696,10 @@ char smews_send(void) {
 				curr_output.service->in_flight_infos = NULL;
 				curr_output.service->is_persistent = CONST_UI8(GET_GENERATOR(connection->output_handler).prop) == prop_persistent;
 				UI32(curr_output.service->curr_outseqno) = UI32(connection->protocol.http.next_outseqno);
+#ifndef DISABLE_COROUTINES
 				/* init coroutine */
 				cr_init(&curr_output.service->coroutine);
+#endif
 #ifndef DISABLE_POST
 				if(connection->protocol.http.post_data && connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED){
 					curr_output.service->coroutine.func.func_post_out = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.post.dopostout);
@@ -704,9 +708,13 @@ char smews_send(void) {
 				}
 				else{
 #endif
+#ifndef DISABLE_COROUTINES
 					curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(connection->output_handler).handlers.get.doget);
+#endif
 #ifndef DISABLE_ARGS
+#ifndef DISABLE_COROUTINES
 					curr_output.service->coroutine.params.args = connection->protocol.http.args;
+#endif
 #endif
 #ifndef DISABLE_POST
 				}
@@ -743,17 +751,20 @@ char smews_send(void) {
 			/* are we retransmitting a lost segment? */
 			is_retransmitting = UI32(curr_output.next_outseqno) != UI32(curr_output.service->curr_outseqno);
 
+#ifndef DISABLE_COROUTINES
 			/* put the coroutine (little) stack in the shared (big) stack if needed.
 			 * This step has to be done before before any context_restore or context_backup */
 			if(cr_prepare(&curr_output.service->coroutine) == NULL) { /* test NULL: done */
 				return 1;
 			}
+#endif
 
 			/* check if the segment need to be generated or can be resent from a buffer */
 			if(!is_persistent || !is_retransmitting) { /* segment generation is needed */
 
 				/* setup the http header for this segment */
 				if(!is_persistent && is_retransmitting) {
+#ifndef DISABLE_COROUTINES
 					/* if the current context is not the right one, restore it */
 					if_infos = context_restore(curr_output.service, connection->protocol.http.next_outseqno);
 					/* if_infos is NULL if the segment to be sent is the last void http chunck */
@@ -762,6 +773,9 @@ char smews_send(void) {
 					} else {
 						curr_output.service_header = header_none;
 					}
+#else
+                    curr_output.service_header = header_none;
+#endif
 				} else {
 					curr_output.service_header = curr_output.service->service_header;
 				}
@@ -770,7 +784,7 @@ char smews_send(void) {
 				curr_output.content_length = 0;
 				checksum_init();
 				curr_output.buffer = NULL;
-
+#ifndef DISABLE_COROUTINES
 				has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 				/* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
 				 * else, run the coroutine to generate one segment */
@@ -830,6 +844,7 @@ char smews_send(void) {
 
 					}
 				}
+#endif
 
 				/* finalizations after the segment generation */
 				checksum_end();
@@ -839,10 +854,14 @@ char smews_send(void) {
 					UI16(if_infos->checksum) = UI16(current_checksum);
 				}
 			} else { /* the segment has to be resent from a buffer: restore it */
+#ifndef DISABLE_COROUTINES
 				if_infos = if_select(curr_output.service, connection->protocol.http.next_outseqno);
 				curr_output.buffer = if_infos->infos.buffer;
 				curr_output.service_header = if_infos->service_header;
 				UI16(curr_output.checksum) = UI16(if_infos->checksum);
+#else
+                if_infos = NULL;
+#endif
 			}
 
 			/* select the right HTTP header */

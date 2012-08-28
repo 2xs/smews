@@ -87,6 +87,7 @@ disabledHash['comet'] = 'DISABLE_COMET'
 disabledHash['arguments'] = 'DISABLE_ARGS'
 disabledHash['post'] = 'DISABLE_POST'
 disabledHash['gpip'] = 'DISABLE_GP_IP_HANDLER'
+disabledHash['coroutines'] = 'DISABLE_COROUTINES'
 opts.Add(ListVariable('disable', 'Disable smews functionnalities', 'none', disabledHash.keys()))
 opts.Add(ListVariable('endian', 'Force endianness', 'none', ['little','big']))
 opts.Add('chuncksNbits', 'Set the checksum chuncks size', 5)
@@ -101,6 +102,8 @@ debug = globalEnv['debug']
 sdump = globalEnv['sdump']
 chuncksNbits = int(globalEnv['chuncksNbits'])
 toDisable = globalEnv['disable']
+if 'coroutines' in toDisable and 'post' not in toDisable:
+    toDisable.append('post')
 endian = globalEnv['endian']
 test = globalEnv['test']
 if endian:

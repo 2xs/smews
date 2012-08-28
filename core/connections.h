@@ -73,6 +73,33 @@ struct post_data_t {
 };
 #endif
 
+/* Possible http headers being used */
+enum service_header_e {	header_none, header_standard, header_chunks };
+
+/* Information about one in-flight segment (several per service) */
+struct in_flight_infos_t {
+	unsigned char next_outseqno[4]; /* associated sequence number */
+	unsigned char checksum[2]; /* segment checksum */
+	union if_infos_e { /* either a coroutine context or a data buffer */
+#ifndef DISABLE_COROUTINES
+		struct cr_context_t *context;
+#endif
+		char *buffer;
+	} infos;
+	struct in_flight_infos_t *next; /* the next in-flight segment */
+	enum service_header_e service_header: 2; /* http header infos */
+};
+
+struct generator_service_t {
+	unsigned char curr_outseqno[4];
+#ifndef DISABLE_COROUTINES
+	struct coroutine_t coroutine;
+#endif
+	struct in_flight_infos_t *in_flight_infos;
+	enum service_header_e service_header: 2;
+	unsigned is_persistent: 1;
+};
+
 /* Connection structure */
 struct http_connection {
 	unsigned char next_outseqno[4];
@@ -202,6 +229,9 @@ extern char something_to_send(const struct connection *connection);
 extern void free_connection(const struct connection *connection);
 /* Allocates and insert a new connection. The inserted connection will be a copy of the from parameter */
 extern struct connection *add_connection(const struct connection *from);
+
+/* deallocate all the memory used by in-flight segments that are now acknowledged (with out_seqno < inack) */
+extern void clean_service(struct generator_service_t *service, unsigned char inack[]);
 
 #ifndef DISABLE_POST
 /* Shared coroutine state (in = 0 / out = 1)*/

@@ -1365,7 +1365,9 @@ char smews_receive(void) {
 		if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
 			clean_service(tmp_connection.protocol.http.generator_service, current_inack);
 			if(defer_free_handler) { /* free handler and generator service is the service is completely acknowledged */
+#ifndef DISABLE_COROUTINES
 				cr_clean(&tmp_connection.protocol.http.generator_service->coroutine);
+#endif
 				mem_free(tmp_connection.protocol.http.generator_service, sizeof(struct generator_service_t));
 				tmp_connection.protocol.http.generator_service = NULL;
 #ifndef DISABLE_ARGS

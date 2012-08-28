@@ -186,7 +186,9 @@ void free_connection(const struct connection *connection) {
 	if (IS_HTTP(connection))
 	{
 		if(connection->protocol.http.generator_service) {
+#ifndef DISABLE_COROUTINES 
 			clean_service(connection->protocol.http.generator_service, NULL);
+#endif
 			mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
 		}
 	}

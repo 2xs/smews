@@ -33,6 +33,7 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
+#ifndef DISABLE_COROUTINES
 #ifndef __COROUTINES_H__
 #define __COROUTINES_H__
 
@@ -97,21 +98,23 @@ struct coroutine_t {
 /* Types used for in-flight segments */
 
 /* Possible http headers being used */
-enum service_header_e {	header_none, header_standard, header_chunks };
-
+/*enum service_header_e {	header_none, header_standard, header_chunks };
+*/
 /* Information about one in-flight segment (several per service) */
-struct in_flight_infos_t {
-	unsigned char next_outseqno[4]; /* associated sequence number */
-	unsigned char checksum[2]; /* segment checksum */
-	union if_infos_e { /* either a coroutine context or a data buffer */
+/*struct in_flight_infos_t {
+	unsigned char next_outseqno[4]; /* associated sequence number /
+	unsigned char checksum[2]; /* segment checksum /
+	union if_infos_e { /* either a coroutine context or a data buffer /
 		struct cr_context_t *context;
 		char *buffer;
 	} infos;
-	struct in_flight_infos_t *next; /* the next in-flight segment */
-	enum service_header_e service_header: 2; /* http header infos */
-};
+	struct in_flight_infos_t *next; /* the next in-flight segment /
+	enum service_header_e service_header: 2; /* http header infos /
+};*/
+struct in_flight_infos_t;
 
 /* Structure used to store information about the service of a generator */
+/*
 struct generator_service_t {
 	unsigned char curr_outseqno[4];
 	struct coroutine_t coroutine;
@@ -119,6 +122,8 @@ struct generator_service_t {
 	enum service_header_e service_header: 2;
 	unsigned is_persistent: 1;
 };
+*/
+struct generator_service_t;
 
 #ifndef DISABLE_POST
 /* enum with coroutine type */
@@ -140,8 +145,6 @@ extern void cr_run(struct coroutine_t *coroutine
 		);
 /* deallocate the memory used by a coroutine (not including in-flight segments) */
 extern void cr_clean(struct coroutine_t *coroutine);
-/* deallocate all the memory used by in-flight segments that are now acknowledged (with out_seqno < inack) */
-extern void clean_service(struct generator_service_t *service, unsigned char inack[]);
 
 /* select the in-flight segment related to a given sequence number */
 extern struct in_flight_infos_t *if_select(struct generator_service_t *service, unsigned char next_outseqno[]);
@@ -151,3 +154,4 @@ extern struct cr_context_t *context_backup(struct generator_service_t *service, 
 extern struct in_flight_infos_t *context_restore(struct generator_service_t *service, unsigned char next_outseqno[]);
 
 #endif /* __COROUTINES_H__ */
+#endif
