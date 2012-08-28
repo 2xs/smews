@@ -37,9 +37,11 @@
 #define __TARGET_H__
 
 #include <stdint.h>
+#include <string.h>
 #include <avr/pgmspace.h>
+#include <avr/interrupt.h>
 
-#define NULL ((void*)0)
+//#define NULL ((void*)0)
 
 #include "serial_line.h"
 
@@ -87,18 +89,114 @@ extern volatile uint32_t global_timer;
 /* Context switching */
 /* To be done */
 
-#define BACKUP_CTX(sp)
-		
-#define RESTORE_CTX(sp)
+//#define BACKUP_CTX(sp)
+//#define BACKUP_CTX(sp) do {cli(); (sp)[0] = (uint16_t *)((SPH<<8)|SPL);sei(); } while(0);
+#define BACKUP_CTX(sp) \
+		{\
+			uint16_t temp = SP;\
+			sp[0] = (void *)temp;\
+		}
 
-#define PUSHREGS
 
-#define POPREGS
+//#define RESTORE_CTX(sp)
+//#define RESTORE_CTX(sp) do { SPH = ((uint16_t)(sp)[0])>>8; SPL=((uint16_t)(sp)[0])&0xFF;} while(0);
+#define RESTORE_CTX(sp) \
+		{\
+			uint16_t temp = (uint16_t)sp[0];\
+			SP = temp; \
+		}
+
+ 
+#define PUSHREGS \
+	({ \
+	 asm volatile ( \
+		 "push r0 \n\t" \
+		 "in r0, __SREG__ \n\t" \
+		 "push r0 \n\t" \
+		 "push r1 \n\t" \
+		 "clr __zero_reg__ \n\t"\
+		 "push r2 \n\t" \
+		 "push r3 \n\t" \
+		 "push r4 \n\t" \
+		 "push r5 \n\t" \
+		 "push r6 \n\t" \
+		 "push r7 \n\t" \
+		 "push r8 \n\t" \
+		 "push r9 \n\t" \
+		 "push r10 \n\t" \
+		 "push r11 \n\t" \
+		 "push r12 \n\t" \
+		 "push r13 \n\t" \
+		 "push r14 \n\t" \
+		 "push r15 \n\t" \
+		 "push r16 \n\t" \
+		 "push r17 \n\t" \
+		 "push r18 \n\t" \
+		 "push r19 \n\t" \
+		 "push r20 \n\t" \
+		 "push r21 \n\t" \
+		 "push r22 \n\t" \
+		 "push r23 \n\t" \
+		 "push r24 \n\t" \
+		 "push r25 \n\t" \
+		 "push r26 \n\t" \
+		 "push r27 \n\t" \
+		 "push r28 \n\t" \
+		 "push r29 \n\t" \
+		 "push r30 \n\t" \
+		 "push r31 \n\t" \
+		);\
+	 })
+
+
+#define POPREGS \
+	({ \
+	 asm volatile ( \
+		 "pop r31 \n\t" \
+		 "pop r30 \n\t" \
+		 "pop r29 \n\t" \
+		 "pop r28 \n\t" \
+		 "pop r27 \n\t" \
+		 "pop r26 \n\t" \
+		 "pop r25 \n\t" \
+		 "pop r24 \n\t" \
+		 "pop r23 \n\t" \
+		 "pop r22 \n\t" \
+		 "pop r21 \n\t" \
+		 "pop r20 \n\t" \
+		 "pop r19 \n\t" \
+		 "pop r18 \n\t" \
+		 "pop r17 \n\t" \
+		 "pop r16 \n\t" \
+		 "pop r15 \n\t" \
+		 "pop r14 \n\t" \
+		 "pop r13 \n\t" \
+		 "pop r12 \n\t" \
+		 "pop r11 \n\t" \
+		 "pop r10 \n\t" \
+		 "pop r9 \n\t" \
+		 "pop r8 \n\t" \
+		 "pop r7 \n\t" \
+		 "pop r6 \n\t" \
+		 "pop r5 \n\t" \
+		 "pop r4 \n\t" \
+		 "pop r3 \n\t" \
+		 "pop r2 \n\t" \
+		 "pop r1 \n\t" \
+		 "pop r0 \n\t" \
+		 "out __SREG__, r0 \n\t" \
+		 "pop r0 \n\t" \
+		); \
+	})
+
 
 /* Smews configuration */
-#define OUTPUT_BUFFER_SIZE 512
+////#define OUTPUT_BUFFER_SIZE 512
+#define OUTPUT_BUFFER_SIZE 256
 //#define ALLOC_SIZE 2048
-#define ALLOC_SIZE 1024 // Arduino
+////#define ALLOC_SIZE 1024 // Arduino
+//#define ALLOC_SIZE 512
+#define ALLOC_SIZE 768
 #define STACK_SIZE 64
 
 /* IP address */
@@ -106,5 +204,8 @@ extern volatile uint32_t global_timer;
 #define IP_ADDR_1 168
 #define IP_ADDR_2 1
 #define IP_ADDR_3 8
+
+/* For automatic test purpose */
+#define TEST_ARRAY_SIZE	128
 
 #endif /* __TARGET_H__ */
