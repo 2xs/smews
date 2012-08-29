@@ -198,8 +198,12 @@ char out_c(char c) {
 	UI16(curr_output.checksum) = UI16(current_checksum);
 	if (curr_output.service->in_flight_infos)
 	    UI16(curr_output.service->in_flight_infos->checksum) = UI16(current_checksum);
-	curr_output.service->service_header = header_chunks;
-	curr_output.service_header = header_chunks;
+
+	if (curr_output.service_header == header_standard)
+	    curr_output.service_header = header_chunks;
+	else if (curr_output.service_header == header_chunks)
+	    curr_output.service_header = header_none;
+	curr_output.service->service_header = curr_output.service_header;
 	smews_send_packet(active_connection);
 	printf("enter\r\n");
 	curr_output.has_received_dyn_ack = 0;
@@ -872,6 +876,7 @@ char smews_send(void) {
 		}
 #ifdef DISABLE_COROUTINES
 		curr_output.serving_dynamic = 1;
+		curr_output.has_received_dyn_ack = 0;
 		printf("Serving connection: %d\r\n", active_connection);
 #ifndef DISABLE_ARGS
 		GET_GENERATOR(active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
@@ -879,7 +884,6 @@ char smews_send(void) {
 		GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
 #endif
 		printf("Done Serving connection: %d\r\n", active_connection);
-		curr_output.serving_dynamic = 0;
 		has_ended = 1;
 #endif
 
