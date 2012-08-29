@@ -195,9 +195,9 @@ extern volatile uint32_t global_timer;
 #define OUTPUT_BUFFER_SIZE 256
 //#define ALLOC_SIZE 2048
 ////#define ALLOC_SIZE 1024 // Arduino
-//#define ALLOC_SIZE 512
-#define ALLOC_SIZE 768
-#define STACK_SIZE 64
+#define ALLOC_SIZE 768 // Arduino
+////#define STACK_SIZE 64
+#define STACK_SIZE 256
 
 /* IP address */
 #define IP_ADDR_0 192
