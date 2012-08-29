@@ -74,7 +74,7 @@ extern fd_set fdset;
 
 #define TIME_MILLIS get_time()
 #define DEV_GET(c) {(c) = dev_get();}
-#define DEV_PUT(c) {out_buffer[out_curr++]=(c);}
+#define DEV_PUT(c) {out_buffer[out_curr++]=(c); printf("%c",c);}
 #define DEV_PUTN(ptr,n) {memcpy(out_buffer + out_curr,ptr,n); out_curr+=n;}
 #define DEV_PUTN_CONST(ptr,n) {memcpy(out_buffer + out_curr,ptr,n); out_curr+=n;}
 #define DEV_PREPARE_OUTPUT(length) dev_prepare_output()

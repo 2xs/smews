@@ -202,6 +202,26 @@ struct http_rst_connection {
 extern struct connection *all_connections;
 extern struct http_rst_connection rst_connection;
 
+
+
+struct curr_output_t {
+	struct generator_service_t *service;
+#ifdef DISABLE_COROUTINES
+    unsigned char serving_dynamic;
+    unsigned char has_received_dyn_ack;
+#endif
+	char *buffer;
+	unsigned char checksum[2];
+	uint16_t content_length;
+	uint16_t max_bytes;
+	unsigned char next_outseqno[4];
+	enum service_header_e service_header: 2;
+};
+
+extern struct curr_output_t curr_output;
+
+
+
 /* Local IP address */
 #ifdef IPV6
 extern unsigned char local_ip_addr[16];

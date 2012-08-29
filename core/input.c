@@ -542,6 +542,11 @@ char smews_receive(void) {
 	/* TCP ack management */
 	if(UI32(current_inack) && UI32(current_inack) <= UI32(tmp_connection.protocol.http.next_outseqno)) {
 		UI16(tmp_connection.protocol.http.inflight) = UI32(tmp_connection.protocol.http.next_outseqno) - UI32(current_inack);
+#ifdef DISABLE_COROUTINES
+        if(curr_output.service != NULL)
+            curr_output.has_received_dyn_ack = 1;
+        printf("%d,%X\n", current_inack, curr_output.service);
+#endif
 		if(tmp_connection.protocol.http.generator_service) {
 			/* deferred because current segment has not yet been checked */
 			defer_clean_service = 1;

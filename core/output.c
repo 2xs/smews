@@ -101,16 +101,8 @@ static CONST_VAR(char, serviceHttpHeaderChunked[]) = "HTTP/1.1 200 OK\r\nContent
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-struct curr_output_t {
-	struct generator_service_t *service;
-	char *buffer;
-	unsigned char checksum[2];
-	uint16_t content_length;
-	uint16_t max_bytes;
-	unsigned char next_outseqno[4];
-	enum service_header_e service_header: 2;
-};
-static struct curr_output_t curr_output;
+
+struct curr_output_t curr_output;
 
 /* default DEV_PUT16 */
 #ifndef DEV_PUT16
@@ -200,7 +192,18 @@ char out_c(char c) {
 #endif
 				);
 #else
-    return 0;
+        if(curr_output.serving_dynamic == 1)
+            return 1;
+        else {
+            curr_output.serving_dynamic = 1;
+            curr_output.has_received_dyn_ack = 0;
+            printf("enter\n");
+            while(curr_output.has_received_dyn_ack == 0)
+                smews_main_loop_step();
+            printf("leave\n");
+            curr_output.serving_dynamic = 0;
+            curr_output.content_length = 0;
+        }
 #endif
 	}
 #ifndef DISABLE_GP_IP_HANDLER
