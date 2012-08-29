@@ -198,11 +198,13 @@ char out_c(char c) {
             curr_output.serving_dynamic = 1;
             curr_output.has_received_dyn_ack = 0;
             printf("enter\n");
+            curr_output.service->service_header = header_chunks;
             while(curr_output.has_received_dyn_ack == 0)
                 smews_main_loop_step();
             printf("leave\n");
             curr_output.serving_dynamic = 0;
-            curr_output.content_length = 0;
+            curr_output.service->service_header = header_standard;
+            return 1;
         }
 #endif
 	}
@@ -569,6 +571,11 @@ void smews_send_packet(struct connection *connection) {
 static inline int32_t able_to_send(const struct connection *connection) {
 	if (!something_to_send(connection))
 		return 0;
+#ifdef DISABLE_COROUTINES
+    if (curr_output.serving_dynamic)
+        if (connection->protocol.http.generator_service && (connection->protocol.http.generator_service != curr_output.service))
+                return 0;
+#endif
 #ifndef DISABLE_GP_IP_HANDLER
 	if (IS_GPIP(connection))
 		return 1;
@@ -772,15 +779,15 @@ char smews_send(void) {
 #ifndef DISABLE_COROUTINES
 					/* if the current context is not the right one, restore it */
 					if_infos = context_restore(curr_output.service, connection->protocol.http.next_outseqno);
+#else
+                    if_infos = curr_output.service->in_flight_infos;
+#endif
 					/* if_infos is NULL if the segment to be sent is the last void http chunck */
 					if(if_infos != NULL) {
 						curr_output.service_header = if_infos->service_header;
 					} else {
 						curr_output.service_header = header_none;
 					}
-#else
-                    curr_output.service_header = header_none;
-#endif
 				} else {
 					curr_output.service_header = curr_output.service->service_header;
 				}
@@ -791,6 +798,9 @@ char smews_send(void) {
 				curr_output.buffer = NULL;
 #ifndef DISABLE_COROUTINES
 				has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
+#else
+                has_ended = !curr_output.serving_dynamic;
+#endif
 				/* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
 				 * else, run the coroutine to generate one segment */
 				if(!has_ended) {
@@ -812,13 +822,16 @@ char smews_send(void) {
 					/* we generate new non persistent data. backup the context before running it */
 					if(!is_persistent && !is_retransmitting) {
 						if_infos->service_header = curr_output.service_header;
+#ifndef DISABLE_COROUTINES
 						if(context_backup(curr_output.service, curr_output.next_outseqno, if_infos) == NULL) { /* test NULL: done */
 							mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
 							mem_free(if_infos, sizeof(struct in_flight_infos_t));
 							return 1;
 						}
+#endif
 					}
 
+#ifndef DISABLE_COROUTINES
 					/* run the coroutine (generate one segment) */
 #ifndef DISABLE_POST
 					if(connection->protocol.http.post_data && connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
@@ -830,7 +843,10 @@ char smews_send(void) {
 								,cor_type_get
 #endif
 								);
+
 					has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
+#endif
+
 #ifndef DISABLE_POST
 					/* cleaning post_data */
 					if(has_ended && connection->protocol.http.post_data){
@@ -849,18 +865,13 @@ char smews_send(void) {
 
 					}
 				}
-#else
-			    /* allocate buffer for data generation */
-				curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE); /* test NULL: done */
-				if(curr_output.buffer == NULL) {
-					return 1;
-				}
+#ifdef DISABLE_COROUTINES
+
 #ifndef DISABLE_ARGS
                 GET_GENERATOR(connection->output_handler).handlers.get.doget(connection->protocol.http.args);
 #else
                 GET_GENERATOR(connection->output_handler).handlers.get.doget(NULL);
 #endif
-                has_ended = 1;
 #endif
 
 				/* finalizations after the segment generation */
