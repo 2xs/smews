@@ -545,7 +545,7 @@ char smews_receive(void) {
 #ifdef DISABLE_COROUTINES
         if(curr_output.service != NULL)
             curr_output.has_received_dyn_ack = 1;
-        printf("%d,%X\n", current_inack, curr_output.service);
+        printf("%lu,%p\r\n", current_inack, curr_output.service);
 #endif
 		if(tmp_connection.protocol.http.generator_service) {
 			/* deferred because current segment has not yet been checked */
