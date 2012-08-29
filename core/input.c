@@ -548,7 +548,9 @@ char smews_receive(void) {
 		if(tmp_connection.protocol.http.generator_service) {
 		    /* deferred because current segment has not yet been checked */
 		    defer_clean_service = 1;
+#ifdef DISABLE_COROUTINES
 		    curr_output.has_received_dyn_ack = 1;
+#endif
 		}
 	}
 

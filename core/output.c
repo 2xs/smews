@@ -204,13 +204,18 @@ char out_c(char c) {
 	else if (curr_output.service_header == header_chunks)
 	    curr_output.service_header = header_none;
 	curr_output.service->service_header = curr_output.service_header;
+
+	/* Compute max bytes for future next segment */
+	curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(active_connection->protocol.http.tcp_mss) - _service_headers_size(header_none));
 	smews_send_packet(active_connection);
 	printf("enter\r\n");
 	curr_output.has_received_dyn_ack = 0;
 	while(curr_output.has_received_dyn_ack == 0)
 	    smews_main_loop_step();
 	printf("leave\r\n");
-	return 1;
+	curr_output.content_length = 0;
+	checksum_init();
+
 #endif
     }
 #ifndef DISABLE_GP_IP_HANDLER
@@ -808,7 +813,7 @@ char smews_send(void) {
 #ifndef DISABLE_COROUTINES
 		has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else
-
+		has_ended = 0;
 #endif
 		/* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
 		 * else, run the coroutine to generate one segment */
