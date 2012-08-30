@@ -82,13 +82,13 @@
 
 /* Connection handler callback */
 #ifndef DISABLE_ARGS
-#define HANDLER_CALLBACK(connection,handler) {				\
-	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
-	    ((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))((connection)->protocol.http.args);}
+#define HANDLER_CALLBACK(connection,handler) {                          \
+        if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
+            ((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))((connection)->protocol.http.args);}
 #else
-#define HANDLER_CALLBACK(connection,handler) {				\
-	if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
-	    ((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))(NULL);}
+#define HANDLER_CALLBACK(connection,handler) {                          \
+        if(CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler) != NULL) \
+            ((generator_ ## handler ## _func_t*)CONST_ADDR(GET_GENERATOR((connection)->output_handler).handlers.get.handler))(NULL);}
 #endif
 
 /* Partially pre-calculated HTTP/1.1 header with checksum */
@@ -102,8 +102,6 @@ static CONST_VAR(char, serviceHttpHeaderChunked[]) = "HTTP/1.1 200 OK\r\nContent
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 
-/* Global current handled connection */
-struct connection *active_connection = NULL;
 struct curr_output_t curr_output;
 
 /* default DEV_PUT16 */
@@ -142,19 +140,19 @@ static void dev_put32_val(uint32_t word) {
 
 /* default DEV_PUTN */
 #ifndef DEV_PUTN
-#define DEV_PUTN(ptr,n) { uint16_t i;		\
-	for(i = 0; i < (n); i++) {		\
-	    DEV_PUT(ptr[i]);			\
-	}					\
+#define DEV_PUTN(ptr,n) { uint16_t i;           \
+        for(i = 0; i < (n); i++) {              \
+            DEV_PUT(ptr[i]);                    \
+        }                                       \
     }
 #endif
 
 /* default DEV_PUTN_CONST */
 #ifndef DEV_PUTN_CONST
-#define DEV_PUTN_CONST(ptr,n) { uint16_t i;	\
-	for(i = 0; i < (n); i++) {		\
-	    DEV_PUT(CONST_READ_UI8((ptr) + i)); \
-	}					\
+#define DEV_PUTN_CONST(ptr,n) { uint16_t i;     \
+        for(i = 0; i < (n); i++) {              \
+            DEV_PUT(CONST_READ_UI8((ptr) + i)); \
+        }                                       \
     }
 #endif
 
@@ -165,16 +163,16 @@ static uint8_t _service_headers_size(enum service_header_e service_header)
 {
     uint8_t size = 0;
     switch(service_header) {
-	case header_standard:
-	    size += sizeof(serviceHttpHeader) - 1 + sizeof(serviceHttpHeaderPart2) - 1 + CONTENT_LENGTH_SIZE;
-	    break;
-	case header_chunks:
-	    size += sizeof(serviceHttpHeaderChunked) - 1;
-	case header_none:
-	    size += CHUNK_LENGTH_SIZE + 4;
-	    break;
-	default:
-	    break;
+        case header_standard:
+            size += sizeof(serviceHttpHeader) - 1 + sizeof(serviceHttpHeaderPart2) - 1 + CONTENT_LENGTH_SIZE;
+            break;
+        case header_chunks:
+            size += sizeof(serviceHttpHeaderChunked) - 1;
+        case header_none:
+            size += CHUNK_LENGTH_SIZE + 4;
+            break;
+        default:
+            break;
     }
     return size;
 }
@@ -184,44 +182,31 @@ char out_c(char c) {
     /* Must not generate a segment that is more than mss */
     if(curr_output.content_length == curr_output.max_bytes) {
 #ifndef DISABLE_GP_IP_HANDLER
-	if (curr_output.service == NULL) /* no service generator is when out is called from a dopacketout */
-	    return 0;
+        if (curr_output.service == NULL) /* no service generator is when out is called from a dopacketout */
+            return 0;
 #endif
 #ifndef DISABLE_COROUTINES
-	cr_run(NULL
+        cr_run(NULL
 #ifndef DISABLE_POST
-	       ,cor_type_get
+               ,cor_type_get
 #endif
-	    );
+            );
 #else
-	checksum_end();
-	UI16(curr_output.checksum) = UI16(current_checksum);
-	if (curr_output.service->in_flight_infos)
-	    UI16(curr_output.service->in_flight_infos->checksum) = UI16(current_checksum);
-
-	if (curr_output.service_header == header_standard)
-	    curr_output.service_header = header_chunks;
-	else if (curr_output.service_header == header_chunks)
-	    curr_output.service_header = header_none;
-	curr_output.service->service_header = curr_output.service_header;
-
-	/* Compute max bytes for future next segment */
-	curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(active_connection->protocol.http.tcp_mss) - _service_headers_size(header_none));
-	smews_send_packet(active_connection);
-	printf("enter\r\n");
-	curr_output.has_received_dyn_ack = 0;
-	while(curr_output.has_received_dyn_ack == 0)
-	    smews_main_loop_step();
-	printf("leave\r\n");
-	curr_output.content_length = 0;
-	checksum_init();
-
+        smews_send();
+	printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+        curr_output.has_received_dyn_ack = 0;
+        while(curr_output.has_received_dyn_ack == 0)
+            smews_main_loop_step();
+/* Here, the segment has been sent, and the ACK received, prepare to generate next segment */
+	printf("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
+        curr_output.content_length = 0;
+        checksum_init();
 #endif
     }
 #ifndef DISABLE_GP_IP_HANDLER
     if (curr_output.service != NULL) /* only compute checksum for http generator, not for gpip */
 #endif
-	checksum_add(c);
+        checksum_add(c);
     curr_output.buffer[curr_output.content_length++] = c;
     return 1;
 }
@@ -250,59 +235,60 @@ void smews_send_packet(struct connection *connection) {
 
     if(connection) {
 #ifndef DISABLE_TIMERS
-	connection->protocol.http.transmission_time = last_transmission_time;
+        connection->protocol.http.transmission_time = last_transmission_time;
 #endif
 #ifdef IPV6
-	ip_addr = decompress_ip(connection->ip_addr+1,full_ipv6_addr,connection->ip_addr[0]);
+        ip_addr = decompress_ip(connection->ip_addr+1,full_ipv6_addr,connection->ip_addr[0]);
 #else
-	ip_addr = connection->ip_addr;
+        ip_addr = connection->ip_addr;
 #endif
 
-	if (IS_HTTP(connection))
-	{
-	    port = connection->protocol.http.port;
-	    next_outseqno = connection->protocol.http.next_outseqno;
-	    current_inseqno = connection->protocol.http.current_inseqno;
-	}
-	output_handler = connection->output_handler;
+        if (IS_HTTP(connection))
+        {
+            port = connection->protocol.http.port;
+            next_outseqno = connection->protocol.http.next_outseqno;
+            current_inseqno = connection->protocol.http.current_inseqno;
+        }
+        output_handler = connection->output_handler;
     } else {
-	ip_addr = rst_connection.ip_addr;
-	port = rst_connection.port;
-	next_outseqno = rst_connection.next_outseqno;
-	current_inseqno = rst_connection.current_inseqno;
-	output_handler = &ref_rst;
+        ip_addr = rst_connection.ip_addr;
+        port = rst_connection.port;
+        next_outseqno = rst_connection.next_outseqno;
+        current_inseqno = rst_connection.current_inseqno;
+        output_handler = &ref_rst;
     }
     handler_type = CONST_UI8(output_handler->handler_type);
 
     /* compute the length of the TCP segment to be sent */
     switch(handler_type) {
-	case type_control:
-	    segment_length = CONST_UI8(GET_CONTROL(output_handler).length);
-	    break;
-	case type_file: {
-	    uint16_t max_out_size;
-	    uint32_t file_remaining_bytes;
-	    max_out_size = MAX_OUT_SIZE(connection->protocol.http.tcp_mss);
-	    file_remaining_bytes = UI32(connection->protocol.http.final_outseqno) - UI32(next_outseqno);
-	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
-	    index_in_file = CONST_UI32(GET_FILE(output_handler).length) - file_remaining_bytes;
-	    break;
-	}
-	case type_generator:
-	    segment_length = curr_output.content_length;
-	    segment_length += _service_headers_size(curr_output.service_header);
-	    break;
+        case type_control:
+            segment_length = CONST_UI8(GET_CONTROL(output_handler).length);
+            break;
+        case type_file: {
+            uint16_t max_out_size;
+            uint32_t file_remaining_bytes;
+            max_out_size = MAX_OUT_SIZE(connection->protocol.http.tcp_mss);
+            file_remaining_bytes = UI32(connection->protocol.http.final_outseqno) - UI32(next_outseqno);
+            segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
+            index_in_file = CONST_UI32(GET_FILE(output_handler).length) - file_remaining_bytes;
+            break;
+        }
+        case type_generator:
+            segment_length = curr_output.content_length;
+            segment_length += _service_headers_size(curr_output.service_header);
+            break;
 #ifndef DISABLE_GP_IP_HANDLER
-	case type_general_ip_handler:
-	    /* "cheat" the segment_length variable to reflect what needs to be sent
-	     * the trick is used so that the code below can be reused
-	     */
-	    segment_length = curr_output.content_length - TCP_HEADER_SIZE;
-	    break;
+        case type_general_ip_handler:
+            /* "cheat" the segment_length variable to reflect what needs to be sent
+             * the trick is used so that the code below can be reused
+             */
+            segment_length = curr_output.content_length - TCP_HEADER_SIZE;
+            break;
 #endif
     }
 
     DEV_PREPARE_OUTPUT(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
+    printf("Sending packet of %d bytes\r\n", segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
     /* start to send IP header */
 #ifdef IPV6
@@ -317,12 +303,12 @@ void smews_send_packet(struct connection *connection) {
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP(connection))
     {
-	/* do not use TCP as Next Header but the protocol value of the gp_ip connection */
-	DEV_PUT16_VAL((0xFF) | (connection->protocol.gpip.protocol << 8));
+/* do not use TCP as Next Header but the protocol value of the gp_ip connection */
+        DEV_PUT16_VAL((0xFF) | (connection->protocol.gpip.protocol << 8));
     }
     else
 #endif
-	DEV_PUT16_VAL(IP_NH_TTL);
+        DEV_PUT16_VAL(IP_NH_TTL);
 
     /* Put source & dest IP */
     DEV_PUT32(&local_ip_addr[12]);
@@ -347,27 +333,27 @@ void smews_send_packet(struct connection *connection) {
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP(connection))
     {
-	/* do not use TCP as protocol number but the protocol value of the gpip connection */
-	DEV_PUT16_VAL(0xFF00 | connection->protocol.gpip.protocol);
+/* do not use TCP as protocol number but the protocol value of the gpip connection */
+        DEV_PUT16_VAL(0xFF00 | connection->protocol.gpip.protocol);
     }
     else
 #endif
-	DEV_PUT16_VAL(IP_TTL_PROTOCOL);
+        DEV_PUT16_VAL(IP_TTL_PROTOCOL);
 
     /* complete IP precalculated checksum */
     checksum_init();
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP(connection))
     {
-	checksum_add16(IP_VHL_TOS);
-	checksum_add16(IP_ID);
-	checksum_add16(IP_OFFSET);
-	/* The BASIC_IP_CHK can not be used here as we changed the protocol number */
-	checksum_add16(0xFF00 | connection->protocol.gpip.protocol);
+        checksum_add16(IP_VHL_TOS);
+        checksum_add16(IP_ID);
+        checksum_add16(IP_OFFSET);
+/* The BASIC_IP_CHK can not be used here as we changed the protocol number */
+        checksum_add16(0xFF00 | connection->protocol.gpip.protocol);
     }
     else
 #endif
-	UI16(current_checksum) = BASIC_IP_CHK;
+        UI16(current_checksum) = BASIC_IP_CHK;
     checksum_add32(local_ip_addr);
     checksum_add16(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
@@ -388,9 +374,9 @@ void smews_send_packet(struct connection *connection) {
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP_HANDLER(output_handler))
     {
-	DEV_PUTN(curr_output.buffer, curr_output.content_length);
-	DEV_OUTPUT_DONE;
-	return;
+        DEV_PUTN(curr_output.buffer, curr_output.content_length);
+        DEV_OUTPUT_DONE;
+        return;
     }
 #endif
 
@@ -450,68 +436,68 @@ void smews_send_packet(struct connection *connection) {
 
     /* HTTP contents checksum part */
     switch(handler_type) {
-	case type_generator:
-	    /* add service checksum */
-	    checksum_add16(UI16(curr_output.checksum));
-	    /* add HTTP header checksum */
-	    switch(curr_output.service_header) {
-		uint16_t length;
-		int16_t i;
-		case header_standard:
-		    checksum_add16(SERVICE_HTTP_HEADER_CHK);
-		    /* create the HTTP Content-Length string on a even number of chars and start computing service checksum */
-		    checksum_add(0); /* odd bytes alignement */
-		    length = curr_output.content_length;
-		    for(i = CONTENT_LENGTH_SIZE - 1; i >= 0; i--) {
-			unsigned char c = (length % 10) + '0';
-			content_length_buffer[i]= c;
-			checksum_add(c);
-			length /= 10;
-		    }
-		    checksum_add(0); /* remove odd bytes alignement */
-		    break;
-		case header_chunks:
-		    checksum_add16(SERVICE_HTTP_HEADER_CHUNKED_CHK);
-		case header_none:
-		    checksum_add(0); /* odd bytes alignement */
-		    length = curr_output.content_length;
-		    for(i = CHUNK_LENGTH_SIZE - 1; i >= 0; i--) {
-			unsigned char c = (length & 0x0f) + '0';
-			if(c > '9')
-			    c += -'0' + 'a' - 10;
-			content_length_buffer[i]= c;
-			checksum_add(c);
-			length >>= 4;
-		    }
-		    checksum_add(0); /* remove odd bytes alignement */
-		    checksum_add16(0x0d0a);
-		    if(curr_output.content_length % 2) {
-			checksum_add16(0x0a0d);
-		    } else {
-			checksum_add16(0x0d0a);
-		    }
-		    break;
-	    }
-	    break;
-	case type_control:
-	    if(GET_FLAGS(output_handler) & TCP_SYN){ /* Checksum the syn ack tcp options (MSS) */
-		checksum_add16(MSS_OPT);
-		checksum_add16((uint16_t)connection->protocol.http.tcp_mss);
-	    }
-	    break;
-	case type_file: {
-	    uint16_t i;
-	    uint32_t tmp_sum = 0;
-	    uint16_t *tmpptr = (uint16_t *)CONST_ADDR(GET_FILE(output_handler).chk) + DIV_BY_CHUNCKS_SIZE(index_in_file);
+        case type_generator:
+            /* add service checksum */
+            checksum_add16(UI16(curr_output.checksum));
+            /* add HTTP header checksum */
+            switch(curr_output.service_header) {
+                uint16_t length;
+                int16_t i;
+                case header_standard:
+                    checksum_add16(SERVICE_HTTP_HEADER_CHK);
+                    /* create the HTTP Content-Length string on a even number of chars and start computing service checksum */
+                    checksum_add(0); /* odd bytes alignement */
+                    length = curr_output.content_length;
+                    for(i = CONTENT_LENGTH_SIZE - 1; i >= 0; i--) {
+                        unsigned char c = (length % 10) + '0';
+                        content_length_buffer[i]= c;
+                        checksum_add(c);
+                        length /= 10;
+                    }
+                    checksum_add(0); /* remove odd bytes alignement */
+                    break;
+                case header_chunks:
+                    checksum_add16(SERVICE_HTTP_HEADER_CHUNKED_CHK);
+                case header_none:
+                    checksum_add(0); /* odd bytes alignement */
+                    length = curr_output.content_length;
+                    for(i = CHUNK_LENGTH_SIZE - 1; i >= 0; i--) {
+                        unsigned char c = (length & 0x0f) + '0';
+                        if(c > '9')
+                            c += -'0' + 'a' - 10;
+                        content_length_buffer[i]= c;
+                        checksum_add(c);
+                        length >>= 4;
+                    }
+                    checksum_add(0); /* remove odd bytes alignement */
+                    checksum_add16(0x0d0a);
+                    if(curr_output.content_length % 2) {
+                        checksum_add16(0x0a0d);
+                    } else {
+                        checksum_add16(0x0d0a);
+                    }
+                    break;
+            }
+            break;
+        case type_control:
+            if(GET_FLAGS(output_handler) & TCP_SYN){ /* Checksum the syn ack tcp options (MSS) */
+                checksum_add16(MSS_OPT);
+                checksum_add16((uint16_t)connection->protocol.http.tcp_mss);
+            }
+            break;
+        case type_file: {
+            uint16_t i;
+            uint32_t tmp_sum = 0;
+            uint16_t *tmpptr = (uint16_t *)CONST_ADDR(GET_FILE(output_handler).chk) + DIV_BY_CHUNCKS_SIZE(index_in_file);
 
-	    for(i = 0; i < GET_NB_BLOCKS(segment_length); i++) {
-		tmp_sum += CONST_READ_UI16(tmpptr++);
-	    }
-	    checksum_add32((const unsigned char*)&tmp_sum);
-	    break;
-	}
-	default: /* Should never happen but avoids compile warnings */
-	    return;
+            for(i = 0; i < GET_NB_BLOCKS(segment_length); i++) {
+                tmp_sum += CONST_READ_UI16(tmpptr++);
+            }
+            checksum_add32((const unsigned char*)&tmp_sum);
+            break;
+        }
+        default: /* Should never happen but avoids compile warnings */
+            return;
     }
 
     checksum_end();
@@ -524,54 +510,54 @@ void smews_send_packet(struct connection *connection) {
 
     /* start sending HTTP contents */
     switch(handler_type) {
-	case type_generator:
-	    switch(curr_output.service_header) {
-		case header_standard:
-		    DEV_PUTN_CONST(serviceHttpHeader, sizeof(serviceHttpHeader)-1);
-		    DEV_PUTN(content_length_buffer, CONTENT_LENGTH_SIZE);
-		    DEV_PUTN_CONST(serviceHttpHeaderPart2, sizeof(serviceHttpHeaderPart2)-1);
-		    break;
-		case header_chunks:
-		    DEV_PUTN_CONST(serviceHttpHeaderChunked, sizeof(serviceHttpHeaderChunked)-1);
-		case header_none:
-		    DEV_PUTN(content_length_buffer, CHUNK_LENGTH_SIZE);
-		    DEV_PUT16_VAL(0x0d0a);
-		    break;
-	    }
-	    DEV_PUTN(curr_output.buffer, curr_output.content_length);
-	    if(curr_output.service_header != header_standard) {
-		DEV_PUT16_VAL(0x0d0a);
-	    }
-	    break;
-	case type_control:
-	    if(GET_FLAGS(output_handler) & TCP_SYN) {
-		/* Send the syn ack tcp options (MSS) */
-		DEV_PUT16_VAL(MSS_OPT);
-		DEV_PUT16_VAL((uint16_t)connection->protocol.http.tcp_mss);
-	    }
-	    break;
-	case type_file: {
-	    /* Send the payload of the packet */
-	    const char *tmpptr = (const char*)(CONST_ADDR(GET_FILE(output_handler).data) + index_in_file);
-	    DEV_PUTN_CONST(tmpptr, segment_length);
-	    break;
-	}
-	default: /* Should never happen but avoid warnings*/
-	    return;
+        case type_generator:
+            switch(curr_output.service_header) {
+                case header_standard:
+                    DEV_PUTN_CONST(serviceHttpHeader, sizeof(serviceHttpHeader)-1);
+                    DEV_PUTN(content_length_buffer, CONTENT_LENGTH_SIZE);
+                    DEV_PUTN_CONST(serviceHttpHeaderPart2, sizeof(serviceHttpHeaderPart2)-1);
+                    break;
+                case header_chunks:
+                    DEV_PUTN_CONST(serviceHttpHeaderChunked, sizeof(serviceHttpHeaderChunked)-1);
+                case header_none:
+                    DEV_PUTN(content_length_buffer, CHUNK_LENGTH_SIZE);
+                    DEV_PUT16_VAL(0x0d0a);
+                    break;
+            }
+            DEV_PUTN(curr_output.buffer, curr_output.content_length);
+            if(curr_output.service_header != header_standard) {
+                DEV_PUT16_VAL(0x0d0a);
+            }
+            break;
+        case type_control:
+            if(GET_FLAGS(output_handler) & TCP_SYN) {
+/* Send the syn ack tcp options (MSS) */
+                DEV_PUT16_VAL(MSS_OPT);
+                DEV_PUT16_VAL((uint16_t)connection->protocol.http.tcp_mss);
+            }
+            break;
+        case type_file: {
+            /* Send the payload of the packet */
+            const char *tmpptr = (const char*)(CONST_ADDR(GET_FILE(output_handler).data) + index_in_file);
+            DEV_PUTN_CONST(tmpptr, segment_length);
+            break;
+        }
+        default: /* Should never happen but avoid warnings*/
+            return;
     }
 
     /* update next sequence number and inflight segments */
     if(GET_FLAGS(output_handler) & TCP_SYN) {
-	UI32(connection->protocol.http.next_outseqno)++;
+        UI32(connection->protocol.http.next_outseqno)++;
     } else if(connection) {
-	UI32(connection->protocol.http.next_outseqno) += segment_length;
-	UI16(connection->protocol.http.inflight) += segment_length;
-	if(handler_type == type_generator) {
-	    if(curr_output.service_header == header_standard || curr_output.content_length == 0) {
-		/* set final_outseqno as soon as it is known */
-		UI32(connection->protocol.http.final_outseqno) = UI32(connection->protocol.http.next_outseqno);
-	    }
-	}
+        UI32(connection->protocol.http.next_outseqno) += segment_length;
+        UI16(connection->protocol.http.inflight) += segment_length;
+        if(handler_type == type_generator) {
+            if(curr_output.service_header == header_standard || curr_output.content_length == 0) {
+/* set final_outseqno as soon as it is known */
+                UI32(connection->protocol.http.final_outseqno) = UI32(connection->protocol.http.next_outseqno);
+            }
+        }
     }
 
     DEV_OUTPUT_DONE;
@@ -580,23 +566,15 @@ void smews_send_packet(struct connection *connection) {
 /*-----------------------------------------------------------------------------------*/
 static inline int32_t able_to_send(const struct connection *connection) {
     if (!something_to_send(connection))
-	return 0;
-#ifdef DISABLE_COROUTINES
-    if (curr_output.serving_dynamic)
-    {
-        if (connection->protocol.http.generator_service)
-	{
-	    return 0;
-	}
-    }
-#endif
+        return 0;
+
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP(connection))
-	return 1;
+        return 1;
 #endif
 #ifndef DISABLE_COMET
     if (connection->protocol.http.comet_passive)
-	return 0;
+        return 0;
 #endif
     return UI16(connection->protocol.http.inflight) + (uint16_t)connection->protocol.http.tcp_mss <= UI16(connection->protocol.http.cwnd);
 }
@@ -607,370 +585,405 @@ static char gpip_output_buffer[OUTPUT_BUFFER_SIZE];
 
 /*-----------------------------------------------------------------------------------*/
 char smews_send(void) {
+    /* current handled connection */
+    struct connection *active_connection = NULL;
     const struct output_handler_t * /*CONST_VAR*/ old_output_handler = NULL;
 
 
     /* sending reset has the highest priority */
     if(UI16(rst_connection.port)) {
-	smews_send_packet(NULL);
-	UI16(rst_connection.port) = 0;
-	return 1;
+        smews_send_packet(NULL);
+        UI16(rst_connection.port) = 0;
+        return 1;
     }
 
     active_connection = NULL;
     /* we first choose a valid connection */
     FOR_EACH_CONN(conn, {
-	    if(able_to_send(conn)) {
-		active_connection = conn;
-		break;
-	    }
-	})
+            if(able_to_send(conn)) {
+                active_connection = conn;
+                break;
+            }
+        })
 
-	if(active_connection == NULL) {
-	    return 0;
-	}
+        if(active_connection == NULL) {
+            return 0;
+        }
     /* enable a round robin */
     all_connections = active_connection->next;
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP(active_connection))
     {
-	curr_output.buffer = gpip_output_buffer;/* mem_alloc(OUTPUT_BUFFER_SIZE); */
+        curr_output.buffer = gpip_output_buffer;/* mem_alloc(OUTPUT_BUFFER_SIZE); */
 #ifndef DEV_MTU
-	curr_output.max_bytes = OUTPUT_BUFFER_SIZE;
+        curr_output.max_bytes = OUTPUT_BUFFER_SIZE;
 #else
-	curr_output.max_bytes = (OUTPUT_BUFFER_SIZE + IP_HEADER_SIZE > DEV_MTU) ? DEV_MTU - IP_HEADER_SIZE : OUTPUT_BUFFER_SIZE;
+        curr_output.max_bytes = (OUTPUT_BUFFER_SIZE + IP_HEADER_SIZE > DEV_MTU) ? DEV_MTU - IP_HEADER_SIZE : OUTPUT_BUFFER_SIZE;
 #endif
-	if (curr_output.buffer == NULL) /* no more memory */
-	    return 0;
-	curr_output.content_length = 0;
-	curr_output.service = NULL;
-	active_connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(active_connection);
-	active_connection->protocol.gpip.want_to_send = 0;
-	smews_send_packet(active_connection);
-	/* mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE); */
-	free_connection(active_connection);
-	return 0;
+        if (curr_output.buffer == NULL) /* no more memory */
+            return 0;
+        curr_output.content_length = 0;
+        curr_output.service = NULL;
+        active_connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout(active_connection);
+        active_connection->protocol.gpip.want_to_send = 0;
+        smews_send_packet(active_connection);
+/* mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE); */
+        free_connection(active_connection);
+        return 0;
     }
 #endif
 
     if(!active_connection->protocol.http.ready_to_send){
-	old_output_handler = active_connection->output_handler;
-	active_connection->output_handler = &ref_ack;
+        old_output_handler = active_connection->output_handler;
+        active_connection->output_handler = &ref_ack;
     }
 #ifndef DISABLE_COMET
     /* do we need to acknowledge a comet request without answering it? */
     else if(active_connection->protocol.http.comet_send_ack == 1) {
-	old_output_handler = active_connection->output_handler;
-	active_connection->output_handler = &ref_ack;
+        old_output_handler = active_connection->output_handler;
+        active_connection->output_handler = &ref_ack;
     }
 #endif
 
     /* get the type of web applicative resource */
     switch(CONST_UI8(active_connection->output_handler->handler_type)) {
-	case type_control:
-	    /* preparing to send TCP control data */
-	    smews_send_packet(active_connection);
-	    active_connection->output_handler = NULL;
-	    if(active_connection->protocol.http.tcp_state == tcp_closing) {
-		/* WARNING: TODO: check what has to be done after this. In the actual state,
-		 * it seems that the freed connection is used after the free...
-		 */
-		free_connection(active_connection);
-		return 0; /* WARNING: this return has been put to "fix" previous comment. */
-	    }
+        case type_control:
+            /* preparing to send TCP control data */
+            smews_send_packet(active_connection);
+            active_connection->output_handler = NULL;
+            if(active_connection->protocol.http.tcp_state == tcp_closing) {
+/* WARNING: TODO: check what has to be done after this. In the actual state,
+ * it seems that the freed connection is used after the free...
+ */
+                free_connection(active_connection);
+                return 0; /* WARNING: this return has been put to "fix" previous comment. */
+            }
 
-	    if(old_output_handler && !active_connection->protocol.http.ready_to_send)
-		active_connection->output_handler = old_output_handler;
+            if(old_output_handler && !active_connection->protocol.http.ready_to_send)
+                active_connection->output_handler = old_output_handler;
 #ifndef DISABLE_COMET
-	    else if(old_output_handler) {
-		/* restore the right old output handler */
-		active_connection->output_handler = old_output_handler;
-		active_connection->protocol.http.comet_send_ack = 0;
-		UI32(active_connection->protocol.http.final_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
-		/* call initget (which must not generate any data) */
-		HANDLER_CALLBACK(active_connection,initget);
-	    }
+            else if(old_output_handler) {
+/* restore the right old output handler */
+                active_connection->output_handler = old_output_handler;
+                active_connection->protocol.http.comet_send_ack = 0;
+                UI32(active_connection->protocol.http.final_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
+/* call initget (which must not generate any data) */
+                HANDLER_CALLBACK(active_connection,initget);
+            }
 #endif
-	    break;
-	case type_file:
-	    smews_send_packet(active_connection);
-	    break;
-	case type_generator: {
-	    char is_persistent;
-	    char is_retransmitting;
-	    char has_ended;
-	    struct in_flight_infos_t *if_infos = NULL;
+            break;
+        case type_file:
+            smews_send_packet(active_connection);
+            break;
+        case type_generator: {
+            char is_persistent;
+            char is_retransmitting;
+            char has_ended;
+            struct in_flight_infos_t *if_infos = NULL;
 
-	    /* Set the maximum available size for generator so that the mss is respected */
-	    /* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
-	     * thus, the http header size used is only the no header one (the chunk size).
-	     * If the segment that we will generate ends to be the first, the value is lowered in the following if block */
-	    curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(active_connection->protocol.http.tcp_mss) - _service_headers_size(header_none));
-	    /* creation and initialization of the generator_service if needed */
-	    if(active_connection->protocol.http.generator_service == NULL) {
-		active_connection->protocol.http.generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
-		if(active_connection->protocol.http.generator_service == NULL) {
-		    return 1;
-		}
-		curr_output.service = active_connection->protocol.http.generator_service;
-		/* if we create the service, it is the first segment of the answer stream, we need
-		 * to reduce its size to fit the mss if the segment is not the last.
-		 * Thus, we use the biggest http header size possible to compute the available space for data */
-		curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(active_connection->protocol.http.tcp_mss) - _service_headers_size(header_chunks));
-		/* init generator service */
-		curr_output.service->service_header = header_standard;
-		curr_output.service->in_flight_infos = NULL;
-		curr_output.service->is_persistent = CONST_UI8(GET_GENERATOR(active_connection->output_handler).prop) == prop_persistent;
-		UI32(curr_output.service->curr_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
-#ifndef DISABLE_COROUTINES
-		/* init coroutine */
-		cr_init(&curr_output.service->coroutine);
-#endif
-#ifndef DISABLE_POST
-		if(active_connection->protocol.http.post_data && active_connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED){
-		    curr_output.service->coroutine.func.func_post_out = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.post.dopostout);
-		    curr_output.service->coroutine.params.out.content_type = active_connection->protocol.http.post_data->content_type;
-		    curr_output.service->coroutine.params.out.post_data = active_connection->protocol.http.post_data->post_data;
-		}
-		else{
-#endif
-#ifndef DISABLE_COROUTINES
-		    curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget);
-#endif
-#ifndef DISABLE_ARGS
-#ifndef DISABLE_COROUTINES
-		    curr_output.service->coroutine.params.args = active_connection->protocol.http.args;
-#endif
-#endif
-#ifndef DISABLE_POST
-		}
-#endif
-		/* we don't know yet the final output sequence number for this service */
-		UI32(active_connection->protocol.http.final_outseqno) = UI32(active_connection->protocol.http.next_outseqno) - 1;
-#ifndef DISABLE_COMET
-		/* if this is a comet generator, manage all listenning clients */
-		if(CONST_UI8(active_connection->output_handler->handler_comet)) {
-		    const struct output_handler_t *current_handler = active_connection->output_handler;
-		    /* if this is a comet handler, this connection is active, others are set as passive */
-		    FOR_EACH_CONN(conn, {
-			    if(conn->output_handler == current_handler) {
-				conn->protocol.http.comet_passive = (conn != active_connection);
-			    }
-			})
-			}
-		/* manage streamed comet data */
-		if(CONST_UI8(active_connection->output_handler->handler_stream)) {
-		    if(active_connection->protocol.http.comet_streaming) {
-			curr_output.service->service_header = header_none;
-		    }
-		    active_connection->protocol.http.comet_streaming = 1;
-		}
-#endif
-	    }
+            /* Set the maximum available size for generator so that the mss is respected */
+            /* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
+             * thus, the http header size used is only the no header one (the chunk size).
+             * If the segment that we will generate ends to be the first, the value is lowered in the following if block */
+            curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(active_connection->protocol.http.tcp_mss) - _service_headers_size(header_none));
 
-	    /* init the global curr_output structure (usefull for out_c) */
-	    curr_output.service = active_connection->protocol.http.generator_service;
-	    UI32(curr_output.next_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
-
-	    /* is the service persistent or not? */
-	    is_persistent = curr_output.service->is_persistent;
-	    /* are we retransmitting a lost segment? */
-	    is_retransmitting = UI32(curr_output.next_outseqno) != UI32(curr_output.service->curr_outseqno);
-
-#ifndef DISABLE_COROUTINES
-	    /* put the coroutine (little) stack in the shared (big) stack if needed.
-	     * This step has to be done before before any context_restore or context_backup */
-	    if(cr_prepare(&curr_output.service->coroutine) == NULL) { /* test NULL: done */
-		return 1;
-	    }
-#endif
-
-	    /* check if the segment need to be generated or can be resent from a buffer */
-	    if(!is_persistent || !is_retransmitting) { /* segment generation is needed */
-
-		/* setup the http header for this segment */
-		if(!is_persistent && is_retransmitting) {
-#ifndef DISABLE_COROUTINES
-		    /* if the current context is not the right one, restore it */
-		    if_infos = context_restore(curr_output.service, active_connection->protocol.http.next_outseqno);
-#else
-		    if_infos = curr_output.service->in_flight_infos;
-#endif
-		    /* if_infos is NULL if the segment to be sent is the last void http chunck */
-		    if(if_infos != NULL) {
-			curr_output.service_header = if_infos->service_header;
-		    } else {
-			curr_output.service_header = header_none;
-		    }
-		} else {
-		    curr_output.service_header = curr_output.service->service_header;
-		}
-
-		/* initializations before generating the segment */
-		curr_output.content_length = 0;
-		checksum_init();
-		curr_output.buffer = NULL;
-#ifndef DISABLE_COROUTINES
-		has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
-#else
-		has_ended = 0;
-#endif
-		/* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
-		 * else, run the coroutine to generate one segment */
-		if(!has_ended) {
-		    /* allocate buffer for data generation */
-		    curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE); /* test NULL: done */
-		    if(curr_output.buffer == NULL) {
-			return 1;
-		    }
-
-		    /* we will generate a segment for the first time, so we will need to store new in-flight information */
-		    if(!is_retransmitting) {
-			if_infos = mem_alloc(sizeof(struct in_flight_infos_t)); /* test NULL: done */
-			if(if_infos == NULL) {
-			    mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
-			    return 1;
-			}
-		    }
-
-		    /* we generate new non persistent data. backup the context before running it */
-		    if(!is_persistent && !is_retransmitting) {
-			if_infos->service_header = curr_output.service_header;
-#ifndef DISABLE_COROUTINES
-			if(context_backup(curr_output.service, curr_output.next_outseqno, if_infos) == NULL) { /* test NULL: done */
-			    mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
-			    mem_free(if_infos, sizeof(struct in_flight_infos_t));
-			    return 1;
-			}
-#endif
-		    }
-
-#ifndef DISABLE_COROUTINES
-		    /* run the coroutine (generate one segment) */
-#ifndef DISABLE_POST
-		    if(active_connection->protocol.http.post_data && active_connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
-			cr_run(&curr_output.service->coroutine,cor_type_post_out);
-		    else
-#endif
-			cr_run(&curr_output.service->coroutine
-#ifndef DISABLE_POST
-			       ,cor_type_get
-#endif
-			    );
-
-		    has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
-#endif
-
-#ifndef DISABLE_POST
-		    /* cleaning post_data */
-		    if(has_ended && active_connection->protocol.http.post_data){
-			mem_free(active_connection->protocol.http.post_data,sizeof(struct post_data_t));
-			active_connection->protocol.http.post_data = NULL;
-		    }
-#endif
-		    /* save the generated buffer after generation if persistent */
-		    if(is_persistent) {
-			/* add it to the in-flight segments list */
-			if_infos->service_header = curr_output.service_header;
-			UI32(if_infos->next_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
-			if_infos->infos.buffer = curr_output.buffer;
-			if_infos->next = curr_output.service->in_flight_infos;
-			curr_output.service->in_flight_infos = if_infos;
-
-		    }
-		}
 #ifdef DISABLE_COROUTINES
-		curr_output.serving_dynamic = 1;
-		curr_output.has_received_dyn_ack = 0;
-		printf("Serving connection: %d\r\n", active_connection);
-#ifndef DISABLE_ARGS
-		GET_GENERATOR(active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
-#else
-		GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
+            if (curr_output.serving_dynamic && curr_output.in_handler)
+            {
+/* If we are serving a dynamic content, then smews_send is called from out_c. Thus, we have to directly jump to
+ * the part that sends the generated segment (just like what is done when coroutines are enabled.
+ * The goto allows to avoid calling doget another time */
+                has_ended = 0;
+                goto send_current_dynamic_segment;
+            }
 #endif
-		printf("Done Serving connection: %d\r\n", active_connection);
-		has_ended = 1;
+            /* creation and initialization of the generator_service if needed */
+            if(active_connection->protocol.http.generator_service == NULL) {
+                active_connection->protocol.http.generator_service = mem_alloc(sizeof(struct generator_service_t)); /* test NULL: done */
+                if(active_connection->protocol.http.generator_service == NULL) {
+                    return 1;
+                }
+                curr_output.service = active_connection->protocol.http.generator_service;
+/* if we create the service, it is the first segment of the answer stream, we need
+ * to reduce its size to fit the mss if the segment is not the last.
+ * Thus, we use the biggest http header size possible to compute the available space for data */
+                curr_output.max_bytes = MIN(OUTPUT_BUFFER_SIZE,MAX_OUT_SIZE(active_connection->protocol.http.tcp_mss) - _service_headers_size(header_chunks));
+/* init generator service */
+                curr_output.service->service_header = header_standard;
+                curr_output.service->in_flight_infos = NULL;
+                curr_output.service->is_persistent = CONST_UI8(GET_GENERATOR(active_connection->output_handler).prop) == prop_persistent;
+                UI32(curr_output.service->curr_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
+#ifndef DISABLE_COROUTINES
+/* init coroutine */
+                cr_init(&curr_output.service->coroutine);
+#endif
+#ifndef DISABLE_POST
+                if(active_connection->protocol.http.post_data && active_connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED){
+                    curr_output.service->coroutine.func.func_post_out = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.post.dopostout);
+                    curr_output.service->coroutine.params.out.content_type = active_connection->protocol.http.post_data->content_type;
+                    curr_output.service->coroutine.params.out.post_data = active_connection->protocol.http.post_data->post_data;
+                }
+                else{
+#endif
+#ifndef DISABLE_COROUTINES
+                    curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget);
+#endif
+#ifndef DISABLE_ARGS
+#ifndef DISABLE_COROUTINES
+                    curr_output.service->coroutine.params.args = active_connection->protocol.http.args;
+#endif
+#endif
+#ifndef DISABLE_POST
+                }
+#endif
+/* we don't know yet the final output sequence number for this service */
+                UI32(active_connection->protocol.http.final_outseqno) = UI32(active_connection->protocol.http.next_outseqno) - 1;
+#ifndef DISABLE_COMET
+/* if this is a comet generator, manage all listenning clients */
+                if(CONST_UI8(active_connection->output_handler->handler_comet)) {
+                    const struct output_handler_t *current_handler = active_connection->output_handler;
+                    /* if this is a comet handler, this connection is active, others are set as passive */
+                    FOR_EACH_CONN(conn, {
+                            if(conn->output_handler == current_handler) {
+                                conn->protocol.http.comet_passive = (conn != active_connection);
+                            }
+                        })
+                        }
+/* manage streamed comet data */
+                if(CONST_UI8(active_connection->output_handler->handler_stream)) {
+                    if(active_connection->protocol.http.comet_streaming) {
+                        curr_output.service->service_header = header_none;
+                    }
+                    active_connection->protocol.http.comet_streaming = 1;
+                }
+#endif
+            }
+
+            /* init the global curr_output structure (usefull for out_c) */
+            curr_output.service = active_connection->protocol.http.generator_service;
+            UI32(curr_output.next_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
+
+            /* is the service persistent or not? */
+            is_persistent = curr_output.service->is_persistent;
+            /* are we retransmitting a lost segment? */
+            is_retransmitting = UI32(curr_output.next_outseqno) != UI32(curr_output.service->curr_outseqno);
+
+#ifndef DISABLE_COROUTINES
+            /* put the coroutine (little) stack in the shared (big) stack if needed.
+             * This step has to be done before before any context_restore or context_backup */
+            if(cr_prepare(&curr_output.service->coroutine) == NULL) { /* test NULL: done */
+                return 1;
+            }
 #endif
 
-		/* finalizations after the segment generation */
-		checksum_end();
-		UI16(curr_output.checksum) = UI16(current_checksum);
-		/* save the current checksum in the in flight segment infos */
-		if(if_infos) {
-		    UI16(if_infos->checksum) = UI16(current_checksum);
-		}
-	    } else { /* the segment has to be resent from a buffer: restore it */
+            /* check if the segment need to be generated or can be resent from a buffer */
+            if(!is_persistent || !is_retransmitting) { /* segment generation is needed */
+
+/* setup the http header for this segment */
+                if(!is_persistent && is_retransmitting) {
 #ifndef DISABLE_COROUTINES
-		if_infos = if_select(curr_output.service, active_connection->protocol.http.next_outseqno);
-		curr_output.buffer = if_infos->infos.buffer;
-		curr_output.service_header = if_infos->service_header;
-		UI16(curr_output.checksum) = UI16(if_infos->checksum);
+                    /* if the current context is not the right one, restore it */
+                    if_infos = context_restore(curr_output.service, active_connection->protocol.http.next_outseqno);
+#else
+                    if_infos = curr_output.service->in_flight_infos;
+#endif
+                    /* if_infos is NULL if the segment to be sent is the last void http chunck */
+                    if(if_infos != NULL) {
+                        curr_output.service_header = if_infos->service_header;
+                    } else {
+                        curr_output.service_header = header_none;
+                    }
+                } else {
+                    curr_output.service_header = curr_output.service->service_header;
+                }
+
+/* initializations before generating the segment */
+		printf("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
+                curr_output.content_length = 0;
+                checksum_init();
+                curr_output.buffer = NULL;
+#ifndef DISABLE_COROUTINES
+                has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
+#else
+                has_ended = curr_output.serving_dynamic && !curr_output.in_handler;
+		if (has_ended)
+		{
+		    printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+		    curr_output.has_received_dyn_ack = 0; /* if handler is finished a segment will be generated, we do not have the ack yet */
+		}
+#endif
+/* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
+ * else, run the coroutine to generate one segment */
+                if(!has_ended) {
+                    /* allocate buffer for data generation */
+                    curr_output.buffer = mem_alloc(OUTPUT_BUFFER_SIZE); /* test NULL: done */
+                    if(curr_output.buffer == NULL) {
+                        return 1;
+                    }
+
+                    /* we will generate a segment for the first time, so we will need to store new in-flight information */
+                    if(!is_retransmitting) {
+                        if_infos = mem_alloc(sizeof(struct in_flight_infos_t)); /* test NULL: done */
+                        if(if_infos == NULL) {
+                            mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+                            return 1;
+                        }
+                    }
+
+                    /* we generate new non persistent data. backup the context before running it */
+                    if(!is_persistent && !is_retransmitting) {
+                        if_infos->service_header = curr_output.service_header;
+#ifndef DISABLE_COROUTINES
+                        if(context_backup(curr_output.service, curr_output.next_outseqno, if_infos) == NULL) { /* test NULL: done */
+                            mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+                            mem_free(if_infos, sizeof(struct in_flight_infos_t));
+                            return 1;
+                        }
+#else
+/** @todo: fill curr_output.service... for outseqno and if_infos */
+#endif
+                    }
+
+#ifndef DISABLE_COROUTINES
+                    /* run the coroutine (generate one segment) */
+#ifndef DISABLE_POST
+                    if(active_connection->protocol.http.post_data && active_connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
+                        cr_run(&curr_output.service->coroutine,cor_type_post_out);
+                    else
+#endif
+                        cr_run(&curr_output.service->coroutine
+#ifndef DISABLE_POST
+                               ,cor_type_get
+#endif
+                            );
+
+                    has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
+#else /* DISABLE_COROUTINES */
+                    /* Here, we have to call the generator handler */
+		    printf("%s:%d: DYN from %d to 1\n", __FILE__, __LINE__, curr_output.serving_dynamic);
+		    printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+		    printf("%s:%d: HANDL from %d to 1\n", __FILE__, __LINE__, curr_output.in_handler);
+                    curr_output.serving_dynamic = 1;
+                    curr_output.has_received_dyn_ack = 0;
+                    curr_output.in_handler = 1;
+#ifndef DISABLE_ARGS
+                    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
+#else
+                    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
+#endif
+		    printf("%s:%d: HANDL from %d to 0\n", __FILE__, __LINE__, curr_output.in_handler);
+                    curr_output.in_handler = 0;
+		    printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+		    curr_output.has_received_dyn_ack = 0;
+                    has_ended = 1;
+send_current_dynamic_segment:
+                    /* has_ended is at 0 there because it has been set to at the goto */
+		    if (!has_ended)
+			printf("Goto!\r\n");
+#endif
+
+#ifndef DISABLE_POST
+                    /* cleaning post_data */
+                    if(has_ended && active_connection->protocol.http.post_data){
+                        mem_free(active_connection->protocol.http.post_data,sizeof(struct post_data_t));
+                        active_connection->protocol.http.post_data = NULL;
+                    }
+#endif
+                    /* save the generated buffer after generation if persistent */
+                    if(is_persistent) {
+/* add it to the in-flight segments list */
+                        if_infos->service_header = curr_output.service_header;
+                        UI32(if_infos->next_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
+                        if_infos->infos.buffer = curr_output.buffer;
+                        if_infos->next = curr_output.service->in_flight_infos;
+                        curr_output.service->in_flight_infos = if_infos;
+
+                    }
+                }
+/* finalizations after the segment generation */
+                checksum_end();
+                UI16(curr_output.checksum) = UI16(current_checksum);
+/* save the current checksum in the in flight segment infos */
+                if(if_infos) {
+                    UI16(if_infos->checksum) = UI16(current_checksum);
+                }
+            } else { /* the segment has to be resent from a buffer: restore it */
+#ifndef DISABLE_COROUTINES
+                if_infos = if_select(curr_output.service, active_connection->protocol.http.next_outseqno);
+                curr_output.buffer = if_infos->infos.buffer;
+                curr_output.service_header = if_infos->service_header;
+                UI16(curr_output.checksum) = UI16(if_infos->checksum);
 #else
                 if_infos = NULL;
 #endif
-	    }
+            }
 
-	    /* select the right HTTP header */
-	    switch(curr_output.service_header) {
-		case header_standard:
-		    if(!has_ended || CONST_UI8(active_connection->output_handler->handler_stream)) {
-			curr_output.service_header = header_chunks;
-		    }
-		    break;
-		case header_chunks:
-		    curr_output.service_header = header_none;
-		    break;
-		default:
-		    break;
-	    }
+            /* select the right HTTP header */
+            switch(curr_output.service_header) {
+                case header_standard:
+                    if(!has_ended || CONST_UI8(active_connection->output_handler->handler_stream)) {
+                        curr_output.service_header = header_chunks;
+                    }
+                    break;
+                case header_chunks:
+                    curr_output.service_header = header_none;
+                    break;
+                default:
+                    break;
+            }
 
-	    /* send the segment */
+            /* send the segment */
 #ifndef DISABLE_COMET
-	    /* if this is a comet handler, send the segment to all listenning clients */
-	    if(CONST_UI8(active_connection->output_handler->handler_comet)) {
-		const struct output_handler_t *current_handler = active_connection->output_handler;
-		FOR_EACH_CONN(conn, {
-			if(conn->output_handler == current_handler && able_to_send(conn)) {
-			    if(!CONST_UI8(conn->output_handler->handler_stream)) {
-				smews_send_packet(conn);
-			    } else {
-				if(curr_output.content_length > 0) {
-				    smews_send_packet(conn);
-				}
-				if(has_ended) {
-				    UI32(conn->protocol.http.final_outseqno) = UI32(conn->protocol.http.next_outseqno);
-				}
-			    }
-			}
-		    })
-		    } else
+            /* if this is a comet handler, send the segment to all listenning clients */
+            if(CONST_UI8(active_connection->output_handler->handler_comet)) {
+                const struct output_handler_t *current_handler = active_connection->output_handler;
+                FOR_EACH_CONN(conn, {
+                        if(conn->output_handler == current_handler && able_to_send(conn)) {
+                            if(!CONST_UI8(conn->output_handler->handler_stream)) {
+                                smews_send_packet(conn);
+                            } else {
+                                if(curr_output.content_length > 0) {
+                                    smews_send_packet(conn);
+                                }
+                                if(has_ended) {
+                                    UI32(conn->protocol.http.final_outseqno) = UI32(conn->protocol.http.next_outseqno);
+                                }
+                            }
+                        }
+                    })
+                    } else
 #endif
-	    {
-		/* simply send the segment */
-		smews_send_packet(active_connection);
-	    }
+            {
+/* simply send the segment */
+                smews_send_packet(active_connection);
+            }
 
-	    /* free the tmp buffer used for non persistent data generation */
-	    if(!is_persistent) {
-		mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
-	    }
+            /* free the tmp buffer used for non persistent data generation */
+            if(!is_persistent) {
+#ifdef DISABLE_COROUTINES
+		/* If no coroutines, then we have to keep the buffer until the last chunk has been acknowledged */
+		if (curr_output.serving_dynamic && !curr_output.in_handler && curr_output.has_received_dyn_ack)
+#endif
+                mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
 
-	    if(!is_retransmitting) {
-		/* update next_outseqno for the current context */
-		curr_output.service->service_header = curr_output.service_header;
-		UI32(curr_output.service->curr_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
-	    }
+            }
+
+            if(!is_retransmitting) {
+/* update next_outseqno for the current context */
+                curr_output.service->service_header = curr_output.service_header;
+                UI32(curr_output.service->curr_outseqno) = UI32(active_connection->protocol.http.next_outseqno);
+            }
 
 #ifndef DISABLE_COMET
-	    /* clean comet service here (this is quite dirty) */
-	    if(CONST_UI8(active_connection->output_handler->handler_stream) && has_ended && UI16(active_connection->protocol.http.inflight) == 0) {
-		clean_service(active_connection->protocol.http.generator_service, NULL);
-		mem_free(active_connection->protocol.http.generator_service, sizeof(struct generator_service_t));
-		active_connection->protocol.http.generator_service = NULL;
-	    }
+            /* clean comet service here (this is quite dirty) */
+            if(CONST_UI8(active_connection->output_handler->handler_stream) && has_ended && UI16(active_connection->protocol.http.inflight) == 0) {
+                clean_service(active_connection->protocol.http.generator_service, NULL);
+                mem_free(active_connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+                active_connection->protocol.http.generator_service = NULL;
+            }
 #endif
-	    break;
-	}
+            break;
+        }
     }
 #ifdef SMEWS_ENDING
     SMEWS_ENDING;

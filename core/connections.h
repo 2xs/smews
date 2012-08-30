@@ -209,6 +209,7 @@ struct curr_output_t {
 #ifdef DISABLE_COROUTINES
     unsigned char serving_dynamic;
     unsigned char has_received_dyn_ack;
+	unsigned char in_handler;
 #endif
 	char *buffer;
 	unsigned char checksum[2];

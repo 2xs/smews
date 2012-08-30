@@ -95,22 +95,6 @@ struct coroutine_t {
 	struct cr_context_t curr_context;
 };
 
-/* Types used for in-flight segments */
-
-/* Possible http headers being used */
-/*enum service_header_e {	header_none, header_standard, header_chunks };
-*/
-/* Information about one in-flight segment (several per service) */
-/*struct in_flight_infos_t {
-	unsigned char next_outseqno[4]; /* associated sequence number /
-	unsigned char checksum[2]; /* segment checksum /
-	union if_infos_e { /* either a coroutine context or a data buffer /
-		struct cr_context_t *context;
-		char *buffer;
-	} infos;
-	struct in_flight_infos_t *next; /* the next in-flight segment /
-	enum service_header_e service_header: 2; /* http header infos /
-};*/
 struct in_flight_infos_t;
 
 /* Structure used to store information about the service of a generator */
