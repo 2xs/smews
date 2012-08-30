@@ -531,6 +531,8 @@ char smews_receive(void) {
 	printf("\tmax-bytes: %d\r\n", curr_output.max_bytes);
 	printf("\tservice-header: %d\r\n", curr_output.service_header);
 	printf("\tfree mem: %d (max %d)\r\n", get_free_mem(), get_max_free_mem());
+	printf("\tbuffers: %d\r\n", debug_mem_buffers);
+	printf("\tinfos: %d\r\n", debug_mem_infos);
 #endif
 #ifdef STACK_DUMP
         DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
@@ -571,7 +573,8 @@ char smews_receive(void) {
 	    {
 		DEBUG_PRINT("%s:%d: SERVDYN from %d to ", __FILE__, __LINE__, curr_output.serving_dynamic);
 		curr_output.serving_dynamic = 0;
-		mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+		if (curr_output.service_header == header_standard) /* only free for single segment data */
+		    mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
 		DEBUG_PRINT("to %d\n", curr_output.serving_dynamic);
 	    }
 #endif

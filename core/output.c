@@ -291,6 +291,7 @@ void smews_send_packet(struct connection *connection) {
 
     DEV_PREPARE_OUTPUT(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
     DEBUG_PRINT("Sending packet of %d bytes\r\n", segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
+    DEBUG_PRINT("Buffer is %p, size %d\r\n", curr_output.buffer, curr_output.content_length);
 
     /* start to send IP header */
 #ifdef IPV6
@@ -803,7 +804,7 @@ char smews_send(void) {
 		DEBUG_PRINT("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
                 curr_output.content_length = 0;
                 checksum_init();
-                curr_output.buffer = NULL;
+/*                curr_output.buffer = NULL;*/
 #ifndef DISABLE_COROUTINES
                 has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else
@@ -915,6 +916,17 @@ send_current_dynamic_segment:
 
                     }
                 }
+#ifdef DISABLE_COROUTINES
+		else /* has_ended is true, so we are trying to send the last void chunk */
+		{
+		    /* We are ready to send the last chunk, we have to free the previous one */
+		    if (curr_output.buffer)
+		    {
+			mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+			curr_output.buffer = NULL;
+		    }
+		}
+#endif
 /* finalizations after the segment generation */
                 checksum_end();
                 UI16(curr_output.checksum) = UI16(current_checksum);
@@ -976,8 +988,8 @@ send_current_dynamic_segment:
             /* free the tmp buffer used for non persistent data generation */
             if(!is_persistent) {
 #ifdef DISABLE_COROUTINES
-		/* If no coroutines, then we have to keep the buffer until the last chunk has been acknowledged */
-		if (curr_output.serving_dynamic && !curr_output.in_handler && curr_output.has_received_dyn_ack)
+		/* If no coroutines, then we have to keep the buffer until the last chunk has been acknowledged. */
+		if (curr_output.buffer && curr_output.serving_dynamic && !curr_output.in_handler && curr_output.has_received_dyn_ack)
 #endif
                 mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
 

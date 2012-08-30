@@ -62,18 +62,17 @@ void clean_service(struct generator_service_t *service, unsigned char inack[]) {
             struct in_flight_infos_t *next = first_if_out->next;
             if(service->is_persistent) {
                 mem_free((void *)first_if_out->infos.buffer, OUTPUT_BUFFER_SIZE);
+	    }
 #ifndef DISABLE_COROUTINES
-            } else {
+            else {
                 mem_free((void *)first_if_out->infos.context->stack, first_if_out->infos.context->stack_size);
                 mem_free((void *)first_if_out->infos.context, sizeof(struct cr_context_t));
             }
-#else
-        }
 #endif
-	printf("Freeing infos: %p\r\n", first_if_out);
-        mem_free((void *)first_if_out, sizeof(struct in_flight_infos_t));
-        first_if_out = next;
+	    printf("Freeing infos: %p\r\n", first_if_out);
+	    mem_free((void *)first_if_out, sizeof(struct in_flight_infos_t));
+	    first_if_out = next;
+	}
     }
-}
 }
 
