@@ -56,6 +56,8 @@
 
 #endif
 
+#define DEBUG_PRINT printf
+
 /* Common values used for IP and TCP headers */
 #define MSS_OPT 0x0204
 #define IP_VHL_TOS ((uint16_t)0x4500)
@@ -193,12 +195,12 @@ char out_c(char c) {
             );
 #else
         smews_send();
-	printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+	DEBUG_PRINT("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
         curr_output.has_received_dyn_ack = 0;
         while(curr_output.has_received_dyn_ack == 0)
             smews_main_loop_step();
 /* Here, the segment has been sent, and the ACK received, prepare to generate next segment */
-	printf("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
+	DEBUG_PRINT("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
         curr_output.content_length = 0;
         checksum_init();
 #endif
@@ -288,7 +290,7 @@ void smews_send_packet(struct connection *connection) {
     }
 
     DEV_PREPARE_OUTPUT(segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
-    printf("Sending packet of %d bytes\r\n", segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
+    DEBUG_PRINT("Sending packet of %d bytes\r\n", segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
     /* start to send IP header */
 #ifdef IPV6
@@ -676,9 +678,9 @@ char smews_send(void) {
             smews_send_packet(active_connection);
             break;
         case type_generator: {
-            char is_persistent;
-            char is_retransmitting;
-            char has_ended;
+            char is_persistent = 0;
+            char is_retransmitting = 0;
+            char has_ended = 0;
             struct in_flight_infos_t *if_infos = NULL;
 
             /* Set the maximum available size for generator so that the mss is respected */
@@ -798,7 +800,7 @@ char smews_send(void) {
                 }
 
 /* initializations before generating the segment */
-		printf("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
+		DEBUG_PRINT("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
                 curr_output.content_length = 0;
                 checksum_init();
                 curr_output.buffer = NULL;
@@ -808,7 +810,7 @@ char smews_send(void) {
                 has_ended = curr_output.serving_dynamic && !curr_output.in_handler;
 		if (has_ended)
 		{
-		    printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+		    DEBUG_PRINT("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
 		    curr_output.has_received_dyn_ack = 0; /* if handler is finished a segment will be generated, we do not have the ack yet */
 		}
 #endif
@@ -824,6 +826,7 @@ char smews_send(void) {
                     /* we will generate a segment for the first time, so we will need to store new in-flight information */
                     if(!is_retransmitting) {
                         if_infos = mem_alloc(sizeof(struct in_flight_infos_t)); /* test NULL: done */
+			printf("Alloc if_infos: %p\r\n", if_infos);
                         if(if_infos == NULL) {
                             mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
                             return 1;
@@ -841,6 +844,12 @@ char smews_send(void) {
                         }
 #else
 /** @todo: fill curr_output.service... for outseqno and if_infos */
+			/* Execute the equivalent of context backup in the case
+			 * of non-coroutine. Only one if_info, so no need to
+			 * append it at the end of the linked list */
+			UI32(if_infos->next_outseqno) = UI32(curr_output.next_outseqno);
+			curr_output.service->in_flight_infos = if_infos;
+			curr_output.service->in_flight_infos->next = NULL;
 #endif
                     }
 
@@ -860,9 +869,9 @@ char smews_send(void) {
                     has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */
                     /* Here, we have to call the generator handler */
-		    printf("%s:%d: DYN from %d to 1\n", __FILE__, __LINE__, curr_output.serving_dynamic);
-		    printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
-		    printf("%s:%d: HANDL from %d to 1\n", __FILE__, __LINE__, curr_output.in_handler);
+		    DEBUG_PRINT("%s:%d: DYN from %d to 1\n", __FILE__, __LINE__, curr_output.serving_dynamic);
+		    DEBUG_PRINT("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+		    DEBUG_PRINT("%s:%d: HANDL from %d to 1\n", __FILE__, __LINE__, curr_output.in_handler);
                     curr_output.serving_dynamic = 1;
                     curr_output.has_received_dyn_ack = 0;
                     curr_output.in_handler = 1;
@@ -871,15 +880,21 @@ char smews_send(void) {
 #else
                     GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
 #endif
-		    printf("%s:%d: HANDL from %d to 0\n", __FILE__, __LINE__, curr_output.in_handler);
+		    DEBUG_PRINT("%s:%d: HANDL from %d to 0\n", __FILE__, __LINE__, curr_output.in_handler);
                     curr_output.in_handler = 0;
-		    printf("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+		    DEBUG_PRINT("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
 		    curr_output.has_received_dyn_ack = 0;
                     has_ended = 1;
 send_current_dynamic_segment:
                     /* has_ended is at 0 there because it has been set to at the goto */
 		    if (!has_ended)
-			printf("Goto!\r\n");
+		    {
+			DEBUG_PRINT("Goto!\r\n");
+			/* Set the local variable at a coherent value (this is
+			 * automatically made when using coroutine, but has to
+			 * be done here */
+			is_persistent = curr_output.service->is_persistent;
+		    }
 #endif
 
 #ifndef DISABLE_POST
@@ -914,7 +929,7 @@ send_current_dynamic_segment:
                 curr_output.service_header = if_infos->service_header;
                 UI16(curr_output.checksum) = UI16(if_infos->checksum);
 #else
-                if_infos = NULL;
+                if_infos = curr_output.service->in_flight_infos;
 #endif
             }
 

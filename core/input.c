@@ -49,6 +49,8 @@ int16_t stack_i;
 unsigned char *stack_base;
 #endif
 
+#define DEBUG_PRINT printf
+
 /* "404 Not found" handler */
 #define http_404_handler apps_httpCodes_404_html_handler
 extern CONST_VAR(struct output_handler_t, apps_httpCodes_404_html_handler);
@@ -518,6 +520,18 @@ char smews_receive(void) {
 
     DEV_GETC16(tmp_ui16);
     if(tmp_ui16[S1] != HTTP_PORT) {
+#ifdef DISABLE_COROUTINES
+	printf("Current output:\r\n");
+	printf("\tservice: %p\r\n", curr_output.service);
+	printf("\tserving_dynamic: %d\r\n", curr_output.serving_dynamic);
+	printf("\thas_received_dyn_ack: %d\r\n", curr_output.has_received_dyn_ack);
+	printf("\tin_handler: %d\r\n", curr_output.in_handler);
+	printf("\tbuffer: %p\r\n", curr_output.buffer);
+	printf("\tcontent-length: %d\r\n", curr_output.content_length);
+	printf("\tmax-bytes: %d\r\n", curr_output.max_bytes);
+	printf("\tservice-header: %d\r\n", curr_output.service_header);
+	printf("\tfree mem: %d (max %d)\r\n", get_free_mem(), get_max_free_mem());
+#endif
 #ifdef STACK_DUMP
         DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
         for(stack_i = 0; stack_i < STACK_DUMP_SIZE ; stack_i++) {
@@ -547,17 +561,18 @@ char smews_receive(void) {
             /* deferred because current segment has not yet been checked */
             defer_clean_service = 1;
 #ifdef DISABLE_COROUTINES
-	    printf("%s:%d: ACK from %d to ", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+	    DEBUG_PRINT("%s:%d: ACK from %d to ", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
             curr_output.has_received_dyn_ack = 1;
-	    printf("to %d\n", curr_output.has_received_dyn_ack);
+	    DEBUG_PRINT("to %d\n", curr_output.has_received_dyn_ack);
 	     /* received ack of the last dynamic segment, dynamic handling is done */
 	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
 		(curr_output.service_header == header_standard || /* Ack from a single segment data */
 		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
 	    {
-		printf("%s:%d: SERVDYN from %d to ", __FILE__, __LINE__, curr_output.serving_dynamic);
+		DEBUG_PRINT("%s:%d: SERVDYN from %d to ", __FILE__, __LINE__, curr_output.serving_dynamic);
 		curr_output.serving_dynamic = 0;
-		printf("to %d\n", curr_output.serving_dynamic);
+		mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+		DEBUG_PRINT("to %d\n", curr_output.serving_dynamic);
 	    }
 #endif
         }
