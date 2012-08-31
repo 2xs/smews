@@ -1072,11 +1072,7 @@ smews_send (void)
 		    has_ended = 1;
 		    if (curr_output.has_received_dyn_ack == 3)
 		    {
-			/* Connection was closed while serving dynamic content.
-			   Free buffer, in_flight_infos and leave.
-			*/
-			mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
-			mem_free(curr_output.service->in_flight_infos, sizeof(struct in_flight_infos_t));
+			/* Connection was closed while serving dynamic content. */
 			curr_output.has_received_dyn_ack = 0;
 			/* Not serving dynamic anymore */
 			curr_output.serving_dynamic = 0;
