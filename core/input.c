@@ -562,22 +562,6 @@ char smews_receive(void) {
         if(tmp_connection.protocol.http.generator_service) {
             /* deferred because current segment has not yet been checked */
             defer_clean_service = 1;
-#ifdef DISABLE_COROUTINES
-	    DEBUG_PRINT("%s:%d: ACK from %d to ", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
-            curr_output.has_received_dyn_ack = 1;
-	    DEBUG_PRINT("to %d\n", curr_output.has_received_dyn_ack);
-	     /* received ack of the last dynamic segment, dynamic handling is done */
-	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
-		(curr_output.service_header == header_standard || /* Ack from a single segment data */
-		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
-	    {
-		DEBUG_PRINT("%s:%d: SERVDYN from %d to ", __FILE__, __LINE__, curr_output.serving_dynamic);
-		curr_output.serving_dynamic = 0;
-		if (curr_output.service_header == header_standard) /* only free for single segment data */
-		    mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
-		DEBUG_PRINT("to %d\n", curr_output.serving_dynamic);
-	    }
-#endif
         }
     }
     /* clear output_handler if needed */
@@ -1395,7 +1379,23 @@ char smews_receive(void) {
     checksum_end();
     if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
         if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
+#ifdef DISABLE_COROUTINES
+	    DEBUG_PRINT("inack: %x curr_out_next: %x connection_next: %x %p %p\r\n", UI32(current_inack), UI32(curr_output.next_outseqno), UI32(tmp_connection.protocol.http.next_outseqno), curr_output.service, tmp_connection.protocol.http.generator_service);
+	    DEBUG_PRINT("%s:%d: ACK from %d to 2\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
+            curr_output.has_received_dyn_ack = 2;
+	     /* received ack of the last dynamic segment, dynamic handling is done */
+	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
+		(curr_output.service_header == header_standard || /* Ack from a single segment data */
+		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
+	    {
+		DEBUG_PRINT("%s:%d: SERVDYN from %d to 0\n", __FILE__, __LINE__, curr_output.serving_dynamic);
+		curr_output.serving_dynamic = 0;
+		/* When no coroutine, we only have one in_flight_infos. Thus, it has do be freed only at the end */
+		clean_service(tmp_connection.protocol.http.generator_service, current_inack);
+	    }
+#else
             clean_service(tmp_connection.protocol.http.generator_service, current_inack);
+#endif
             if(defer_free_handler) { /* free handler and generator service is the service is completely acknowledged */
 #ifndef DISABLE_COROUTINES
                 cr_clean(&tmp_connection.protocol.http.generator_service->coroutine);
