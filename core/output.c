@@ -202,6 +202,15 @@ _service_headers_size (enum service_header_e service_header)
 char
 out_c (char c)
 {
+#ifdef DISABLE_COROUTINES
+    if (curr_output.has_received_dyn_ack == 3)
+    {
+	/* Connection was closed while serving dynamic content.
+	   Let the handler finish without doing anything
+	*/
+	return 0;
+    }
+#endif
     /* Must not generate a segment that is more than mss */
     if (curr_output.content_length == curr_output.max_bytes)
     {
@@ -228,8 +237,10 @@ out_c (char c)
 	DEBUG_PRINT ("%s:%d: ACK from %d to 1\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
 	curr_output.has_received_dyn_ack = 1;
 	DEBUG_PRINT ("Back from send with curr_out_next: %x\r\n", UI32 (curr_output.next_outseqno));
-	while (curr_output.has_received_dyn_ack != 2)
+	while (curr_output.has_received_dyn_ack == 1)
 	    smews_main_loop_step ();
+	if (curr_output.has_received_dyn_ack == 3)
+	    return 0;
 	DEBUG_PRINT ("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
 	curr_output.has_received_dyn_ack = 0;
 	DEBUG_PRINT ("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
@@ -1059,6 +1070,19 @@ smews_send (void)
 		    DEBUG_PRINT ("%s:%d: HANDL from %d to 0\n", __FILE__, __LINE__, curr_output.in_handler);
 		    curr_output.in_handler = 0;
 		    has_ended = 1;
+		    if (curr_output.has_received_dyn_ack == 3)
+		    {
+			/* Connection was closed while serving dynamic content.
+			   Free buffer, in_flight_infos and leave.
+			*/
+			mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE);
+			mem_free(curr_output.service->in_flight_infos, sizeof(struct in_flight_infos_t));
+			curr_output.has_received_dyn_ack = 0;
+			/* Not serving dynamic anymore */
+			curr_output.serving_dynamic = 0;
+			printf("Panic action, connection was closed while in the handler\r\n");
+			return 1;
+		    }
 #endif
 
 #ifndef DISABLE_POST

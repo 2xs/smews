@@ -135,9 +135,9 @@ static void chain_free_blocs(struct free_bloc_s *b1, struct free_bloc_s *b2) {
  * Only use on free data. */
 void mem_free(void *ptr, uint16_t size) {
 
-    	if (size == OUTPUT_BUFFER_SIZE)
+    	if (size == OUTPUT_BUFFER_SIZE && ptr != NULL)
 	    debug_mem_buffers--;
-	else if (size == sizeof(struct in_flight_infos_t))
+	else if (size == sizeof(struct in_flight_infos_t) && ptr != NULL)
 	    debug_mem_infos--;
 
 

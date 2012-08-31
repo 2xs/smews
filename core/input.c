@@ -530,10 +530,10 @@ char smews_receive(void) {
 	printf("\tcontent-length: %d\r\n", curr_output.content_length);
 	printf("\tmax-bytes: %d\r\n", curr_output.max_bytes);
 	printf("\tservice-header: %d\r\n", curr_output.service_header);
+#endif
 	printf("\tfree mem: %d (max %d)\r\n", get_free_mem(), get_max_free_mem());
 	printf("\tbuffers: %d\r\n", debug_mem_buffers);
 	printf("\tinfos: %d\r\n", debug_mem_infos);
-#endif
 #ifdef STACK_DUMP
         DEV_PREPARE_OUTPUT(STACK_DUMP_SIZE);
         for(stack_i = 0; stack_i < STACK_DUMP_SIZE ; stack_i++) {
@@ -1433,6 +1433,11 @@ char smews_receive(void) {
             UI32(rst_connection.next_outseqno) = UI32(tmp_connection.protocol.http.next_outseqno);
         } else {
             if(tmp_connection.protocol.http.tcp_state == tcp_listen) {
+#ifdef DISABLE_COROUTINES
+		printf("Free connection\r\n");
+		if (curr_output.has_received_dyn_ack == 1)
+		    curr_output.has_received_dyn_ack = 3;
+#endif
                 free_connection(connection);
             } else {
                 /* update the current connection */
