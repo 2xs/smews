@@ -662,15 +662,11 @@ able_to_send (const struct connection *connection)
 #endif
 
 #ifdef DISABLE_COROUTINES
-    /* If we are handling a dynamic service, no other dynamic service is
-     * allowed to send except to one that is handled */
-/*    if (connection->output_handler && CONST_UI8(connection->output_handler->handler_type) == type_generator && curr_output.serving_dynamic)
-      if (connection->protocol.http.generator_service != curr_output.service)
-      return 0;
-*/
     if (connection->output_handler && CONST_UI8(connection->output_handler->handler_type) == type_generator)
     {
-	/* WARNING, we probably need to check if the connection is the same than the one triggering ack wait */
+	if (curr_output.dynamic_service_state != none && curr_output.service != connection->protocol.http.generator_service)
+	    return 0; /* Do not serve any other dynamic service except the current one */
+	    
 	/* Dynamic connection, so, if the ACK has not been received, do not send another packet */
 	if (curr_output.dynamic_service_state == waiting_ack)
 	    return 0;
@@ -779,8 +775,7 @@ smews_send (void)
 /* restore the right old output handler */
 		active_connection->output_handler = old_output_handler;
 		active_connection->protocol.http.comet_send_ack = 0;
-		UI32 (active_connection->protocol.http.final_outseqno) =
-		    UI32 (active_connection->protocol.http.next_outseqno);
+		UI32 (active_connection->protocol.http.final_outseqno) = UI32 (active_connection->protocol.http.next_outseqno);
 /* call initget (which must not generate any data) */
 		HANDLER_CALLBACK (active_connection, initget);
 	    }
@@ -800,10 +795,7 @@ smews_send (void)
 	    /* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
 	     * thus, the http header size used is only the no header one (the chunk size).
 	     * If the segment that we will generate ends to be the first, the value is lowered in the following if block */
-	    curr_output.max_bytes =
-		MIN (OUTPUT_BUFFER_SIZE,
-		     MAX_OUT_SIZE (active_connection->protocol.http.tcp_mss) -
-		     _service_headers_size (header_none));
+	    curr_output.max_bytes = MIN (OUTPUT_BUFFER_SIZE, MAX_OUT_SIZE (active_connection->protocol.http.tcp_mss) - _service_headers_size (header_none));
 
 	    /* creation and initialization of the generator_service if needed */
 	    if (active_connection->protocol.http.generator_service == NULL)
@@ -813,23 +805,16 @@ smews_send (void)
 		{
 		    return 1;
 		}
-		curr_output.service =
-		    active_connection->protocol.http.generator_service;
+		curr_output.service = active_connection->protocol.http.generator_service;
 /* if we create the service, it is the first segment of the answer stream, we need
  * to reduce its size to fit the mss if the segment is not the last.
  * Thus, we use the biggest http header size possible to compute the available space for data */
-		curr_output.max_bytes =
-		    MIN (OUTPUT_BUFFER_SIZE,
-			 MAX_OUT_SIZE (active_connection->protocol.http.tcp_mss) -
-			 _service_headers_size (header_chunks));
+		curr_output.max_bytes = MIN (OUTPUT_BUFFER_SIZE, MAX_OUT_SIZE (active_connection->protocol.http.tcp_mss) - _service_headers_size (header_chunks));
 /* init generator service */
 		curr_output.service->service_header = header_standard;
 		curr_output.service->in_flight_infos = NULL;
-		curr_output.service->is_persistent =
-		    CONST_UI8 (GET_GENERATOR (active_connection->output_handler).prop)
-		    == prop_persistent;
-		UI32 (curr_output.service->curr_outseqno) =
-		    UI32 (active_connection->protocol.http.next_outseqno);
+		curr_output.service->is_persistent = CONST_UI8 (GET_GENERATOR (active_connection->output_handler).prop) == prop_persistent;
+		UI32 (curr_output.service->curr_outseqno) = UI32 (active_connection->protocol.http.next_outseqno);
 #ifndef DISABLE_COROUTINES
 /* init coroutine */
 		cr_init (&curr_output.service->coroutine);
@@ -840,46 +825,32 @@ smews_send (void)
 #endif
 
 #ifndef DISABLE_POST
-		if (active_connection->protocol.http.post_data
-		    && active_connection->protocol.http.post_data->content_type !=
-		    CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
+		if (active_connection->protocol.http.post_data && active_connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
 		{
-		    curr_output.service->coroutine.func.func_post_out =
-			CONST_ADDR (GET_GENERATOR
-				    (active_connection->output_handler).handlers.post.
-				    dopostout);
-		    curr_output.service->coroutine.params.out.content_type =
-			active_connection->protocol.http.post_data->content_type;
-		    curr_output.service->coroutine.params.out.post_data =
-			active_connection->protocol.http.post_data->post_data;
+		    curr_output.service->coroutine.func.func_post_out = CONST_ADDR (GET_GENERATOR(active_connection->output_handler).handlers.post.dopostout);
+		    curr_output.service->coroutine.params.out.content_type = active_connection->protocol.http.post_data->content_type;
+		    curr_output.service->coroutine.params.out.post_data = active_connection->protocol.http.post_data->post_data;
 		}
 		else
 		{
 #endif
 #ifndef DISABLE_COROUTINES
-		    curr_output.service->coroutine.func.func_get =
-			CONST_ADDR (GET_GENERATOR
-				    (active_connection->output_handler).handlers.get.
-				    doget);
-#endif
+		    curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget);
 #ifndef DISABLE_ARGS
-#ifndef DISABLE_COROUTINES
-		    curr_output.service->coroutine.params.args =
-			active_connection->protocol.http.args;
+		    curr_output.service->coroutine.params.args = active_connection->protocol.http.args;
 #endif
-#endif
+#endif /* not DISABLE_COROUTINES */
+
 #ifndef DISABLE_POST
 		}
 #endif
 /* we don't know yet the final output sequence number for this service */
-		UI32 (active_connection->protocol.http.final_outseqno) =
-		    UI32 (active_connection->protocol.http.next_outseqno) - 1;
+		UI32 (active_connection->protocol.http.final_outseqno) = UI32 (active_connection->protocol.http.next_outseqno) - 1;
 #ifndef DISABLE_COMET
 /* if this is a comet generator, manage all listenning clients */
 		if (CONST_UI8 (active_connection->output_handler->handler_comet))
 		{
-		    const struct output_handler_t *current_handler =
-			active_connection->output_handler;
+		    const struct output_handler_t *current_handler = active_connection->output_handler;
 		    /* if this is a comet handler, this connection is active, others are set as passive */
 		    FOR_EACH_CONN (conn,
 				   {
@@ -915,19 +886,19 @@ smews_send (void)
 	    /* put the coroutine (little) stack in the shared (big) stack if needed.
 	     * This step has to be done before before any context_restore or context_backup */
 	    if (cr_prepare (&curr_output.service->coroutine) == NULL)
-	    {
 		return 1;
-	    }
 #else
-	    /* If no coroutines, then havind smews_send called while in a handler is equivalent to 
-	       retransmit the buffer (as the type is forced to persistent
+	    /* If no coroutines, then having smews_send called while in a handler is equivalent to 
+	       retransmit the buffer (as the type is forced to persistent)
 	    */
-//	    if (curr_output.serving_dynamic && curr_output.in_handler)
 	    if (curr_output.dynamic_service_state != none && curr_output.in_handler)
 	    {
 		/* if the packet was sent, but ack not received, do not resend it */
 		if (!is_retransmitting && curr_output.dynamic_service_state == waiting_ack)
 		    return 1;
+		/* Behavior of sending the segment for the first time is similar to retransmit for persistent data */
+		/* If this flag is not set to 1, then when sending the first segment for the dynamic context, the handler
+		   would be called again, entering an infinite loop (with stack overflow) */
 		is_retransmitting = 1;
 	    }
 #endif
@@ -941,10 +912,7 @@ smews_send (void)
 		{
 #ifndef DISABLE_COROUTINES
 		    /* if the current context is not the right one, restore it */
-		    if_infos =
-			context_restore (curr_output.service,
-					 active_connection->protocol.
-					 http.next_outseqno);
+		    if_infos = context_restore (curr_output.service, active_connection->protocol.http.next_outseqno);
 #else
 		    if_infos = curr_output.service->in_flight_infos;
 #endif
@@ -970,7 +938,6 @@ smews_send (void)
 #ifndef DISABLE_COROUTINES
 		has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else
-//		has_ended = curr_output.serving_dynamic && !curr_output.in_handler;
 		has_ended = curr_output.dynamic_service_state != none && !curr_output.in_handler;
 #endif
 /* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
@@ -1001,10 +968,8 @@ smews_send (void)
 		    if (!is_persistent && !is_retransmitting)
 		    {
 			if_infos->service_header = curr_output.service_header;
-			if (context_backup
-			    (curr_output.service, curr_output.next_outseqno,
-			     if_infos) == NULL)
-			{			/* test NULL: done */
+			if (context_backup(curr_output.service, curr_output.next_outseqno, if_infos) == NULL)
+			{
 			    mem_free (curr_output.buffer, OUTPUT_BUFFER_SIZE);
 			    mem_free (if_infos, sizeof (struct in_flight_infos_t));
 			    return 1;
@@ -1038,9 +1003,10 @@ smews_send (void)
 		    /* Here, we have to call the generator handler */
 		    curr_output.in_handler = 1;
 #ifndef DISABLE_ARGS
-		    GET_GENERATOR (active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
+		    /** @warning: check if the retrieving of the handler function pointer has to be done using CONST_ADDR (arduino for instance) */
+		    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
 #else
-		    GET_GENERATOR (active_connection->output_handler).handlers.get.doget(NULL);
+		    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
 #endif
 		    curr_output.in_handler = 0;
 		    has_ended = 1;
@@ -1098,9 +1064,7 @@ smews_send (void)
 	    else
 	    {			/* the segment has to be resent from a buffer: restore it */
 #ifndef DISABLE_COROUTINES
-		if_infos =
-		    if_select (curr_output.service,
-			       active_connection->protocol.http.next_outseqno);
+		if_infos = if_select (curr_output.service,active_connection->protocol.http.next_outseqno);
 #else
 		if_infos = curr_output.service->in_flight_infos;
 		if_infos->service_header = curr_output.service_header;
