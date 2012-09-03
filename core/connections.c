@@ -175,27 +175,34 @@ struct connection *add_connection(const struct connection *from)
 
 /*-----------------------------------------------------------------------------------*/
 void free_connection(const struct connection *connection) {
-	connection->prev->next = connection->next;
-	connection->next->prev = connection->prev;
-	if(connection == connection->next) {
-		all_connections = NULL;
-	} else {
-		all_connections = connection->next;
-	}
+    connection->prev->next = connection->next;
+    connection->next->prev = connection->prev;
+    if(connection == connection->next) {
+	all_connections = NULL;
+    } else {
+	all_connections = connection->next;
+    }
 
-	if (IS_HTTP(connection))
+    if (IS_HTTP(connection))
+    {
+#ifndef DISABLE_ARGS
+	if (connection->protocol.http.args && connection->output_handler)
 	{
-		if(connection->protocol.http.generator_service) {
-			clean_service(connection->protocol.http.generator_service, NULL);
-			mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
-		}
+	    printf("Free args\r\n");
+	    mem_free(connection->protocol.http.args, CONST_UI16(connection->output_handler->handler_args.args_size));
 	}
+#endif
+	if(connection->protocol.http.generator_service) {
+	    clean_service(connection->protocol.http.generator_service, NULL);
+	    mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
+	}
+    }
 
 #ifdef IPV6
-			/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-	mem_free((void*)connection,(sizeof(struct connection) + (17-((connection->ip_addr[0])&15))) * sizeof(unsigned char));
+    /* Size of a connection + size of the IPv6 adress (+ compression indexes) */
+    mem_free((void*)connection,(sizeof(struct connection) + (17-((connection->ip_addr[0])&15))) * sizeof(unsigned char));
 #else
-	mem_free((void*)connection, sizeof(struct connection));
+    mem_free((void*)connection, sizeof(struct connection));
 #endif
 }
 

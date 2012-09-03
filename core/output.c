@@ -203,7 +203,7 @@ char
 out_c (char c)
 {
 #ifdef DISABLE_COROUTINES
-    if (curr_output.has_received_dyn_ack == 3)
+    if (curr_output.dynamic_service_state == connection_terminated)
     {
 	/* Connection was closed while serving dynamic content.
 	   Let the handler finish without doing anything
@@ -218,32 +218,30 @@ out_c (char c)
 	if (curr_output.service == NULL)	/* no service generator is when out is called from a dopacketout */
 	    return 0;
 #endif
+
 #ifndef DISABLE_COROUTINES
-	cr_run (NULL
+
 #ifndef DISABLE_POST
-		, cor_type_get
-#endif
-	    );
+	cr_run (NULL, cor_type_get);
 #else
-	
+	cr_run(NULL);
+#endif
+
+#else /* DISABLE_CORTOUTINES */	
 	checksum_end ();
 	UI16 (curr_output.checksum) = UI16 (current_checksum);
-/* save the current checksum in the in flight segment infos */
+        /* save the current checksum in the in flight segment infos */
 	if (curr_output.service->in_flight_infos)
 	{
 	    UI16 (curr_output.service->in_flight_infos->checksum) = UI16 (current_checksum);
 	}
 	smews_send ();
-	DEBUG_PRINT ("%s:%d: ACK from %d to 1\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
-	curr_output.has_received_dyn_ack = 1;
-	DEBUG_PRINT ("Back from send with curr_out_next: %x\r\n", UI32 (curr_output.next_outseqno));
-	while (curr_output.has_received_dyn_ack == 1)
+	curr_output.dynamic_service_state = waiting_ack;
+	while (curr_output.dynamic_service_state == waiting_ack)
 	    smews_main_loop_step ();
-	if (curr_output.has_received_dyn_ack == 3)
+	if (curr_output.dynamic_service_state == connection_terminated)
 	    return 0;
-	DEBUG_PRINT ("%s:%d: ACK from %d to 0\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
-	curr_output.has_received_dyn_ack = 0;
-	DEBUG_PRINT ("%s:%d: LENGTH from %d to 0\n", __FILE__, __LINE__, curr_output.content_length);
+	curr_output.dynamic_service_state = none;
 /* Here, the segment has been sent, and the ACK received, prepare to generate next segment */
 	curr_output.content_length = 0;
 	checksum_init();
@@ -323,14 +321,9 @@ smews_send_packet (struct connection *connection)
 	    uint16_t max_out_size;
 	    uint32_t file_remaining_bytes;
 	    max_out_size = MAX_OUT_SIZE (connection->protocol.http.tcp_mss);
-	    file_remaining_bytes =
-		UI32 (connection->protocol.http.final_outseqno) -
-		UI32 (next_outseqno);
-	    segment_length =
-		file_remaining_bytes >
-		max_out_size ? max_out_size : file_remaining_bytes;
-	    index_in_file =
-		CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
+	    file_remaining_bytes = UI32 (connection->protocol.http.final_outseqno) - UI32 (next_outseqno);
+	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
+	    index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
 	    break;
 	}
 	case type_generator:
@@ -348,10 +341,6 @@ smews_send_packet (struct connection *connection)
     }
 
     DEV_PREPARE_OUTPUT (segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
-    DEBUG_PRINT ("Sending packet of %d bytes\r\n",
-		 segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
-    DEBUG_PRINT ("Buffer is %p, size %d\r\n", curr_output.buffer,
-		 curr_output.content_length);
 
     /* start to send IP header */
 #ifdef IPV6
@@ -682,7 +671,7 @@ able_to_send (const struct connection *connection)
     {
 	/* WARNING, we probably need to check if the connection is the same than the one triggering ack wait */
 	/* Dynamic connection, so, if the ACK has not been received, do not send another packet */
-	if (curr_output.has_received_dyn_ack == 1)
+	if (curr_output.dynamic_service_state == waiting_ack)
 	    return 0;
 	
     }
@@ -730,7 +719,7 @@ smews_send (void)
 #ifndef DISABLE_GP_IP_HANDLER
     if (IS_GPIP (active_connection))
     {
-	curr_output.buffer = gpip_output_buffer;	/* mem_alloc(OUTPUT_BUFFER_SIZE); */
+	curr_output.buffer = gpip_output_buffer;
 #ifndef DEV_MTU
 	curr_output.max_bytes = OUTPUT_BUFFER_SIZE;
 #else
@@ -746,7 +735,6 @@ smews_send (void)
 	    dopacketout (active_connection);
 	active_connection->protocol.gpip.want_to_send = 0;
 	smews_send_packet (active_connection);
-/* mem_free(curr_output.buffer, OUTPUT_BUFFER_SIZE); */
 	free_connection (active_connection);
 	return 0;
     }
@@ -938,7 +926,7 @@ smews_send (void)
 	    if (curr_output.serving_dynamic && curr_output.in_handler)
 	    {
 		/* if the packet was sent, but ack not received, do not resend it */
-		if (!is_retransmitting && curr_output.has_received_dyn_ack == 1)
+		if (!is_retransmitting && curr_output.dynamic_service_state == waiting_ack)
 		    return 1;
 		is_retransmitting = 1;
 	    }
@@ -976,8 +964,6 @@ smews_send (void)
 		}
 
 /* initializations before generating the segment */
-		DEBUG_PRINT ("%s:%d: LENGTH from %d to 0\n", __FILE__,
-			     __LINE__, curr_output.content_length);
 		curr_output.content_length = 0;
 		checksum_init ();
 		curr_output.buffer = NULL;
@@ -1004,7 +990,6 @@ smews_send (void)
 		    {
 			if_infos = mem_alloc (sizeof (struct in_flight_infos_t));	/* test NULL: done */
 			if_infos->next = NULL;
-			printf ("Alloc if_infos: %p\r\n", if_infos);
 			if (if_infos == NULL)
 			{
 			    mem_free (curr_output.buffer, OUTPUT_BUFFER_SIZE);
@@ -1041,25 +1026,17 @@ smews_send (void)
 #ifndef DISABLE_COROUTINES
 		    /* run the coroutine (generate one segment) */
 #ifndef DISABLE_POST
-		    if (active_connection->protocol.http.post_data
-			&& active_connection->protocol.http.post_data->content_type !=
-			CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
+		    if (active_connection->protocol.http.post_data && active_connection->protocol.http.post_data->content_type != CONTENT_TYPE_APPLICATION_47_X_45_WWW_45_FORM_45_URLENCODED)
 			cr_run (&curr_output.service->coroutine, cor_type_post_out);
 		    else
+			cr_run (&curr_output.service->coroutine, cor_type_get);
+#else
+		    cr_run (&curr_output.service->coroutine);
 #endif
-			cr_run (&curr_output.service->coroutine
-#ifndef DISABLE_POST
-				, cor_type_get
-#endif
-			    );
 
-		    has_ended =
-			curr_output.service->coroutine.curr_context.status ==
-			cr_terminated;
+		    has_ended =	curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */
 		    /* Here, we have to call the generator handler */
-		    DEBUG_PRINT ("%s:%d: DYN from %d to 1\n", __FILE__, __LINE__, curr_output.serving_dynamic);
-		    DEBUG_PRINT ("%s:%d: HANDL from %d to 1\n", __FILE__, __LINE__, curr_output.in_handler);
 		    curr_output.serving_dynamic = 1;
 		    curr_output.in_handler = 1;
 #ifndef DISABLE_ARGS
@@ -1067,16 +1044,15 @@ smews_send (void)
 #else
 		    GET_GENERATOR (active_connection->output_handler).handlers.get.doget(NULL);
 #endif
-		    DEBUG_PRINT ("%s:%d: HANDL from %d to 0\n", __FILE__, __LINE__, curr_output.in_handler);
 		    curr_output.in_handler = 0;
 		    has_ended = 1;
-		    if (curr_output.has_received_dyn_ack == 3)
+		    if (curr_output.dynamic_service_state == connection_terminated)
 		    {
 			/* Connection was closed while serving dynamic content. */
-			curr_output.has_received_dyn_ack = 0;
+			curr_output.dynamic_service_state = none;
 			/* Not serving dynamic anymore */
 			curr_output.serving_dynamic = 0;
-			printf("Panic action, connection was closed while in the handler\r\n");
+			DEBUG_PRINT("Panic action, connection was closed while in the handler\r\n");
 			return 1;
 		    }
 #endif
@@ -1109,9 +1085,9 @@ smews_send (void)
 		    /* We are ready to send the last chunk, we have to free the previous one */
 		    if (curr_output.buffer)
 		    {
-			printf ("%s:%d: Freeing a buffer\r\n", __FILE__, __LINE__);
 			mem_free (curr_output.buffer, OUTPUT_BUFFER_SIZE);
 			curr_output.buffer = NULL;
+			curr_output.content_length = 0;
 		    }
 		}
 #endif

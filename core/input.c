@@ -524,7 +524,7 @@ char smews_receive(void) {
 	printf("Current output:\r\n");
 	printf("\tservice: %p\r\n", curr_output.service);
 	printf("\tserving_dynamic: %d\r\n", curr_output.serving_dynamic);
-	printf("\thas_received_dyn_ack: %d\r\n", curr_output.has_received_dyn_ack);
+	printf("\tdynamic_service_state: %d\r\n", curr_output.dynamic_service_state);
 	printf("\tin_handler: %d\r\n", curr_output.in_handler);
 	printf("\tbuffer: %p\r\n", curr_output.buffer);
 	printf("\tcontent-length: %d\r\n", curr_output.content_length);
@@ -1380,23 +1380,20 @@ char smews_receive(void) {
     if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
         if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
 #ifdef DISABLE_COROUTINES
-	    DEBUG_PRINT("inack: %x curr_out_next: %x connection_next: %x %p %p\r\n", UI32(current_inack), UI32(curr_output.next_outseqno), UI32(tmp_connection.protocol.http.next_outseqno), curr_output.service, tmp_connection.protocol.http.generator_service);
-	    DEBUG_PRINT("%s:%d: ACK from %d to 2\n", __FILE__, __LINE__, curr_output.has_received_dyn_ack);
-            curr_output.has_received_dyn_ack = 2;
+            curr_output.dynamic_service_state = ack_received;
 	     /* received ack of the last dynamic segment, dynamic handling is done */
 	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
 		(curr_output.service_header == header_standard || /* Ack from a single segment data */
 		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
 	    {
-		DEBUG_PRINT("%s:%d: SERVDYN from %d to 0\n", __FILE__, __LINE__, curr_output.serving_dynamic);
-		curr_output.serving_dynamic = 0;
+		curr_output.serving_dynamic = none;
 		/* When no coroutine, we only have one in_flight_infos. Thus, it has do be freed only at the end */
 		clean_service(tmp_connection.protocol.http.generator_service, current_inack);
 	    }
 #else
             clean_service(tmp_connection.protocol.http.generator_service, current_inack);
 #endif
-            if(defer_free_handler) { /* free handler and generator service is the service is completely acknowledged */
+            if(defer_free_handler) { /* free handler and generator service if the service is completely acknowledged */
 #ifndef DISABLE_COROUTINES
                 cr_clean(&tmp_connection.protocol.http.generator_service->coroutine);
 #endif
@@ -1435,8 +1432,8 @@ char smews_receive(void) {
             if(tmp_connection.protocol.http.tcp_state == tcp_listen) {
 #ifdef DISABLE_COROUTINES
 		printf("Free connection\r\n");
-		if (curr_output.has_received_dyn_ack == 1)
-		    curr_output.has_received_dyn_ack = 3;
+		if (curr_output.dynamic_service_state == waiting_ack)
+		    curr_output.dynamic_service_state = connection_terminated;
 #endif
                 free_connection(connection);
             } else {
