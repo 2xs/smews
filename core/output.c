@@ -235,6 +235,7 @@ out_c (char c)
 	{
 	    UI16 (curr_output.service->in_flight_infos->checksum) = UI16 (current_checksum);
 	}
+	curr_output.dynamic_service_state = sending_first_segment;
 	smews_send ();
 	curr_output.dynamic_service_state = waiting_ack;
 	while (curr_output.dynamic_service_state == waiting_ack)
@@ -884,11 +885,11 @@ smews_send (void)
 				   {
 				       if (conn->output_handler == current_handler)
 				       {
-					   conn->protocol.http.comet_passive =
-					       (conn != active_connection);}
+					   conn->protocol.http.comet_passive = (conn != active_connection);
+				       }
 				   }
 			)
-			}
+		}
 /* manage streamed comet data */
 		if (CONST_UI8 (active_connection->output_handler->handler_stream))
 		{
@@ -902,10 +903,8 @@ smews_send (void)
 	    }
 
 	    /* init the global curr_output structure (usefull for out_c) */
-	    curr_output.service =
-		active_connection->protocol.http.generator_service;
-	    UI32 (curr_output.next_outseqno) =
-		UI32 (active_connection->protocol.http.next_outseqno);
+	    curr_output.service = active_connection->protocol.http.generator_service;
+	    UI32 (curr_output.next_outseqno) = UI32 (active_connection->protocol.http.next_outseqno);
 
 	    /* is the service persistent or not? */
 	    is_persistent = curr_output.service->is_persistent;
@@ -923,7 +922,8 @@ smews_send (void)
 	    /* If no coroutines, then havind smews_send called while in a handler is equivalent to 
 	       retransmit the buffer (as the type is forced to persistent
 	    */
-	    if (curr_output.serving_dynamic && curr_output.in_handler)
+//	    if (curr_output.serving_dynamic && curr_output.in_handler)
+	    if (curr_output.dynamic_service_state != none && curr_output.in_handler)
 	    {
 		/* if the packet was sent, but ack not received, do not resend it */
 		if (!is_retransmitting && curr_output.dynamic_service_state == waiting_ack)
@@ -968,11 +968,10 @@ smews_send (void)
 		checksum_init ();
 		curr_output.buffer = NULL;
 #ifndef DISABLE_COROUTINES
-		has_ended =
-		    curr_output.service->coroutine.curr_context.status ==
-		    cr_terminated;
+		has_ended = curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else
-		has_ended = curr_output.serving_dynamic && !curr_output.in_handler;
+//		has_ended = curr_output.serving_dynamic && !curr_output.in_handler;
+		has_ended = curr_output.dynamic_service_state != none && !curr_output.in_handler;
 #endif
 /* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
  * else, run the coroutine to generate one segment */
@@ -1037,7 +1036,6 @@ smews_send (void)
 		    has_ended =	curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */
 		    /* Here, we have to call the generator handler */
-		    curr_output.serving_dynamic = 1;
 		    curr_output.in_handler = 1;
 #ifndef DISABLE_ARGS
 		    GET_GENERATOR (active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
@@ -1050,9 +1048,6 @@ smews_send (void)
 		    {
 			/* Connection was closed while serving dynamic content. */
 			curr_output.dynamic_service_state = none;
-			/* Not serving dynamic anymore */
-			curr_output.serving_dynamic = 0;
-			DEBUG_PRINT("Panic action, connection was closed while in the handler\r\n");
 			return 1;
 		    }
 #endif

@@ -523,7 +523,6 @@ char smews_receive(void) {
 #ifdef DISABLE_COROUTINES
 	printf("Current output:\r\n");
 	printf("\tservice: %p\r\n", curr_output.service);
-	printf("\tserving_dynamic: %d\r\n", curr_output.serving_dynamic);
 	printf("\tdynamic_service_state: %d\r\n", curr_output.dynamic_service_state);
 	printf("\tin_handler: %d\r\n", curr_output.in_handler);
 	printf("\tbuffer: %p\r\n", curr_output.buffer);
@@ -1382,11 +1381,12 @@ char smews_receive(void) {
 #ifdef DISABLE_COROUTINES
             curr_output.dynamic_service_state = ack_received;
 	     /* received ack of the last dynamic segment, dynamic handling is done */
-	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
+//	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
+	    if (curr_output.dynamic_service_state != none && !curr_output.in_handler && /* Dynamic handler is finished */
 		(curr_output.service_header == header_standard || /* Ack from a single segment data */
 		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
 	    {
-		curr_output.serving_dynamic = none;
+		curr_output.dynamic_service_state = none;
 		/* When no coroutine, we only have one in_flight_infos. Thus, it has do be freed only at the end */
 		clean_service(tmp_connection.protocol.http.generator_service, current_inack);
 	    }

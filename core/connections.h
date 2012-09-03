@@ -207,9 +207,8 @@ extern struct http_rst_connection rst_connection;
 struct curr_output_t {
     struct generator_service_t *service;
 #ifdef DISABLE_COROUTINES
-    enum dynamic_state {none, waiting_ack, ack_received, connection_terminated} dynamic_service_state:2;
-    unsigned char serving_dynamic;
-    unsigned char in_handler;
+    enum dynamic_state {none, sending_first_segment,waiting_ack, ack_received, connection_terminated} dynamic_service_state:3;
+    unsigned char in_handler:1;
 #endif
     char *buffer;
     unsigned char checksum[2];
