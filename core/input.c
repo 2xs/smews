@@ -1379,14 +1379,17 @@ char smews_receive(void) {
     if(UI16(current_checksum) == TCP_CHK_CONSTANT_PART) {
         if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
 #ifdef DISABLE_COROUTINES
-            curr_output.dynamic_service_state = ack_received;
+	    DYNAMIC_STATE_CHANGE(ack_received);
+            //curr_output.dynamic_service_state = ack_received;
 	     /* received ack of the last dynamic segment, dynamic handling is done */
-//	    if (curr_output.serving_dynamic && !curr_output.in_handler && /* Dynamic handler is finished */
-	    if (curr_output.dynamic_service_state != none && !curr_output.in_handler && /* Dynamic handler is finished */
+	    if (curr_output.dynamic_service_state != none && /* Dynamic content is served */
+		tmp_connection.protocol.http.generator_service == curr_output.service && /* This is the currently served dynamic connection */
+		!curr_output.in_handler && /* Dynamic handler is finished */
 		(curr_output.service_header == header_standard || /* Ack from a single segment data */
 		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
 	    {
-		curr_output.dynamic_service_state = none;
+		DYNAMIC_STATE_CHANGE(none);
+		//curr_output.dynamic_service_state = none;
 		/* When no coroutine, we only have one in_flight_infos. Thus, it has do be freed only at the end */
 		clean_service(tmp_connection.protocol.http.generator_service, current_inack);
 	    }
@@ -1432,8 +1435,9 @@ char smews_receive(void) {
             if(tmp_connection.protocol.http.tcp_state == tcp_listen) {
 #ifdef DISABLE_COROUTINES
 		printf("Free connection\r\n");
-		if (curr_output.dynamic_service_state == waiting_ack)
-		    curr_output.dynamic_service_state = connection_terminated;
+		if (curr_output.dynamic_service_state != none && tmp_connection.protocol.http.generator_service == curr_output.service)
+		    DYNAMIC_STATE_CHANGE(connection_terminated);
+//		    curr_output.dynamic_service_state = connection_terminated;
 #endif
                 free_connection(connection);
             } else {

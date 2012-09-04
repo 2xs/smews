@@ -235,14 +235,17 @@ out_c (char c)
 	{
 	    UI16 (curr_output.service->in_flight_infos->checksum) = UI16 (current_checksum);
 	}
-	curr_output.dynamic_service_state = sending_first_segment;
+	DYNAMIC_STATE_CHANGE(sending_segment);
+//	curr_output.dynamic_service_state = sending_segment;
 	smews_send ();
-	curr_output.dynamic_service_state = waiting_ack;
+	DYNAMIC_STATE_CHANGE(waiting_ack);
+//	curr_output.dynamic_service_state = waiting_ack;
 	while (curr_output.dynamic_service_state == waiting_ack)
 	    smews_main_loop_step ();
 	if (curr_output.dynamic_service_state == connection_terminated)
 	    return 0;
-	curr_output.dynamic_service_state = none;
+	DYNAMIC_STATE_CHANGE(none);
+//	curr_output.dynamic_service_state = none;
 /* Here, the segment has been sent, and the ACK received, prepare to generate next segment */
 	curr_output.content_length = 0;
 	checksum_init();
@@ -328,6 +331,7 @@ smews_send_packet (struct connection *connection)
 	    break;
 	}
 	case type_generator:
+	    DEBUG_PRINT("Segment sent\r\n");
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
 	    break;
@@ -664,7 +668,7 @@ able_to_send (const struct connection *connection)
 #ifdef DISABLE_COROUTINES
     if (connection->output_handler && CONST_UI8(connection->output_handler->handler_type) == type_generator)
     {
-	if (curr_output.dynamic_service_state != none && curr_output.service != connection->protocol.http.generator_service)
+	if ((curr_output.in_handler ||  curr_output.dynamic_service_state != none) && curr_output.service != connection->protocol.http.generator_service)
 	    return 0; /* Do not serve any other dynamic service except the current one */
 	    
 	/* Dynamic connection, so, if the ACK has not been received, do not send another packet */
@@ -1000,20 +1004,24 @@ smews_send (void)
 
 		    has_ended =	curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */
+		    DEBUG_PRINT("Entering handler\r\n");
 		    /* Here, we have to call the generator handler */
 		    curr_output.in_handler = 1;
+		    curr_output.content_length = 0;
 #ifndef DISABLE_ARGS
 		    /** @warning: check if the retrieving of the handler function pointer has to be done using CONST_ADDR (arduino for instance) */
 		    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);
 #else
 		    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
 #endif
+		    DEBUG_PRINT("Exiting handler\r\n");
 		    curr_output.in_handler = 0;
 		    has_ended = 1;
 		    if (curr_output.dynamic_service_state == connection_terminated)
 		    {
 			/* Connection was closed while serving dynamic content. */
-			curr_output.dynamic_service_state = none;
+			DYNAMIC_STATE_CHANGE(none);
+			//curr_output.dynamic_service_state = none;
 			return 1;
 		    }
 #endif
