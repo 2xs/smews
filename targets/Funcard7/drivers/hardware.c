@@ -70,7 +70,7 @@ extern uint8_t fxeread_next();
 #define INS_RECV_PACKET 0x02
 
 /* Wrappers on APDU header struct */
-unsigned char header[5];
+static unsigned char header[5];
 #define H_CLA(header) ((header)[0])
 #define H_INS(header) ((header)[1])
 #define H_P1(header) ((header)[2])
@@ -92,7 +92,7 @@ static uint16_t segment_left;
 #define PTS_3 0xE7
 
 /* unallows CONST_VAR to target the zero address */
-unsigned char null_eeprom_ptr EEMEM = 0xFF;
+static unsigned char null_eeprom_ptr EEMEM = 0xFF;
 
 #define ATR_LEN_ADDR 16
 static unsigned char atr[] EEMEM = {
