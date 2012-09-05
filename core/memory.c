@@ -88,8 +88,6 @@ void *mem_alloc(uint16_t size) {
 	else if (size == sizeof(struct in_flight_infos_t))
 	    debug_mem_infos++;
 
-	return malloc(size);
-
 	/* memory allocation internals work with 32 bits granularity */
 	if(size % 4 > 0) {
 		size += 4;
@@ -147,9 +145,6 @@ void mem_free(void *ptr, uint16_t size) {
 		struct free_bloc_s *to_free = ptr;
 		struct free_bloc_s *prev_free = NULL;
 		struct free_bloc_s *curr_free = first_free;
-
-		free(ptr);
-		return;
 
 		/* memory allocation internals work with 32 bits granularity */
 		if(size % 4 > 0) {

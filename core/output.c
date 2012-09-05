@@ -56,8 +56,6 @@
 
 #endif
 
-#define DEBUG_PRINT 
-
 /* Common values used for IP and TCP headers */
 #define MSS_OPT 0x0204
 #define IP_VHL_TOS ((uint16_t)0x4500)
@@ -200,7 +198,7 @@ char
 out_c (char c)
 {
 #ifdef DISABLE_COROUTINES
-    if (curr_output.dynamic_service_state == connection_terminated)
+    if (curr_output.dynamic_service_state == connection_terminated || curr_output.dynamic_service_state == none)
     {
 	/* Connection was closed while serving dynamic content.
 	   Let the handler finish without doing anything
@@ -237,7 +235,7 @@ out_c (char c)
 	DYNAMIC_STATE_CHANGE(waiting_ack);
 	while (curr_output.dynamic_service_state == waiting_ack)
 	    smews_main_loop_step ();
-	if (curr_output.dynamic_service_state == connection_terminated)
+	if (curr_output.dynamic_service_state == connection_terminated || curr_output.dynamic_service_state == none)
 	    return 0;
 	DYNAMIC_STATE_CHANGE(in_dynamic);
 /* Here, the segment has been sent, and the ACK received, prepare to generate next segment */
@@ -327,7 +325,6 @@ smews_send_packet (struct connection *connection)
 	case type_generator:
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
-	    DEBUG_PRINT("Segment sent data size: %d, segment size: %d\r\n", curr_output.content_length, segment_length);
 	    break;
 #ifndef DISABLE_GP_IP_HANDLER
 	case type_general_ip_handler:
@@ -713,7 +710,6 @@ smews_send (void)
 
 	if (active_connection == NULL)
 	{
-	    DEBUG_PRINT("No valid connection for sending\r\n");
 	    return 0;
 	}
     /* enable a round robin */
@@ -1005,7 +1001,6 @@ smews_send (void)
 
 		    has_ended =	curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */
-		    DEBUG_PRINT("Entering handler\r\n");
 		    /* Here, we have to call the generator handler */
 		    curr_output.in_handler = 1;
 		    curr_output.content_length = 0;
@@ -1016,7 +1011,6 @@ smews_send (void)
 #else
 		    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(NULL);
 #endif
-		    DEBUG_PRINT("Exiting handler\r\n");
 		    curr_output.in_handler = 0;
 		    has_ended = 1;
 		    if (curr_output.dynamic_service_state == connection_terminated)
