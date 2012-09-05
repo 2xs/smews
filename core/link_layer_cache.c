@@ -54,13 +54,13 @@ typedef struct
     unsigned char link_layer[LINK_LAYER_ADDRESS_SIZE];
 } LinkLayerEntry;
 
-LinkLayerEntry _link_layer_table[LINK_LAYER_CACHE_MAX_ENTRY];
+static LinkLayerEntry _link_layer_table[LINK_LAYER_CACHE_MAX_ENTRY];
 
-#ifndef DISABLE_TIMERS
-#define NOW TIME_MILLIS
+#ifdef TIME_MILLIS
+#define NOW (TIME_MILLIS)
 #else
 static uint32_t _current_time = 0;
-#define NOW (_current_time++)
+#define NOW (++_current_time)
 #endif
 
 #ifndef LINK_LAYER_ADDRESS_SIZE

@@ -36,9 +36,9 @@
 #include "checksum.h"
 
 /* current checksum carry */
-unsigned char checksum_carry;
+static unsigned char checksum_carry;
 /* index of the next checksum byte to compute (0/1) */
-unsigned char checksum_flip;
+static unsigned char checksum_flip;
 /* current checksum */
 unsigned char current_checksum[2];
 

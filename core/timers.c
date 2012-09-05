@@ -40,7 +40,7 @@
 #include "connections.h"
 
 /* Shared global timer list */
-struct timer_t *all_timers;
+static struct timer_t *all_timers;
 /* Used to log connections transmission time */
 unsigned char last_transmission_time;
 

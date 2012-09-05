@@ -43,7 +43,7 @@ struct free_bloc_s {
 };
 
 static uint32_t alloc_buffer[ALLOC_SIZE / 4 + 1];
-struct free_bloc_s *first_free;
+static struct free_bloc_s *first_free;
 
 /* only used for monitoring/debugging purposes */
 int get_free_mem() {
