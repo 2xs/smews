@@ -37,9 +37,9 @@ env.Replace(CC = 'avr-gcc')
 env.Replace(AS = 'avr-as')
 env.Replace(AR = 'avr-ar')
 env.Replace(RANLIB = 'avr-ranlib')
-env.Append(CCFLAGS = '-mmcu=at90s8515 -D __AVR_AT90S8515__ -DDAY=0x`date +%d` -DMONTH=0x`date +%m` -DYEAR=0x`date +%y`')
+env.Append(CCFLAGS = '-ffunction-sections -fdata-sections -mmcu=at90s8515 -D __AVR_AT90S8515__ -DDAY=0x`date +%d` -DMONTH=0x`date +%m` -DYEAR=0x`date +%y`')
 env.Append(ASFLAGS = '-mmcu=at90s8515')
-env.Append(LINKFLAGS = '-mmcu=at90s8515 -D__AVR_AT90S8515__')
+env.Append(LINKFLAGS = '-mmcu=at90s8515 -D__AVR_AT90S8515__ -Wl,--gc-sections -Wl,--print-gc-sections')
 env.Append(CCFLAGS = '-mcall-prologues')
 
 binaryName = projectName + '.bin'
