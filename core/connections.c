@@ -188,7 +188,6 @@ void free_connection(const struct connection *connection) {
 #ifndef DISABLE_ARGS
 	if (connection->protocol.http.args && connection->output_handler)
 	{
-	    printf("Free args\r\n");
 	    mem_free(connection->protocol.http.args, CONST_UI16(connection->output_handler->handler_args.args_size));
 	}
 #endif

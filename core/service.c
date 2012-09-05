@@ -40,7 +40,6 @@
 void clean_service(struct generator_service_t *service, unsigned char inack[]) {
     struct in_flight_infos_t *last_if_ok = NULL;
     struct in_flight_infos_t *first_if_out = service->in_flight_infos;
-    printf("Cleaning service\r\n");
     if(first_if_out) {
         /* look for the first in-flight segment to be free'd (segments are sorted) */
         if(inack) {
@@ -69,7 +68,6 @@ void clean_service(struct generator_service_t *service, unsigned char inack[]) {
                 mem_free((void *)first_if_out->infos.context, sizeof(struct cr_context_t));
             }
 #endif
-	    printf("Freeing infos: %p\r\n", first_if_out);
 	    mem_free((void *)first_if_out, sizeof(struct in_flight_infos_t));
 	    first_if_out = next;
 	}

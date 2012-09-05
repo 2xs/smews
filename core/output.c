@@ -56,7 +56,7 @@
 
 #endif
 
-#define DEBUG_PRINT printf
+#define DEBUG_PRINT 
 
 /* Common values used for IP and TCP headers */
 #define MSS_OPT 0x0204
@@ -94,12 +94,9 @@
 #endif
 
 /* Partially pre-calculated HTTP/1.1 header with checksum */
-static CONST_VAR (char, serviceHttpHeader[]) =
-    "HTTP/1.1 200 OK\r\nContent-Length:";
-static CONST_VAR (char, serviceHttpHeaderPart2[]) =
-    "\r\nContent-Type: text/plain\r\n\r\n";
-static CONST_VAR (char, serviceHttpHeaderChunked[]) =
-    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding:chunked\r\n\r\n";
+static CONST_VAR (char, serviceHttpHeader[]) = "HTTP/1.1 200 OK\r\nContent-Length:";
+static CONST_VAR (char, serviceHttpHeaderPart2[]) = "\r\nContent-Type: text/plain\r\n\r\n";
+static CONST_VAR (char, serviceHttpHeaderChunked[]) = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding:chunked\r\n\r\n";
 
 #define SERVICE_HTTP_HEADER_CHK 0x1871u
 #define SERVICE_HTTP_HEADER_CHUNKED_CHK 0x2876u
@@ -331,9 +328,9 @@ smews_send_packet (struct connection *connection)
 	    break;
 	}
 	case type_generator:
-	    DEBUG_PRINT("Segment sent\r\n");
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
+	    DEBUG_PRINT("Segment sent data size: %d, segment size: %d\r\n", curr_output.content_length, segment_length);
 	    break;
 #ifndef DISABLE_GP_IP_HANDLER
 	case type_general_ip_handler:
@@ -666,6 +663,12 @@ able_to_send (const struct connection *connection)
 #endif
 
 #ifdef DISABLE_COROUTINES
+    /* If we are calling smews_send to send the segment, do not select any other connection */
+    if (curr_output.dynamic_service_state == sending_segment)
+    {
+	if (curr_output.service != connection->protocol.http.generator_service)
+	    return 0;
+    }
     if (connection->output_handler && CONST_UI8(connection->output_handler->handler_type) == type_generator)
     {
 	if ((curr_output.in_handler ||  curr_output.dynamic_service_state != none) && curr_output.service != connection->protocol.http.generator_service)
@@ -713,6 +716,7 @@ smews_send (void)
 
 	if (active_connection == NULL)
 	{
+	    DEBUG_PRINT("No valid connection for sending\r\n");
 	    return 0;
 	}
     /* enable a round robin */
@@ -875,7 +879,7 @@ smews_send (void)
 		    active_connection->protocol.http.comet_streaming = 1;
 		}
 #endif
-	    }
+	    } /* End if generator_service == NULL */
 
 	    /* init the global curr_output structure (usefull for out_c) */
 	    curr_output.service = active_connection->protocol.http.generator_service;
@@ -1068,7 +1072,7 @@ smews_send (void)
 		{
 		    UI16 (if_infos->checksum) = UI16 (current_checksum);
 		}
-	    }
+	    } /* End !is_persistent || !is_retransmitting) */
 	    else
 	    {			/* the segment has to be resent from a buffer: restore it */
 #ifndef DISABLE_COROUTINES

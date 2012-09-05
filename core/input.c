@@ -49,7 +49,7 @@ int16_t stack_i;
 unsigned char *stack_base;
 #endif
 
-#define DEBUG_PRINT printf
+#define DEBUG_PRINT 
 
 /* "404 Not found" handler */
 #define http_404_handler apps_httpCodes_404_html_handler
@@ -1434,7 +1434,6 @@ char smews_receive(void) {
         } else {
             if(tmp_connection.protocol.http.tcp_state == tcp_listen) {
 #ifdef DISABLE_COROUTINES
-		printf("Free connection\r\n");
 		if (curr_output.dynamic_service_state != none && tmp_connection.protocol.http.generator_service == curr_output.service)
 		    DYNAMIC_STATE_CHANGE(connection_terminated);
 //		    curr_output.dynamic_service_state = connection_terminated;
