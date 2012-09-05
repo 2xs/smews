@@ -233,16 +233,13 @@ out_c (char c)
 	    UI16 (curr_output.service->in_flight_infos->checksum) = UI16 (current_checksum);
 	}
 	DYNAMIC_STATE_CHANGE(sending_segment);
-//	curr_output.dynamic_service_state = sending_segment;
 	smews_send ();
 	DYNAMIC_STATE_CHANGE(waiting_ack);
-//	curr_output.dynamic_service_state = waiting_ack;
 	while (curr_output.dynamic_service_state == waiting_ack)
 	    smews_main_loop_step ();
 	if (curr_output.dynamic_service_state == connection_terminated)
 	    return 0;
-	DYNAMIC_STATE_CHANGE(none);
-//	curr_output.dynamic_service_state = none;
+	DYNAMIC_STATE_CHANGE(in_dynamic);
 /* Here, the segment has been sent, and the ACK received, prepare to generate next segment */
 	curr_output.content_length = 0;
 	checksum_init();
@@ -1012,6 +1009,7 @@ smews_send (void)
 		    /* Here, we have to call the generator handler */
 		    curr_output.in_handler = 1;
 		    curr_output.content_length = 0;
+		    DYNAMIC_STATE_CHANGE(in_dynamic);
 #ifndef DISABLE_ARGS
 		    /** @warning: check if the retrieving of the handler function pointer has to be done using CONST_ADDR (arduino for instance) */
 		    GET_GENERATOR(active_connection->output_handler).handlers.get.doget(active_connection->protocol.http.args);

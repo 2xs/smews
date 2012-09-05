@@ -1380,8 +1380,7 @@ char smews_receive(void) {
         if(defer_clean_service) { /* free in-flight segment information for acknowledged segments */
 #ifdef DISABLE_COROUTINES
 	    DYNAMIC_STATE_CHANGE(ack_received);
-            //curr_output.dynamic_service_state = ack_received;
-	     /* received ack of the last dynamic segment, dynamic handling is done */
+	    /* received ack of the last dynamic segment, dynamic handling is done */
 	    if (curr_output.dynamic_service_state != none && /* Dynamic content is served */
 		tmp_connection.protocol.http.generator_service == curr_output.service && /* This is the currently served dynamic connection */
 		!curr_output.in_handler && /* Dynamic handler is finished */
@@ -1389,7 +1388,6 @@ char smews_receive(void) {
 		 (curr_output.service_header == header_none && curr_output.content_length == 0))) /* or the ack of the last void chunk */
 	    {
 		DYNAMIC_STATE_CHANGE(none);
-		//curr_output.dynamic_service_state = none;
 		/* When no coroutine, we only have one in_flight_infos. Thus, it has do be freed only at the end */
 		clean_service(tmp_connection.protocol.http.generator_service, current_inack);
 	    }
@@ -1435,8 +1433,13 @@ char smews_receive(void) {
             if(tmp_connection.protocol.http.tcp_state == tcp_listen) {
 #ifdef DISABLE_COROUTINES
 		if (curr_output.dynamic_service_state != none && tmp_connection.protocol.http.generator_service == curr_output.service)
-		    DYNAMIC_STATE_CHANGE(connection_terminated);
-//		    curr_output.dynamic_service_state = connection_terminated;
+		{
+		    if (curr_output.in_handler)
+			DYNAMIC_STATE_CHANGE(connection_terminated); /* If we are still in the handler, we have to notify it of the end of the connection */
+		    else
+			DYNAMIC_STATE_CHANGE(none); /* Otherwise, the connection was closed while handling last data segment or last chunk, thus can be fully discarded. 
+						       Turn the state to not serving dynamic */
+		}
 #endif
                 free_connection(connection);
             } else {

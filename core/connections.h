@@ -208,7 +208,7 @@ extern struct http_rst_connection rst_connection;
 struct curr_output_t {
     struct generator_service_t *service;
 #ifdef DISABLE_COROUTINES
-    enum dynamic_state {none, sending_segment,waiting_ack, ack_received, connection_terminated} dynamic_service_state:3;
+    enum dynamic_state {none, in_dynamic, sending_segment,waiting_ack, ack_received, connection_terminated} dynamic_service_state:3;
     unsigned char in_handler:1;
 #endif
     char *buffer;
@@ -222,7 +222,7 @@ struct curr_output_t {
 extern struct curr_output_t curr_output;
 
 #ifdef DISABLE_COROUTINES
-#define DYNAMIC_STATE_CHANGE(s) do { /*printf("%s(%d)-%p-%x: %d -> %d (%s) (cl: %d, mb: %d)\r\n", __FILE__, __LINE__, curr_output.service, UI32(curr_output.next_outseqno), curr_output.dynamic_service_state, (s), #s, curr_output.content_length, curr_output.max_bytes);*/curr_output.dynamic_service_state = (s); } while(0)
+#define DYNAMIC_STATE_CHANGE(s) do { printf("%s(%d)-%p-%x: %d -> %d (%s) (cl: %d, mb: %d)\r\n", __FILE__, __LINE__, curr_output.service, UI32(curr_output.next_outseqno), curr_output.dynamic_service_state, (s), #s, curr_output.content_length, curr_output.max_bytes);curr_output.dynamic_service_state = (s); } while(0)
 #endif
 
 /* Local IP address */
