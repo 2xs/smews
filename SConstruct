@@ -191,7 +191,8 @@ if sdump:
 if debug:
 	globalEnv.Append(CCFLAGS = '-O0 -g')
 else:
-	globalEnv.Append(CCFLAGS =  '-Os')
+	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections')
+	globalEnv.Append(LINKFLAGS = '-Wl,--gc-sections -Wl,--print-gc-sections')
 globalEnv.Append(CPPDEFINES = {'CHUNCKS_NBITS' : str(chuncksNbits)})
 for func in toDisable:
 	globalEnv.Append(CPPDEFINES = { disabledHash[func] : '1'})
