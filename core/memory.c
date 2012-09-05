@@ -37,9 +37,6 @@
 
 #include "connections.h"
 
-int debug_mem_buffers = 0;
-int debug_mem_infos = 0;
-
 struct free_bloc_s {
 	uint16_t size;
 	uint16_t to_next;
@@ -82,11 +79,6 @@ void mem_reset(void) {
 void *mem_alloc(uint16_t size) {
 	struct free_bloc_s *prev_free = NULL;
 	struct free_bloc_s *curr_free = first_free;
-
-	if (size == OUTPUT_BUFFER_SIZE)
-	    debug_mem_buffers++;
-	else if (size == sizeof(struct in_flight_infos_t))
-	    debug_mem_infos++;
 
 	/* memory allocation internals work with 32 bits granularity */
 	if(size % 4 > 0) {
@@ -134,12 +126,6 @@ static void chain_free_blocs(struct free_bloc_s *b1, struct free_bloc_s *b2) {
 /* free a bloc of at least size bytes (but multiple of 4).
  * Only use on free data. */
 void mem_free(void *ptr, uint16_t size) {
-
-    	if (size == OUTPUT_BUFFER_SIZE && ptr != NULL)
-	    debug_mem_buffers--;
-	else if (size == sizeof(struct in_flight_infos_t) && ptr != NULL)
-	    debug_mem_infos--;
-
 
 	if(ptr != NULL && size != 0) {
 		struct free_bloc_s *to_free = ptr;

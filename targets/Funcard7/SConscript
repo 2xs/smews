@@ -37,10 +37,32 @@ env.Replace(CC = 'avr-gcc')
 env.Replace(AS = 'avr-as')
 env.Replace(AR = 'avr-ar')
 env.Replace(RANLIB = 'avr-ranlib')
-env.Append(CCFLAGS = '-fno-inline-small-functions -mmcu=at90s8515 -D __AVR_AT90S8515__ -DDAY=0x`date +%d` -DMONTH=0x`date +%m` -DYEAR=0x`date +%y`')
+env.Append(CCFLAGS = '-mmcu=at90s8515 -D __AVR_AT90S8515__ -DDAY=0x`date +%d` -DMONTH=0x`date +%m` -DYEAR=0x`date +%y`')
+
 env.Append(ASFLAGS = '-mmcu=at90s8515')
-env.Append(LINKFLAGS = '-mmcu=at90s8515 -D__AVR_AT90S8515__ -Wl,--relax')
+env.Append(LINKFLAGS = '-mmcu=at90s8515 -D__AVR_AT90S8515__')
 env.Append(CCFLAGS = '-mcall-prologues')
+
+
+# Size optimizations
+ # Saves 2 bytes
+env.Append(CCFLAGS = '-fno-inline-small-functions -fno-inline-functions')
+
+# This does not seem to save anything so disabled, kept in comments for future reference
+# env.Append(CCFLAGS = '-fno-reorder-blocks')
+# env.Append(CCFLAGS = '-fno-reorder-blocks-and-partition')
+# env.Append(CCFLAGS = '-fno-reorder-functions')
+# env.Append(CCFLAGS = '-fno-toplevel-reorder')
+
+# Saves 12 bytes
+env.Append(CCFLAGS = '-fno-move-loop-invariants')
+
+# Saves 8 bytes
+env.Append(CCFLAGS = '-fshort-enums')
+
+# Saves around 25 to 30 bytes (changes CALL and JMP to RCALL and RJMP when possible)
+env.Append(LINKFLAGS = '-Wl,--relax')
+
 
 binaryName = projectName + '.bin'
 env.Command(binaryName, elfName, 'avr-objcopy -R .eeprom -O binary $SOURCE $TARGET')

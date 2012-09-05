@@ -1125,7 +1125,7 @@ char smews_receive(void) {
                                         output_handler = &http_404_handler;
                                         break;
                                     }
-                                    for(i = 0; i < tmp_args_size ; i++) {
+                                    for(i = tmp_args_size ; i; --i) {
                                         ((unsigned char *)tmp_connection.protocol.http.args)[i] = 0;
                                     }
                                     continue;

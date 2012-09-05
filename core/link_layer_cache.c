@@ -71,7 +71,7 @@ static uint32_t _current_time = 0;
 static inline int _ip_equal(const unsigned char *ip1, const unsigned char *ip2)
 {
 	uint8_t i;
-	for (i = 0 ; i < 16 ; ++i)
+	for (i = 16 ; i ; --i)
 		if (ip1[i] != ip2[i])
 			return 0;
 	return 1;
@@ -79,7 +79,7 @@ static inline int _ip_equal(const unsigned char *ip1, const unsigned char *ip2)
 static inline int _ip_is_null(const unsigned char *ip)
 {
 	uint8_t i;
-	for (i = 0 ; i < 16 ; ++i)
+	for (i = 16 ; i ; --i)
 		if (ip[i])
 			return 0;
 	return 1;

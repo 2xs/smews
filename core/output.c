@@ -106,8 +106,7 @@ struct curr_output_t curr_output;
 
 /* default DEV_PUT16 */
 #ifndef DEV_PUT16
-static void
-dev_put16 (unsigned char *word)
+static void dev_put16 (unsigned char *word)
 {
     DEV_PUT (word[1]);
     DEV_PUT (word[0]);
@@ -116,8 +115,7 @@ dev_put16 (unsigned char *word)
 #define DEV_PUT16(w) dev_put16(w)
 #endif
 
-static void
-dev_put16_val (uint16_t word)
+static void dev_put16_val (uint16_t word)
 {
     DEV_PUT (word >> 8);
     DEV_PUT (word);
@@ -127,8 +125,7 @@ dev_put16_val (uint16_t word)
 
 /* default DEV_PUT32 */
 #ifndef DEV_PUT32
-static void
-dev_put32 (unsigned char *dword)
+static void dev_put32 (unsigned char *dword)
 {
     DEV_PUT16 (dword + 2);
     DEV_PUT16 (dword);
@@ -138,8 +135,7 @@ dev_put32 (unsigned char *dword)
 #endif
 
 #ifdef IPV6
-static void
-dev_put32_val (uint32_t word)
+static void dev_put32_val (uint32_t word)
 {
     DEV_PUT (word >> 24);
     DEV_PUT (word >> 16);
@@ -171,8 +167,7 @@ dev_put32_val (uint32_t word)
 #define CONTENT_LENGTH_SIZE 6
 #define CHUNK_LENGTH_SIZE 4
 
-static uint8_t
-_service_headers_size (enum service_header_e service_header)
+static uint8_t _service_headers_size (enum service_header_e service_header)
 {
     uint8_t size = 0;
     switch (service_header)
@@ -194,8 +189,7 @@ _service_headers_size (enum service_header_e service_header)
 }
 
 /*-----------------------------------------------------------------------------------*/
-char
-out_c (char c)
+char out_c (char c)
 {
 #ifdef DISABLE_COROUTINES
     if (curr_output.dynamic_service_state == connection_terminated || curr_output.dynamic_service_state == none)
@@ -252,8 +246,7 @@ out_c (char c)
 }
 
 /*-----------------------------------------------------------------------------------*/
-void
-smews_send_packet (struct connection *connection)
+void smews_send_packet (struct connection *connection)
 {
     uint32_t index_in_file;
     uint16_t segment_length;
@@ -640,8 +633,7 @@ smews_send_packet (struct connection *connection)
 }
 
 /*-----------------------------------------------------------------------------------*/
-static inline int32_t
-able_to_send (const struct connection *connection)
+static inline int32_t able_to_send (const struct connection *connection)
 {
     if (!something_to_send (connection))
 	return 0;
@@ -682,8 +674,7 @@ static char gpip_output_buffer[OUTPUT_BUFFER_SIZE];
 #endif
 
 /*-----------------------------------------------------------------------------------*/
-char
-smews_send (void)
+char smews_send (void)
 {
     /* current handled connection */
     struct connection *active_connection = NULL;
