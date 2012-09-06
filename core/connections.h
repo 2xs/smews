@@ -64,12 +64,12 @@ struct boundary_t {
 
 /* Post data structure */
 struct post_data_t {
-	uint8_t content_type;
 	uint16_t content_length;
 	struct boundary_t *boundary;
 	struct coroutine_t coroutine;
 	char *filename; /* filename of current part */
 	void *post_data; /* data flowing between dopostin and dopostout functions */
+	uint8_t content_type;
 };
 #endif
 
@@ -78,16 +78,16 @@ enum service_header_e {	header_none, header_standard, header_chunks };
 
 /* Information about one in-flight segment (several per service) */
 struct in_flight_infos_t {
-	unsigned char next_outseqno[4]; /* associated sequence number */
-	unsigned char checksum[2]; /* segment checksum */
-	union if_infos_e { /* either a coroutine context or a data buffer */
+    unsigned char next_outseqno[4]; /* associated sequence number */
+    unsigned char checksum[2]; /* segment checksum */
+    union if_infos_e { /* either a coroutine context or a data buffer */
 #ifndef DISABLE_COROUTINES
-		struct cr_context_t *context;
+	struct cr_context_t *context;
 #endif
-		char *buffer;
-	} infos;
-	struct in_flight_infos_t *next; /* the next in-flight segment */
-	enum service_header_e service_header: 2; /* http header infos */
+	char *buffer;
+    } infos;
+    struct in_flight_infos_t *next; /* the next in-flight segment */
+    enum service_header_e service_header: 2; /* http header infos */
 };
 
 struct generator_service_t {
@@ -96,12 +96,15 @@ struct generator_service_t {
 	struct coroutine_t coroutine;
 #endif
 	struct in_flight_infos_t *in_flight_infos;
-	enum service_header_e service_header: 2;
-	unsigned is_persistent: 1;
+    enum service_header_e service_header: 2;
+    unsigned is_persistent: 1;
 };
 
 /* Connection structure */
 struct http_connection {
+	unsigned tcp_mss: 12;
+	unsigned ready_to_send:1;
+	enum tcp_state_e {tcp_listen, tcp_syn_rcvd, tcp_established, tcp_closing, tcp_last_ack} tcp_state: 3;
 	unsigned char next_outseqno[4];
 	unsigned char final_outseqno[4];
 	unsigned char current_inseqno[4];
@@ -111,6 +114,8 @@ struct http_connection {
 	unsigned char inflight[2];
 
 	unsigned const char * /*CONST_VAR*/ blob;
+	struct generator_service_t *generator_service;
+
 #ifndef DISABLE_ARGS
 	struct args_t *args;
 	unsigned char *curr_arg;
@@ -119,29 +124,26 @@ struct http_connection {
 #ifndef DISABLE_TIMERS
 	unsigned char transmission_time;
 #endif
-	uint16_t tcp_mss: 12;
-	uint8_t ready_to_send:1;
-	enum tcp_state_e {tcp_listen, tcp_syn_rcvd, tcp_established, tcp_closing, tcp_last_ack} tcp_state: 3;
 	enum parsing_state_e {parsing_out, parsing_cmd, parsing_url, parsing_end
 #ifndef DISABLE_POST
 	, parsing_post_attributes, parsing_post_end, parsing_post_content_type, parsing_post_args, parsing_post_data, parsing_boundary, parsing_init_buffer	} parsing_state: 4;
-	struct post_data_t *post_data;
 	uint8_t post_url_detected:1; /* bit used to know if url is post or get request */
+	struct post_data_t *post_data;
 #else
-	} parsing_state: 2;
+} parsing_state/*: 2*/; /* this field will be on one byte anyway as previous fields are exactly 16 bits.
+			   Using a full char does not change the struct size, but lower the code size needed to access it */
 #endif
 #ifndef DISABLE_COMET
 	unsigned char comet_passive: 1;
 	unsigned char comet_send_ack: 1;
 	unsigned char comet_streaming: 1;
 #endif
-	struct generator_service_t *generator_service;
 };
 
 #ifndef DISABLE_GP_IP_HANDLER
 struct gp_ip_connection {
-	uint8_t protocol;
 	uint16_t payload_size;
+	uint8_t protocol;
 	uint8_t want_to_send;
 };
 #endif
