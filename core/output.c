@@ -192,7 +192,7 @@ static uint8_t _service_headers_size (enum service_header_e service_header)
 char out_c (char c)
 {
 #ifdef DISABLE_COROUTINES
-    if (curr_output.dynamic_service_state == connection_terminated || curr_output.dynamic_service_state == none)
+    if (curr_output.service != NULL && (curr_output.dynamic_service_state == connection_terminated || curr_output.dynamic_service_state == none))
     {
 	/* Connection was closed while serving dynamic content.
 	   Let the handler finish without doing anything
