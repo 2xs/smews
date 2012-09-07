@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2012-02-21 16:52:53 (hauspie)>
+  Time-stamp: <2012-09-07 10:01:45 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -93,10 +93,10 @@ int mbed_eth_fill_header(const unsigned char *ip)
 
    if (!get_link_layer_address(ip, dst_addr.addr))
    {
-      return 0;
+       return 0;
    }
    idx = 0;
-   /* Put the destination addre in the frame header */
+   /* Put the destination address in the frame header */
    PUT_MAC(ethernet_header, idx, dst_addr.addr);
    return 1;
 }
