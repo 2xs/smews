@@ -1,49 +1,105 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html lang="en">
+  
+  <head>
+    <meta charset="utf-8">
+    <title>Smews LED Matrix control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <!-- Le styles -->
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/spectrum.css" rel="stylesheet">
+    <style>
+      body { 
+      background: lightgray; 
+      padding-top: 60px; 
+      }
+      .color {
+      text-align: center;
+      width: 64px;
+      height: 64px;
+      border: none;
+      -webkit-border-radius: 15px;
+      -moz-border-radius: 15px;
+      border-radius: 15px;
+      }
+      h1 {text-align: center}
+      .center {text-align: center}
+    </style>
+    <link href="assets/css/bootstrap_responsive.min.css" rel="stylesheet">
+    <style>
+      undefined
+    </style>
+    <script type="text/javascript">
+      
+      function changeColor(color)
+      {
+      $.ajax({
+      type: "GET",
+      url: "led_color?color="+color.substring(1),
+      dataType: 'application/octet-stream',
+      success: function(msg) {
+      },
+      complete: function(xhr, textStatus) {
+      }
+      });
+      }
+      
+      function changeText(text)
+      {
+      $.ajax({
+      type: "GET",
+      url: "led_text?text="+text,
+      dataType: 'application/octet-stream',
+      success: function(msg) {
+      },
+      complete: function(xhr, textStatus) {
+      }
+      });
+      
+      }
+    </script>
 
-<head>
-<title>Smews LED matrix demo</title>
-<script type="text/javascript" src="jscolor/jscolor.js"></script>
-<script type="text/javascript" src="jquery.min.js"></script>
-<script type="text/javascript">
+  </head>
+  
+  <body>
+    <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="brand" href="#">
+            LED Matrix controlled by Smews
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row-fluid">
+	<div class="span3"></div>
+	<div class="span6">
 
-function changeColor(color)
-{
-   $.ajax({
-                type: "GET",
-                url: "led_color?color="+color,
-                dataType: 'application/octet-stream',
-                success: function(msg) {
-                },
-                complete: function(xhr, textStatus) {
-                }
-            });
-}
+	  <h1>Select text and color</h1>
+	  <div class="center">
+	    <p>
+	      <input type="color" name="color" class="color" onchange="changeColor(this.value)"> 
+	      &nbsp; <input size="64" id="text_select" type="text" name="text" onchange="changeText(this.value)" value="">
+	    </p>
+	  </div>
+	  <h1>Try me!</h1>
+	  <div class="center">
+	    <p>
+	      <img src="assets/imgs/qrcode.png" alt="QRCode" />
+	    </p>
+	  </div>
+	</div>
+      </div>
+      <div class="span3">
+      </div>
 
-function changeText(text)
-{
-   $.ajax({
-                type: "GET",
-                url: "led_text?text="+text,
-                dataType: 'application/octet-stream',
-                success: function(msg) {
-                },
-                complete: function(xhr, textStatus) {
-                }
-            });
 
-}
-</script>
-</head>
-
-<body>
-<p>Select a color to use:
-<input class="color" name="color" onchange="changeColor(this.color)">
-</p>
-<p>Select the text to display:
-<input size="64" id="text_select" type="text" name="text" onchange="changeText(this.value)" value="">
-</p>
-<p id="currentsettings"></p>
-</body>
+      <script src="assets/js/jquery.min.js"></script>
+      <script src="assets/js/bootstrap.min.js"></script>
+      <script src="assets/js/spectrum.js"></script>
+  </body>
 
 </html>
