@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-29
-  Time-stamp: <2012-02-21 16:53:12 (hauspie)>
+  Time-stamp: <2012-10-02 10:11:46 (hauspie)>
 */
 
 /*
@@ -43,7 +43,7 @@
         <handlers init="kernel_console_init" doGet="kernel_console_get"/>
 </generator>
 */
-
+#include "handlers.h"
 #include "kernel_console.h"
 
 static char kernel_console_get(struct args_t *args)
@@ -73,6 +73,7 @@ void kernel_console_help(const char *args);
 void kernel_console_mem_state(const char *args);
 void kernel_console_ll_state(const char *args);
 void kernel_console_connections_state(const char *args);
+void kernel_console_ressource_index(const char *args);
 
 void kernel_console_parse_command();
 
@@ -84,6 +85,7 @@ static console_command_t _console_commands[KERNEL_CONSOLE_COMMAND_SIZE] = {
     CONSOLE_COMMAND(mem_state, "ms", "Dump the state of memory"),
     CONSOLE_COMMAND(ll_state, "ls", "Dump the state of link layer resolve table"),
     CONSOLE_COMMAND(connections_state, "cs", "Show the connections state"),
+    CONSOLE_COMMAND(ressource_index, "ri", "Show the available ressources"),
     {NULL,NULL,NULL,NULL},
 };
 
@@ -94,6 +96,35 @@ static char kernel_console_init()
 {
 	kernel_console_prompt();
 	return 0;
+}
+
+
+extern CONST_VAR(const struct output_handler_t *, resources_index[]);
+extern CONST_VAR(unsigned char, urls_tree[]);
+void kernel_console_ressource_index(const char *args)
+{
+    uint8_t i,j;
+    for (i = 0 ; resources_index[i] != NULL ; ++i)
+    {
+	struct output_handler_t *handler = (struct output_handler_t*) CONST_ADDR(resources_index[i]);
+	KERNEL_CONSOLE_PRINT("%d %p ", i, handler);
+	switch (handler->handler_type)
+	{
+	    case type_file:
+		KERNEL_CONSOLE_PRINT("File: ");
+        break;
+	    case type_control:
+		KERNEL_CONSOLE_PRINT("Control: ");
+		break;
+	    case type_generator:
+		KERNEL_CONSOLE_PRINT("Generator: ");
+			break;
+	    default:
+		break;
+	}
+	KERNEL_CONSOLE_PRINT("\r\n");
+    }
+    KERNEL_CONSOLE_PRINT("Url tree: %p\r\n", CONST_ADDR(urls_tree));
 }
 
 void kernel_console_connections_state(const char *args)
