@@ -1,3 +1,5 @@
+1.6.2d:
+	- Fix the smews URL in the userguide
 1.6.2c:
 	- Bump summon-rflpc to use v0.6a
 	- Fixed mbed_ethernet SConscript to use -mthumb
