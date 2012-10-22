@@ -34,7 +34,7 @@ fi
 
 git checkout -B $RFLPC_RELEASE >& /dev/null
 
-TMP_LOG_FILE=`mktemp`
+TMP_LOG_FILE=`mktemp /tmp/tmp.XXXXXXXX`
 echo "Compiling library"
 # Creating config file
 cp $RFLPC_CONFIG_FILE_SRC $RFLPC_CONFIG_FOLDER
