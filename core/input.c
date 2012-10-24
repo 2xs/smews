@@ -251,16 +251,19 @@ short in(){
 #ifndef DISABLE_GP_IP_HANDLER
 static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol)
 {
-    /* Try to find a handler that match the protocol number */
-    uint8_t i;
-    for (i = 0 ; resources_index[i] != NULL ; ++i)
-    {
-        if (!IS_GPIP_HANDLER(resources_index[i]))
-            continue;
-        if (resources_index[i]->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
-            return resources_index[i];
-    }
-    return NULL;
+	/* Try to find a handler that match the protocol number */
+	uint8_t i;
+	for (i = 0 ; ; ++i)
+	{
+	    struct output_handler_t *handler = (struct output_handler_t*)CONST_ADDR(resources_index[i]);
+	    if (handler == NULL)
+		return NULL;
+	    if (!IS_GPIP_HANDLER(handler))
+		continue;
+	    if (handler->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
+		return handler;
+	}
+	return NULL;
 }
 
 /*static struct connection *smews_gpip_get_connection(uint8_t protocol, unsigned char *source_ip)
