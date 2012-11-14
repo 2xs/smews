@@ -16,15 +16,17 @@
 /*
   Author: Michael Hauspie <Michael.Hauspie@univ-lille1.fr>
   Created: 
-  Time-stamp: <2011-10-10 10:20:46 (hauspie)>
+  Time-stamp: <2012-11-14 16:55:07 (hauspie)>
 */
 #include <stdint.h>
 #include <rflpc17xx/rflpc17xx.h>
 
+#include "types.h"
+
 #include "led_common.h"
 
 /* Ascii table, 8 bytes per character, 1 byte per row */
-uint8_t font[] = {
+CONST_VAR(uint8_t ,font[]) = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00   ,// U+0000 (nul)
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00   ,// U+0001
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00   ,// U+0002
@@ -283,8 +285,6 @@ uint8_t font[] = {
     0x00, 0x33, 0x00, 0x33, 0x33, 0x3E, 0x30, 0x1F   ,//00FF (y umlaut)
 };
 
-int font_size = sizeof(font)/sizeof(font[0]);
-
 #define GET_BIT(c,b) (((c) >> (b)) & 1)
 
 
@@ -301,7 +301,7 @@ void display_char(uint8_t *buffer, unsigned char c, int led_column, uint8_t colo
     }
     for (i = 0 ; i < 8 ; ++i)
     {
-	uint8_t row = font[(c<<3) + i];
+	uint8_t row = CONST_READ_UI8(font + (c<<3) + i);
 	for (j = led_column ; j < led_stop ; ++j)
 	{
 	    if (GET_BIT(row,((j+char_start)-led_column)))
