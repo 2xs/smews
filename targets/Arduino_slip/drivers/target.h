@@ -1,7 +1,7 @@
 /*
-* Copyright or © or Copr. 2008, Simon Duquennoy
+* Copyright or © or Copr. 2008-2013, Simon Duquennoy, Thomas Vantroys
 * 
-* Author e-mail: simon.duquennoy@lifl.fr
+* Author e-mail: thomas.vantroys@univ-lille1.fr
 * 
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
@@ -87,10 +87,6 @@ extern volatile uint32_t global_timer;
 #define ENDIANNESS LITTLE_ENDIAN
 
 /* Context switching */
-/* To be done */
-
-//#define BACKUP_CTX(sp)
-//#define BACKUP_CTX(sp) do {cli(); (sp)[0] = (uint16_t *)((SPH<<8)|SPL);sei(); } while(0);
 #define BACKUP_CTX(sp) \
 		{\
 			uint16_t temp = SP;\
@@ -98,8 +94,6 @@ extern volatile uint32_t global_timer;
 		}
 
 
-//#define RESTORE_CTX(sp)
-//#define RESTORE_CTX(sp) do { SPH = ((uint16_t)(sp)[0])>>8; SPL=((uint16_t)(sp)[0])&0xFF;} while(0);
 #define RESTORE_CTX(sp) \
 		{\
 			uint16_t temp = (uint16_t)sp[0];\
@@ -111,10 +105,7 @@ extern volatile uint32_t global_timer;
 	({ \
 	 asm volatile ( \
 		 "push r0 \n\t" \
-		 "in r0, __SREG__ \n\t" \
-		 "push r0 \n\t" \
 		 "push r1 \n\t" \
-		 "clr __zero_reg__ \n\t"\
 		 "push r2 \n\t" \
 		 "push r3 \n\t" \
 		 "push r4 \n\t" \
@@ -184,26 +175,14 @@ extern volatile uint32_t global_timer;
 		 "pop r2 \n\t" \
 		 "pop r1 \n\t" \
 		 "pop r0 \n\t" \
-		 "out __SREG__, r0 \n\t" \
-		 "pop r0 \n\t" \
 		); \
 	})
 
 
 /* Smews configuration */
-////#define OUTPUT_BUFFER_SIZE 512
 #define OUTPUT_BUFFER_SIZE 256
-//#define ALLOC_SIZE 2048
-////#define ALLOC_SIZE 1024 // Arduino
-#define ALLOC_SIZE 768 // Arduino
-////#define STACK_SIZE 64
+#define ALLOC_SIZE 768
 #define STACK_SIZE 256
-
-/* IP address */
-#define IP_ADDR_0 192
-#define IP_ADDR_1 168
-#define IP_ADDR_2 1
-#define IP_ADDR_3 8
 
 /* For automatic test purpose */
 #define TEST_ARRAY_SIZE	128
