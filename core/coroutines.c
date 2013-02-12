@@ -49,9 +49,9 @@ volatile void *main_sp[1];
 /* Shared stack used for the execution of all coroutines */
 static char shared_stack[STACK_SIZE];
 /* The coroutine currently using the stack */
-static struct coroutine_t *cr_in_stack;
+static struct coroutine_t *cr_in_stack = NULL;
 /* Currently running coroutine. Null when the main program is running. */
-static volatile struct coroutine_t *current_cr;
+static volatile struct coroutine_t *current_cr = NULL;
 
 /* initialize a coroutine structure */
 void cr_init(struct coroutine_t *coroutine) {
