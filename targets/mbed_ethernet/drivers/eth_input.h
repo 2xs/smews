@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-09 14:00:24 (hauspie)>
+  Time-stamp: <2013-02-13 14:52:41 (hauspie)>
 */
 #ifndef __ETH_INPUT_H__
 #define __ETH_INPUT_H__
@@ -58,7 +58,7 @@ extern int mbed_process_input(const uint8_t *packet, int size);
  * returns the next available byte of the IP packet
  * @return
  */
-extern uint8_t mbed_eth_get_byte();
+extern uint16_t mbed_eth_get_byte();
 
 /**
  * Checks if a byte is available for read

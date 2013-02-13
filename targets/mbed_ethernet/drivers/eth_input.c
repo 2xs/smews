@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2011-09-29 10:02:00 (hauspie)>
+  Time-stamp: <2013-02-13 14:53:03 (hauspie)>
 */
 #include <rflpc17xx/rflpc17xx.h>
 
@@ -60,13 +60,13 @@ volatile uint32_t current_rx_frame_idx = 0;
 
 volatile int byte_count = 0;
 
-uint8_t mbed_eth_get_byte()
+uint16_t mbed_eth_get_byte()
 {
     uint8_t byte;
     if (current_rx_frame == NULL)
     {
 		MBED_DEBUG("SMEWS Required a byte but none available!\r\n");
-		return 0;
+		return -1;
     }
 
     byte = current_rx_frame[current_rx_frame_idx++];
