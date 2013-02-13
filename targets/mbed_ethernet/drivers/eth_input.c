@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2013-02-13 14:53:03 (hauspie)>
+  Time-stamp: <2013-02-13 17:06:04 (hauspie)>
 */
 #include <rflpc17xx/rflpc17xx.h>
 
@@ -60,7 +60,7 @@ volatile uint32_t current_rx_frame_idx = 0;
 
 volatile int byte_count = 0;
 
-uint16_t mbed_eth_get_byte()
+int16_t mbed_eth_get_byte()
 {
     uint8_t byte;
     if (current_rx_frame == NULL)
