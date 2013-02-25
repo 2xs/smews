@@ -258,7 +258,7 @@ char get_send_code(const void *connection)
 /* Defined in input.c and needed to find the connection output handler */
 extern const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol);
 
-char request_packet_out_call(uint8_t protocol, unsigned char *dst_ip)
+char request_packet_out_call(unsigned char protocol, unsigned char *dst_ip)
 {
     struct connection tmp_connection;
     struct connection *connection = NULL;

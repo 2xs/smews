@@ -266,7 +266,7 @@ extern char get_send_code(const void *connection);
  * @param dst_ip the destination IP. @warning When using IPV6 address, dst_ip must point to a *compressed ip* (use ::compress_ip)
  * @return 0 if error, 1 otherwise
  */
-extern char request_packet_out_call(uint8_t protocol, unsigned char *dst_ip);
+extern char request_packet_out_call(unsigned char protocol, unsigned char *dst_ip);
 
 #endif
 
