@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2013-02-25 16:46:44 (hauspie)>
+  Time-stamp: <2013-02-25 17:02:24 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
@@ -97,7 +97,6 @@ int mbed_eth_fill_header(const unsigned char *ip)
 	  (or IPv6 neighbor discovery) and to queue packet for later sending.
 	  However... we are not polite :p */
        memset(dst_addr.addr, 0xff, 6);
-       return 0;
    }
    idx = 0;
    /* Put the destination addr in the frame header */
