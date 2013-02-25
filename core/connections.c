@@ -255,4 +255,36 @@ char get_send_code(const void *connection)
 	return ((const struct connection*)connection)->protocol.gpip.want_to_send;
 }
 
+/* Defined in input.c and needed to find the connection output handler */
+extern const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol);
+
+char request_packet_out_call(uint8_t protocol, unsigned char *dst_ip)
+{
+    struct connection tmp_connection;
+    struct connection *connection = NULL;
+
+
+    /* Get the GPIP output handler */
+    tmp_connection.output_handler = smews_gpip_get_output_handler(protocol);
+    if (tmp_connection.output_handler == NULL)
+	return 0;
+
+    tmp_connection.protocol.gpip.protocol = protocol;
+    /* add the connection */
+    connection = add_connection(&tmp_connection);
+    if (connection == NULL)
+	return 0;
+
+    /* update the connection */
+#ifdef IPV6
+    copy_compressed_ip(connection->ip_addr, dst_ip);
+#else
+    memcpy(connection->ip_addr, dst_ip, 4);
+#endif
+    connection->protocol.gpip.payload_size = 0;
+    connection->protocol.gpip.want_to_send = 1;
+    
+}
+
+
 #endif
