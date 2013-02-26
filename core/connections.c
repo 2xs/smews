@@ -283,7 +283,7 @@ char request_packet_out_call(unsigned char protocol, unsigned char *dst_ip)
 #endif
     connection->protocol.gpip.payload_size = 0;
     connection->protocol.gpip.want_to_send = 1;
-    
+    return 1;
 }
 
 
