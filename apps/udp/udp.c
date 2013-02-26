@@ -124,8 +124,7 @@ char udp_packet_in(const void *connection_info)
     /* Checksum */
     n->args.chk = (in() << 8) | in();
     n->args.connection_info = connection_info;
-    n->packet_in(&(n->args));
-    return 0;
+    return n->packet_in(&(n->args));
 }
 
 static uint8_t _udp_output_buffer[OUTPUT_BUFFER_SIZE];
