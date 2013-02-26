@@ -49,20 +49,29 @@ static char udp_test_get(struct args_t *args)
     return 0;
 }
 
-char udp_test_in(uint16_t size)
+char udp_test_in(struct udp_args_t *udp_args)
 {
     int i;
-    for (i = 0 ; i < size ; ++i)
+#ifdef IPV6
+    unsigned char ip[16];
+#else
+    unsigned char ip[4];
+#endif
+    for (i = 0 ; i < udp_args->payload_size ; ++i)
     {
 	if (i % 16 == 0)
 	    printf("\r\n%04x ", i);
 	printf("%02x ", in());
     }
+    get_remote_ip(udp_args->connection_info, ip);
+    udp_request_send(ip, udp_args->src_port, udp_args->dst_port);
     return 0;
 }
 
-char udp_test_out(void)
+char udp_test_out(struct udp_args_t *udp_args)
 {
+    const char *str = "Received!\r\n";
+    udp_outa(str, 11);
     return 0;
 }
 

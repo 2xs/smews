@@ -35,14 +35,25 @@
 #ifndef __UDP_H__
 #define __UDP_H__
 
-typedef char (*udp_packet_in_t)(uint16_t);
-typedef char (*udp_packet_out_t)(void);
+struct udp_args_t
+{
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint16_t payload_size;
+    uint16_t chk;
+    const void *connection_info;
+    const void *udp_handle;
+};
+
+
+typedef char (*udp_packet_in_t)(struct udp_args_t *);
+typedef char (*udp_packet_out_t)(struct udp_args_t *);
 
 void *udp_listen(uint16_t port, udp_packet_in_t packet_in_callback, udp_packet_out_t packet_out_callback);
-void udp_request_send(const  void *udp_handle, unsigned char *dst_ip, uint16_t dst_port);
+void udp_request_send(unsigned char *dst_ip, uint16_t dst_port, uint16_t source_port);
 
 char udp_in();
 void udp_outc(char c);
-void udp_outa(unsigned char *array, uint16_t array_size);
+void udp_outa(const void *array, uint16_t array_size);
 
 #endif
