@@ -60,9 +60,11 @@ char udp_test_in(struct udp_args_t *udp_args)
 	    printf("\r\n%04x ", i);
 	printf("%02x ", in());
     }
+    /* Switch ports for answer */
     tmp = udp_args->src_port;
     udp_args->src_port = udp_args->dst_port;
     udp_args->dst_port = tmp;
+    /* Returning 1 requests a call to the out callback */
     return 1;
 }
 
