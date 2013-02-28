@@ -107,14 +107,6 @@ struct dhcp_transaction_t
 
 static struct dhcp_transaction_t _current_transaction;
 
-#ifdef IPV6
-#else
-/* Should be a CONST_VAR to store in EEPROM, but will be then difficult
-   to use in udp_request...
-*/
-static unsigned char _broadcast_ip[4] = {0xff, 0xff, 0xff, 0xff};
-#endif
-
 
 static void dhcp_commit_ip(void)
 {
@@ -363,6 +355,10 @@ static char dhcp_out(struct udp_args_t *udp_args)
 
 static char dhcp_init(void)
 {
+#ifdef IPV6
+#else
+    unsigned char _broadcast_ip[4] = {0xff, 0xff, 0xff, 0xff};
+#endif
     udp_listen(DHCP_CLIENT_PORT, dhcp_in, dhcp_out);
     /* Send DHCPDISCOVER */
     _current_transaction.state = DHCP_STATE_INIT;
