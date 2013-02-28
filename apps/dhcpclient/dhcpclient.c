@@ -79,6 +79,7 @@ extern unsigned char local_ip_addr[4];
 /* Options Code */
 #define OPTION_SUBNET_MASK 1
 #define OPTION_ROUTER 3
+#define OPTION_DHCP_CLIENT_FQDN 81
 #define OPTION_DHCP_REQUESTED_IP 50
 #define OPTION_DHCP_LEASE_TIME 51
 #define OPTION_DHCP_MESSAGE_TYPE 53
@@ -243,6 +244,11 @@ static void out_16bits(uint32_t val)
     udp_outc(val & 0xff);
 }
 
+static void out_a(const char *a, uint16_t size)
+{
+    for (; size ; --size)
+	udp_outc(*a++);
+}
 
 static void dhcp_send_common_header(void)
 {
@@ -253,6 +259,19 @@ static void dhcp_send_common_header(void)
     out_32(_current_transaction.xid);          /* XID: transaction ID */
     out_16bits(0);                     /* SECS: seconds elapsed since start of processs. @todo: fill it correctly */
     out_16bits(0);                     /* Flags: set to 0 */
+}
+
+static void dhcp_send_client_fqdn_option(void)
+{
+    /* Option is defined in RFC 4702 */
+    udp_outc(OPTION_DHCP_CLIENT_FQDN);
+    udp_outc(10); /* 10 bytes is the length of the option */
+    udp_outc(0x5); /* flags. 0x5=1 | 4. 1 indicates that the dhcp server should update the dns entry and 1 specify the encoding of the fqdn */
+    udp_outc(0); udp_outc(0); /* RCODE1, RCODE2 -> deprecated, must set to 0 */
+    /* FQDN as defined in RFC1035 (canonical wire encoding) */
+    udp_outc(5); /* FQDN size */
+    out_a("smews", 5);
+    udp_outc(0); /* FQDN must end with a zero length label */
 }
 
 static void dhcp_send_common_footer(void)
@@ -304,6 +323,7 @@ static void dhcp_send_discover(void)
 	out_32(0); /* ciaddr, yiaddr, siaddr, giaddr */
     dhcp_send_common_footer(); /* chaddr, sname, file, magic cookie */
     dhcp_put_option_8(OPTION_DHCP_MESSAGE_TYPE, DHCPDISCOVER);
+    dhcp_send_client_fqdn_option();
     udp_outc(OPTION_END);
     _current_transaction.state = DHCP_STATE_SELECTING;
 }
@@ -321,6 +341,7 @@ static void dhcp_send_request(void)
     dhcp_put_option_8(OPTION_DHCP_MESSAGE_TYPE, DHCPREQUEST);
     dhcp_put_option_32(OPTION_DHCP_REQUESTED_IP, _current_transaction.offered_ip);
     dhcp_put_option_32(OPTION_DHCP_SERVER_IDENTIFIER, _current_transaction.server_ip);
+    dhcp_send_client_fqdn_option();
     udp_outc(OPTION_END);
     _current_transaction.state = DHCP_STATE_REQUESTING;
 }
