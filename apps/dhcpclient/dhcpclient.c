@@ -144,7 +144,7 @@ static uint32_t in_32(void)
 static char dhcp_in(struct udp_args_t *udp_args)
 {
     uint8_t i;
-    uint32_t ciaddr,yiaddr,siaddr;
+    uint32_t yiaddr;
     uint8_t message_type;
 
     /* Check current state */
@@ -158,9 +158,9 @@ static char dhcp_in(struct udp_args_t *udp_args)
     if (in_32() != _current_transaction.xid)
 	return 0; /* drop packet */
     in_32(); /* discard secs and flags */
-    ciaddr = in_32();
+    in_32(); /* discard ciaddr */
     yiaddr = in_32();
-    siaddr = in_32();
+    in_32(); /* discard siaddr */
     in_32(); /* discard giaddr */
     for (i = 0 ; i < 208 ; ++i) /* discard chaddr, sname, file */
 	udp_in();
@@ -215,6 +215,9 @@ static char dhcp_in(struct udp_args_t *udp_args)
     {
 	_current_transaction.state = DHCP_STATE_REQUESTING;
 	dhcp_commit_ip();
+	/* Swap ports */
+	udp_args->src_port = DHCP_CLIENT_PORT;
+	udp_args->dst_port = DHCP_SERVER_PORT;
 	return 1; /* 1 for requesting a reply generation */
     }
     else if (message_type == DHCPACK)
@@ -295,7 +298,7 @@ static void dhcp_put_option_32(uint8_t code, uint32_t val)
 static void dhcp_send_discover(void)
 {
     uint8_t i;
-    _current_transaction.xid = TIME_MILLIS; /* @todo: check other targets for rand availability. */
+    _current_transaction.xid = 0xcafedeca; /* @todo: check other targets for rand availability. */
     dhcp_send_common_header();
     for (i = 0 ; i < 4 ; ++i)
 	out_32(0); /* ciaddr, yiaddr, siaddr, giaddr */
@@ -307,10 +310,10 @@ static void dhcp_send_discover(void)
 
 static void dhcp_send_request(void)
 {
+    uint8_t i;
     dhcp_send_common_header();
     /* Offered IP */
-    /*out_32(_current_transaction.offered_ip);*/
-    out_32(0);
+    out_32(_current_transaction.offered_ip);
     out_32(0); /* yiaddr */
     out_32(_current_transaction.server_ip); /* siaddr */
     out_32(0); /* giaddr */
