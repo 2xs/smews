@@ -118,6 +118,9 @@ static void dhcp_commit_ip(void)
     local_ip_addr[1] = (_current_transaction.offered_ip >> 8) & 0xff;
     local_ip_addr[0] = _current_transaction.offered_ip & 0xff;
 #endif
+#ifdef TARGET_PRINTF
+    TARGET_PRINTF("DHCP: Bound to %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
+#endif
 }
 static char dhcp_get(struct args_t *args)
 {
@@ -138,7 +141,7 @@ static char dhcp_in(struct udp_args_t *udp_args)
 {
     uint8_t i;
     uint32_t yiaddr;
-    uint8_t message_type;
+    uint8_t message_type = 0;
 
     /* Check current state */
     if (_current_transaction.state != DHCP_STATE_SELECTING &&
@@ -187,6 +190,7 @@ static char dhcp_in(struct udp_args_t *udp_args)
 		    case DHCPACK:
 			if (_current_transaction.state != DHCP_STATE_REQUESTING)
 			    return 0; /* drop */
+			break;
 		    default:
 		    case DHCPNAK:
 			return 0; /* Drop not handled packets */
@@ -207,7 +211,6 @@ static char dhcp_in(struct udp_args_t *udp_args)
     if (message_type == DHCPOFFER)
     {
 	_current_transaction.state = DHCP_STATE_REQUESTING;
-	dhcp_commit_ip();
 	/* Swap ports */
 	udp_args->src_port = DHCP_CLIENT_PORT;
 	udp_args->dst_port = DHCP_SERVER_PORT;
@@ -309,7 +312,7 @@ static void dhcp_put_option_32(uint8_t code, uint32_t val)
 static void dhcp_send_discover(void)
 {
     uint8_t i;
-    _current_transaction.xid = 0xcafedeca; /* @todo: check other targets for rand availability. */
+    _current_transaction.xid = TIME_MILLIS; /* @todo: check other targets for rand availability. */
     dhcp_send_common_header();
     for (i = 0 ; i < 4 ; ++i)
 	out_32(0); /* ciaddr, yiaddr, siaddr, giaddr */
@@ -318,11 +321,13 @@ static void dhcp_send_discover(void)
     dhcp_send_client_fqdn_option();
     udp_outc(OPTION_END);
     _current_transaction.state = DHCP_STATE_SELECTING;
+#ifdef TARGET_PRINTF
+    TARGET_PRINTF("Sending DHCP Discover\r\n");
+#endif
 }
 
 static void dhcp_send_request(void)
 {
-    uint8_t i;
     dhcp_send_common_header();
     /* Offered IP */
     out_32(_current_transaction.offered_ip);
@@ -336,6 +341,9 @@ static void dhcp_send_request(void)
     dhcp_send_client_fqdn_option();
     udp_outc(OPTION_END);
     _current_transaction.state = DHCP_STATE_REQUESTING;
+#ifdef TARGET_PRINTF
+    TARGET_PRINTF("Sending DHCP Request\r\n");
+#endif
 }
 
 static char dhcp_out(struct udp_args_t *udp_args)
