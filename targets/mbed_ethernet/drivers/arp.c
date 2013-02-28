@@ -47,7 +47,7 @@
 #include "ip.h"
 #include "link_layer_cache.h"
 
-uint8_t _arp_reply_buffer[PROTO_MAC_HLEN + PROTO_ARP_HLEN];
+uint8_t _arp_reply_buffer[PROTO_MAC_HLEN + PROTO_ARP_HLEN] __attribute__ ((section(".out_ram")));;
 
 void proto_arp_demangle(ArpHead *ah, const uint8_t *data)
 {
