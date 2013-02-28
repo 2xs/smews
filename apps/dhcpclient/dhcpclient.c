@@ -53,6 +53,12 @@
 #include "apps/udp/udp.h"
 
 
+#ifdef IPV6
+extern unsigned char local_ip_addr[16];
+#else
+extern unsigned char local_ip_addr[4];
+#endif
+
 /* DHCP_MESSAGE_TYPES */
 #define DHCPDISCOVER 1     
 #define DHCPOFFER    2     
@@ -108,6 +114,18 @@ static struct dhcp_transaction_t _current_transaction;
 static unsigned char _broadcast_ip[4] = {0xff, 0xff, 0xff, 0xff};
 #endif
 
+
+static void dhcp_commit_ip(void)
+{
+    /* Commit IP to smews */
+#ifdef IPV6
+#else
+    local_ip_addr[3] = _current_transaction.offered_ip >> 24;
+    local_ip_addr[2] = (_current_transaction.offered_ip >> 16) & 0xff;
+    local_ip_addr[1] = (_current_transaction.offered_ip >> 8) & 0xff;
+    local_ip_addr[0] = _current_transaction.offered_ip & 0xff;
+#endif
+}
 static char dhcp_get(struct args_t *args)
 {
     return 0;
@@ -196,10 +214,14 @@ static char dhcp_in(struct udp_args_t *udp_args)
     if (message_type == DHCPOFFER)
     {
 	_current_transaction.state = DHCP_STATE_REQUESTING;
+	dhcp_commit_ip();
 	return 1; /* 1 for requesting a reply generation */
     }
     else if (message_type == DHCPACK)
+    {
+	dhcp_commit_ip();
 	_current_transaction.state = DHCP_STATE_BOUND;
+    }
     return 0;
 }
 
@@ -287,7 +309,8 @@ static void dhcp_send_request(void)
 {
     dhcp_send_common_header();
     /* Offered IP */
-    out_32(_current_transaction.offered_ip);
+    /*out_32(_current_transaction.offered_ip);*/
+    out_32(0);
     out_32(0); /* yiaddr */
     out_32(_current_transaction.server_ip); /* siaddr */
     out_32(0); /* giaddr */
