@@ -1,5 +1,5 @@
 /*
-* Copyright or Â© or Copr. 2008, Simon Duquennoy
+* Copyright or © or Copr. 2008, Simon Duquennoy
 *
 * Author e-mail: simon.duquennoy@lifl.fr
 *
@@ -256,6 +256,17 @@ extern uint16_t get_protocol(const void *connection);
  * this code is used to differenciate the need to answer a ECHO REQUEST or a NEIGHBOR SOLICITATION)
  */
 extern char get_send_code(const void *connection);
+
+/** Requests smews to call the packet_out handler of a GPIP handler.
+ * This will create a new connection for ::dst_ip so that smews will call the packet out
+ * function when its scheduler sees fit.
+ *
+ *
+ * @param protocol The protocol number of the GPIP handler
+ * @param dst_ip the destination IP. @warning When using IPV6 address, dst_ip must point to a *compressed ip* (use ::compress_ip)
+ * @return NULL if error, handler to the connection that will be used for sending
+ */
+extern const void *request_packet_out_call(unsigned char protocol, unsigned char *dst_ip);
 
 #endif
 

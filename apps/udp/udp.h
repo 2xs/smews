@@ -1,5 +1,5 @@
 /*
-* Copyright or Â© or Copr. 2011, Michael Hauspie
+* Copyright or © or Copr. 2013, Michael Hauspie
 *
 * Author e-mail: michael.hauspie@lifl.fr
 *
@@ -32,38 +32,28 @@
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
-/*
-  Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-08-31
-  Time-stamp: <2013-02-13 17:06:21 (hauspie)>
-*/
-#ifndef __ETH_INPUT_H__
-#define __ETH_INPUT_H__
+#ifndef __UDP_H__
+#define __UDP_H__
 
-#include <stdint.h>
-
-#define ETH_INPUT_FREE_PACKET 0
-#define ETH_INPUT_KEEP_PACKET 1
-
-/**
- * Process an incoming packet
- *
- * @param packet
- * @param size
- */
-extern int mbed_process_input(const uint8_t *packet, int size);
+struct udp_args_t
+{
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint16_t payload_size;
+    uint16_t chk;
+    const void *connection_info;
+    const void *udp_handle;
+};
 
 
-/**
- * returns the next available byte of the IP packet
- * @return -1 if no bytes are available
- */
-extern int16_t mbed_eth_get_byte();
+typedef char (*udp_packet_in_t)(struct udp_args_t *);
+typedef char (*udp_packet_out_t)(struct udp_args_t *);
 
-/**
- * Checks if a byte is available for read
- * @return 0 if no byte available
- */
-int mbed_eth_byte_available();
+void *udp_listen(uint16_t port, udp_packet_in_t packet_in_callback, udp_packet_out_t packet_out_callback);
+void udp_request_send(unsigned char *dst_ip, uint16_t dst_port, uint16_t source_port);
+
+char udp_in();
+void udp_outc(char c);
+void udp_outa(const void *array, uint16_t array_size);
 
 #endif
