@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2012-05-16 16:02:02 (hauspie)>
+  Time-stamp: <2013-03-01 13:21:28 (hauspie)>
 */
 
 
@@ -45,6 +45,7 @@
 #include "eth_input.h"
 #include "protocols.h"
 #include "out_buffers.h"
+#include "lcd.h"
 
 /* RFLPC includes */
 #include <rflpc17xx/rflpc17xx.h>
@@ -317,10 +318,28 @@ void mbed_configure_eth(void)
 void mbed_console_init();
 #endif
 
+#ifdef MBED_USE_LCD_DISPLAY
+int mbed_smews_putchar(int c)
+{
+    rflpc_uart_putchar(RFLPC_UART0, c);
+    lcd_putchar(c);
+    return c;
+}
+#endif
+
 void mbed_eth_hardware_init(void)
 {
     /* Init the UART for printf */
     rflpc_uart_init(RFLPC_UART0);
+
+#ifdef MBED_USE_LCD_DISPLAY
+    lcd_init_ports();
+    lcd_clear();
+    rflpc_printf_set_putchar(mbed_smews_putchar);
+#endif
+    /* Init rand */
+    srand(LPC_RTC->CTIME0);
+
 
     mbed_print_motd();
 

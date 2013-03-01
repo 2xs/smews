@@ -119,7 +119,7 @@ static void dhcp_commit_ip(void)
     local_ip_addr[0] = _current_transaction.offered_ip & 0xff;
 #endif
 #ifdef TARGET_PRINTF
-    TARGET_PRINTF("DHCP: Bound to %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
+    TARGET_PRINTF("-> %d.%d.%d.%d\r\n", local_ip_addr[3], local_ip_addr[2], local_ip_addr[1], local_ip_addr[0]);
 #endif
 }
 static char dhcp_get(struct args_t *args)
@@ -312,7 +312,11 @@ static void dhcp_put_option_32(uint8_t code, uint32_t val)
 static void dhcp_send_discover(void)
 {
     uint8_t i;
-    _current_transaction.xid = TIME_MILLIS; /* @todo: check other targets for rand availability. */
+#ifdef TARGET_RAND
+    _current_transaction.xid = TARGET_RAND;
+#else
+    _current_transaction.xid = 0xfadebeef;
+#endif
     dhcp_send_common_header();
     for (i = 0 ; i < 4 ; ++i)
 	out_32(0); /* ciaddr, yiaddr, siaddr, giaddr */
@@ -322,7 +326,7 @@ static void dhcp_send_discover(void)
     udp_outc(OPTION_END);
     _current_transaction.state = DHCP_STATE_SELECTING;
 #ifdef TARGET_PRINTF
-    TARGET_PRINTF("Sending DHCP Discover\r\n");
+    TARGET_PRINTF("DHCP Discover\r\n");
 #endif
 }
 
@@ -342,7 +346,7 @@ static void dhcp_send_request(void)
     udp_outc(OPTION_END);
     _current_transaction.state = DHCP_STATE_REQUESTING;
 #ifdef TARGET_PRINTF
-    TARGET_PRINTF("Sending DHCP Request\r\n");
+    TARGET_PRINTF("DHCP Request\r\n");
 #endif
 }
 

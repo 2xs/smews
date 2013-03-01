@@ -172,5 +172,6 @@ extern EthAddr local_eth_addr;
 #define LINK_LAYER_ADDRESS (local_eth_addr.addr)
 
 #define TARGET_PRINTF printf
+#define TARGET_RAND   rand()
 
 #endif /* __TARGET_H__ */
