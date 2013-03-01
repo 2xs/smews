@@ -62,15 +62,14 @@ static void write_data(uint8_t data)
 
 void lcd_init_ports(void)
 {
-    rflpc_gpio_use_pin(RS); rflpc_gpio_set_pin_mode_output(RS);
-    rflpc_gpio_use_pin(RW); rflpc_gpio_set_pin_mode_output(RW);
-    rflpc_gpio_clr_pin(RW); /* only perform writes */
-    rflpc_gpio_use_pin(E); rflpc_gpio_set_pin_mode_output(E);
+    rflpc_gpio_set_pin_mode_output(RS,0);
+    rflpc_gpio_set_pin_mode_output(RW,0);
+    rflpc_gpio_set_pin_mode_output(E, 0);
 
-    rflpc_gpio_use_pin(DB4); rflpc_gpio_set_pin_mode_output(DB4);
-    rflpc_gpio_use_pin(DB5); rflpc_gpio_set_pin_mode_output(DB5);
-    rflpc_gpio_use_pin(DB6); rflpc_gpio_set_pin_mode_output(DB6);
-    rflpc_gpio_use_pin(DB7); rflpc_gpio_set_pin_mode_output(DB7);
+    rflpc_gpio_set_pin_mode_output(DB4, 0);
+    rflpc_gpio_set_pin_mode_output(DB5, 0);
+    rflpc_gpio_set_pin_mode_output(DB6, 0);
+    rflpc_gpio_set_pin_mode_output(DB7, 0);
 
     /* Configure LCD to use 4bits mode */
     rflpc_gpio_clr_pin(RS);
