@@ -41,8 +41,6 @@
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 
-//#define NULL ((void*)0)
-
 #include "serial_line.h"
 
 extern volatile uint32_t global_timer;
@@ -182,7 +180,7 @@ extern volatile uint32_t global_timer;
 /* Smews configuration */
 #define OUTPUT_BUFFER_SIZE 256
 #define ALLOC_SIZE 768
-#define STACK_SIZE 256
+#define STACK_SIZE 200
 
 /* For automatic test purpose */
 #define TEST_ARRAY_SIZE	128

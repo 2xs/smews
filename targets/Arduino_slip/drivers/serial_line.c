@@ -36,7 +36,7 @@
 #include "types.h"
 #include <avr/interrupt.h>
 
-#define F_CPU	16000000 // Arduino atmel328p
+//#define F_CPU	16000000 // Arduino atmel328p
 //#define BAUD 38400 // Arduino
 #define BAUD 57600 // Arduino
 //#define BAUD_PRESCALE (((F_CPU/16)/BAUD)-1) // For asynchronous normal 
@@ -136,12 +136,11 @@ int16_t dev_get(void) {
 }
 
 /*-----------------------------------------------------------------------------------*/
-int32_t serial_line_write(unsigned char value) {
+void serial_line_write(unsigned char value) {
 	/* Wait for empty transmit buffer */
 	while(!((UCSR0A) & (1<<UDRE0)));
 	/* Put data into buffer, sends the data */
 	UDR0 = value;
-	return 1;
 }
 
 /*-----------------------------------------------------------------------------------*/
