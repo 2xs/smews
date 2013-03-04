@@ -91,8 +91,8 @@ void hardware_timer_init(void) {
 }
 
 void hardware_init() {
-	sei();
 	hardware_timer_init();
 	dev_init();
+	sei();
 }
 

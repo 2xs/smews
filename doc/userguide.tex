@@ -1168,6 +1168,26 @@ char icmp4_packet_out(const void *connection_info)
 \end{lstlisting}
 
 
+\subsection{Initiating packet generation}
+\label{sec:init-pack-gener}
+
+Sometimes, you need to write a GPIP application that must initiates the
+packet generation. That is, outputing a packet is not done after receiving one,
+but when the application needs it (at smews start, every $x$ seconds, ...).
+
+The right way to implement this is to call the
+\lstinline!request_packet_out_call! function. This function takes two
+parameters: the protocol number and the destination ip address. 
+
+When you call this function Smews registers the \verb!doPacketOut! and will
+call it when it fits its scheduling rules (which will often be
+immediatly). Your \lstinline!doPacketOut! handler will then perform as usual,
+and you will be able to create your packet using \lstinline!out_c! function. It
+will automatically be sent by smews to the IP specified in the
+\lstinline!request_packet_out_call! call.
+
+Note that you have to call \lstinline!request_packet_out_call! for each packet.
+
 \section{Synthesis of the features}
 
 We give here an synthetic and exhaustive list of the features available when writing a GPIP generator in Smews:
@@ -1236,10 +1256,13 @@ We give here an synthetic and exhaustive list of the features available when wri
 {\tt unsigned char *get\_payload\_size(const void *connection)}
 \begin{quote} Gets size of the packet (without IP header). Can be called in \texttt{doPacketIn} and \texttt{doPacketOut}. \end{quote}
 
-{\tt unsigned char *get\_send\_code(const void *connection)}
+{\tt char get\_send\_code(const void *connection)}
 \begin{quote} Gets the return value of the \texttt{doPacketIn} callback. Can be called in \texttt{doPacketOut}. \end{quote}
 
-		\end{minipage}
+{\tt void request\_packet\_out\_call(unsigned char protocol, unsigned char *ip)}
+\begin{quote} request one call to \texttt{doPacketOut} callback to send a packet to \texttt{ip}.\end{quote}
+
+                \end{minipage}
       }
    } 
 \caption{Functions provided by Smews}

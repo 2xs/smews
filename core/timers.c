@@ -68,8 +68,8 @@ void smews_timers() {
 #endif
 	curr_time_millis = TIME_MILLIS;
 	while(curr_timer) {
-		while(curr_time_millis - curr_timer->last_time_millis > curr_timer->period_millis) {
-			curr_timer->last_time_millis += curr_timer->period_millis;
+		while(((uint16_t)(curr_time_millis - curr_timer->last_time_millis)) > curr_timer->period_millis) {
+			curr_timer->last_time_millis += (uint32_t)curr_timer->period_millis;
 			curr_timer->callback();
 		}
 		curr_timer = curr_timer->next;

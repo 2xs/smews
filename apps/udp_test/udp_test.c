@@ -1,5 +1,5 @@
 /*
-* Copyright or © or Copr. 2011, Michael Hauspie
+* Copyright or © or Copr. 2012, Michael Hauspie
 *
 * Author e-mail: michael.hauspie@lifl.fr
 *
@@ -33,37 +33,51 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 /*
-  Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
-  Created: 2011-08-31
-  Time-stamp: <2013-02-13 17:06:21 (hauspie)>
-*/
-#ifndef __ETH_INPUT_H__
-#define __ETH_INPUT_H__
-
-#include <stdint.h>
-
-#define ETH_INPUT_FREE_PACKET 0
-#define ETH_INPUT_KEEP_PACKET 1
-
-/**
- * Process an incoming packet
- *
- * @param packet
- * @param size
+<generator>
+        <handlers init="udp_test_init" doGet="udp_test_get"/>
+</generator>
  */
-extern int mbed_process_input(const uint8_t *packet, int size);
 
-
-/**
- * returns the next available byte of the IP packet
- * @return -1 if no bytes are available
- */
-extern int16_t mbed_eth_get_byte();
-
-/**
- * Checks if a byte is available for read
- * @return 0 if no byte available
- */
-int mbed_eth_byte_available();
-
+#ifdef DISABLE_GP_IP_HANDLER
+	#error "This application can not work with disable_general_purpose_ip_handler"
 #endif
+
+#include "apps/udp/udp.h"
+
+static char udp_test_get(struct args_t *args)
+{
+    return 0;
+}
+
+char udp_test_in(struct udp_args_t *udp_args)
+{
+    int i;
+    uint16_t tmp;
+
+    for (i = 0 ; i < udp_args->payload_size ; ++i)
+    {
+	if (i % 16 == 0)
+	    printf("\r\n%04x ", i);
+	printf("%02x ", in());
+    }
+    /* Switch ports for answer */
+    tmp = udp_args->src_port;
+    udp_args->src_port = udp_args->dst_port;
+    udp_args->dst_port = tmp;
+    /* Returning 1 requests a call to the out callback */
+    return 1;
+}
+
+char udp_test_out(struct udp_args_t *udp_args)
+{
+    const char *str = "Received!\r\n";
+    udp_outa(str, 11);
+    return 0;
+}
+
+char udp_test_init(void)
+{
+    udp_listen(2000, udp_test_in, udp_test_out);
+    return 1;
+}
+

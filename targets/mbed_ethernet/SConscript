@@ -81,6 +81,7 @@ env.Replace(AR = 'arm-none-eabi-ar')
 env.Replace(RANLIB = 'arm-none-eabi-ranlib')
 env.Append(CCFLAGS = cflags)
 env.Append(CCFLAGS = '-DENABLE_LL_CACHE')
+env.Append(CCFLAGS = '-DMBED_USE_LCD_DISPLAY')
 env.Append(LIBS = lib)
 env.Append(LINKFLAGS = ldflags)
 

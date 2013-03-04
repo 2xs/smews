@@ -249,7 +249,7 @@ short in(){
 #endif
 
 #ifndef DISABLE_GP_IP_HANDLER
-static const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol)
+const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol)
 {
 	/* Try to find a handler that match the protocol number */
 	uint8_t i;

@@ -42,7 +42,8 @@ env.Replace(AS = 'avr-as')
 env.Replace(AR = 'avr-ar')
 env.Replace(LD = 'avr-ld')
 env.Replace(RANLIB = 'avr-ranlib')
-env.Append(CCFLAGS = '-mmcu=atmega328p -mcall-prologues -DF_CPU=16000000 -0s')
+#env.Append(CCFLAGS = '-mmcu=atmega328p -mcall-prologues -DF_CPU=16000000 -Os')
+env.Append(CCFLAGS = '-mmcu=atmega328p -DF_CPU=16000000 -Os -ffunction-sections')
 env.Append(LINKFLAGS = '-mmcu=atmega328p')
 
 binaryName = projectName + '.bin'
