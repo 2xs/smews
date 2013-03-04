@@ -42,7 +42,7 @@ extern void hardware_init(void);
 extern int16_t dev_get(void);
 extern void dev_put(unsigned char byte);
 extern void dev_init(void);
-extern int32_t serial_line_write(unsigned char value);
+extern void serial_line_write(unsigned char value);
 
 /* SLIP */
 #define SLIP_END             0xC0    /* indicates end of packet */
