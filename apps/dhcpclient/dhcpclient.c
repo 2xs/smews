@@ -80,6 +80,7 @@ extern unsigned char local_ip_addr[4];
 #define OPTION_SUBNET_MASK 1
 #define OPTION_ROUTER 3
 #define OPTION_DHCP_CLIENT_FQDN 81
+#define OPTION_DHCP_CLIENT_HOSTNAME 12
 #define OPTION_DHCP_REQUESTED_IP 50
 #define OPTION_DHCP_LEASE_TIME 51
 #define OPTION_DHCP_MESSAGE_TYPE 53
@@ -267,6 +268,11 @@ static void dhcp_send_client_fqdn_option(void)
     udp_outc(5); /* FQDN size */
     out_a("smews", 5);
     udp_outc(0); /* FQDN must end with a zero length label */
+    
+    /* Also adds the Hostname option */
+    udp_outc(OPTION_DHCP_CLIENT_HOSTNAME);
+    udp_outc(5);
+    out_a("smews", 5);
 }
 
 static void dhcp_send_common_footer(void)
