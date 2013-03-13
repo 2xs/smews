@@ -41,13 +41,13 @@
 
 #ifdef __thumb__
 
-#error "Thumb support for linux has not been tested. Thumb code is borrowed from mbed target."
+#warning "Thumb support for linux has not been tested. Thumb code is borrowed from mbed target."
 
 
 /* save the process stack pointer in sp[0]  */
-#define BACKUP_CTX(sp) do {asm ("mrs %0, psp" : "=r"((sp)[0]));}while(0)
+#define BACKUP_CTX(sp) do {asm ("mrs %0, sp" : "=r"((sp)[0]));}while(0)
 /* restore the process stack pointer from sp[0] */
-#define RESTORE_CTX(sp) do {asm ("msr psp, %0" : "r"((sp)[1]));}while(0)
+#define RESTORE_CTX(sp) do {asm ("msr sp, %0" : "r"((sp)[1]));}while(0)
 /* push all registers that must not be modified by any function call */
 #define PUSHREGS do { asm("push {r4-r11, lr}"); } while(0)
 /* pop all registers that must not be modified by any function call */

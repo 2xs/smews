@@ -37,20 +37,19 @@
 #define __ARCH_H__
 
 
-/* Architecture dependent macro for arm architectures */
+/* Architecture dependent macro for arm architecture */
 
 #ifdef __arm__
 
-#error "ARM architecture is not yet supported"
 
-#define BACKUP_CTX(sp) 
-		
-#define RESTORE_CTX(sp)
-
-
-#define PUSHREGS 
-
-#define POPREGS 
+/* save the process stack pointer in sp[0]  */
+#define BACKUP_CTX(sp) do {asm ("mrs %0, sp" : "=r"((sp)[0]));}while(0)
+/* restore the process stack pointer from sp[0] */
+#define RESTORE_CTX(sp) do {asm ("msr sp, %0" : "r"((sp)[1]));}while(0)
+/* push all registers that must not be modified by any function call */
+#define PUSHREGS do { asm("push {r4-r11, lr}"); } while(0)
+/* pop all registers that must not be modified by any function call */
+#define POPREGS do { asm("pop {r4-r11, lr}"); } while (0)
 
 #else
 #error "This file is for arm architecture"
