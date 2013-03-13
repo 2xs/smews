@@ -42,10 +42,11 @@
 #ifdef __arm__
 
 
-/* save the process stack pointer in sp[0]  */
-#define BACKUP_CTX(sp) do {asm ("mov %0, sp" : "=r"((sp)[0]));}while(0)
+/* save the process stack pointer in sp[0]  and frame pointer in sp[1] */
+/* By convention, r11 is used as frame pointer in arm mode */
+#define BACKUP_CTX(sp) do {asm ("mov %0, sp" : "=r"((sp)[0])); asm("mov %0, r11" : "=r"((sp)[1])); }while(0)
 /* restore the process stack pointer from sp[0] */
-#define RESTORE_CTX(sp) do {asm ("mov sp, %0" :: "r"((sp)[0]));}while(0)
+#define RESTORE_CTX(sp) do {asm ("mov sp, %0" :: "r"((sp)[0])); asm("mov r11, %0" :: "r"((sp)[1])); }while(0)
 /* push all registers that must not be modified by any function call */
 #define PUSHREGS do { asm("push {r4-r11, lr}"); } while(0)
 /* pop all registers that must not be modified by any function call */
