@@ -119,9 +119,21 @@ extern fd_set fdset;
 
 #include "arch/x86_64/arch.h"
 
-#else
+#elif defined __i386__
 
 #include "arch/i386/arch.h"
+
+#elif defined __arm__
+
+#include "arch/arm/arm/arch.h"
+
+#elif defined __thumb__
+
+#include "arch/arm/thumb/arch.h"
+
+#else
+
+#error "Architecture is not supported"
 
 #endif
 
