@@ -39,6 +39,8 @@
 
 /* Architecture dependent macro for i386 */
 
+#ifdef __i386__
+
 #define BACKUP_CTX(sp) \
 	asm ("movl %%esp, %0" : "=r"((sp)[0])); \
 	asm ("movl %%ebp, %0" : "=r"((sp)[1])); \
@@ -59,5 +61,12 @@
 	"popl	%esi\n" \
 	"popl	%edi\n" \
 ); \
+
+#else
+
+#error "This file is for i386 architecture"
+
+#endif
+
 
 #endif /* __ARCH_H__ */
