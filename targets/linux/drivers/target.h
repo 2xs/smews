@@ -117,11 +117,11 @@ extern fd_set fdset;
 
 #ifdef __x86_64__
 
-#include "arch/x86_64/arch.h"
+#include "arch/x86/x86_64/arch.h"
 
 #elif defined __i386__
 
-#include "arch/i386/arch.h"
+#include "arch/x86/i386/arch.h"
 
 #elif defined __arm__
 
