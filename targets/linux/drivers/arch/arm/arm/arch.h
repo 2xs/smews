@@ -33,32 +33,28 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __SLIP_DEV_H__
-#define __SLIP_DEV_H__
+#ifndef __ARCH_H__
+#define __ARCH_H__
 
-/* Extern variables */
 
-extern void hardware_init(void);
-extern int16_t dev_get(void);
-extern void dev_put(unsigned char byte);
-extern void dev_init(void);
-extern void serial_line_write(unsigned char value);
+/* Architecture dependent macro for arm architecture */
 
-/* SLIP */
-#define SLIP_END             0xC0    /* indicates end of packet */
-#define SLIP_ESC             0xDB    /* indicates byte stuffing */
-#define SLIP_ESC_END         0xDC    /* ESC ESC_END means END data byte */
-#define SLIP_ESC_ESC         0xDD    /* ESC ESC_ESC means ESC data byte */
+#ifdef __arm__
 
-//#define INBUF_SIZE 256
-#define INBUF_SIZE 128
-/* Serial line */
-typedef struct {
-	volatile unsigned char buffer[INBUF_SIZE];
-	volatile unsigned char *volatile writePtr;
-	volatile unsigned char *volatile readPtr;
-} serial_line_t;
 
-extern volatile serial_line_t serial_line;
+/* save the process stack pointer in sp[0]  and frame pointer in sp[1] */
+/* By convention, r11 is used as frame pointer in arm mode */
+#define BACKUP_CTX(sp) do {asm ("mov %0, sp" : "=r"((sp)[0])); asm("mov %0, r11" : "=r"((sp)[1])); }while(0)
+/* restore the process stack pointer from sp[0] */
+#define RESTORE_CTX(sp) do {asm ("mov sp, %0" :: "r"((sp)[0])); asm("mov r11, %0" :: "r"((sp)[1])); }while(0)
+/* push all registers that must not be modified by any function call */
+#define PUSHREGS do { asm("push {r4-r11, lr}"); } while(0)
+/* pop all registers that must not be modified by any function call */
+#define POPREGS do { asm("pop {r4-r11, lr}"); } while (0)
 
+#else
+#error "This file is for arm architecture"
 #endif
+
+
+#endif /* __ARCH_H__ */

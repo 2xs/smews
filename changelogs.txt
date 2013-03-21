@@ -1,4 +1,9 @@
 Next version:
+	- Adds support for multiple linux architecture
+		- tested on kernel armv6h (raspberry pi) and armv7h (mele A1000)
+	- Adds LCD screen support for mbed target
+	- Adds UDP application support
+	- Adds a DHCP client application
 	- compile and link flags for mbed_ethernet are extracted from rflpc-config
 	- rfLPC is automatically cloned and built when build for mbed_ethernet target
 	- Fixes compilation issues when disabling comet or arguments
@@ -8,7 +13,7 @@ Next version:
 	- MBED Ethernet now support IPv6
 	- Adds an application type that allows a developer to add support for a protocol other than TCP
 		above smews IP stack
-	- Now uses the rflpc v0.9b
+	- Now uses the rflpc v0.10a
 	- Checksum can be inlined by define INLINE_CHECKSUM at compile time.
 		- Provides small performance boost for platform like mbed at the cost of memory footprint
 		- Nothing changed from the previous behavior if INLINE_CHECKSUM is not defined

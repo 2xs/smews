@@ -64,40 +64,35 @@
 #define ADC_PROC_CLK_64   (_BV(ADPS2)|_BV(ADPS1))
 #define ADC_PROC_CLK_128   (_BV(ADPS2)|_BV(ADPS1)|_BV(ADPS0))
 
+#define PRESCALER	1024
+#define TIME_SLOT	1 // Time slot in milliseconds
+#define NB_TICK		(((F_CPU/PRESCALER)*TIME_SLOT)/1000)
+
 volatile uint32_t global_timer;
 
 
-ISR(TIMER0_COMPB_vect) {
+ISR(TIMER1_COMPA_vect)
+{
 	cli();
 	global_timer++;
 	sei();
 }
-
-ISR(TIMER0_COMPA_vect) {
-	cli();
-	global_timer++;
-	sei();
-}
-
 
 
 void hardware_timer_init(void) {
 
 	global_timer = 0;
-	/* Use external clock */
-	ASSR  = _BV(AS2); // Arduino
-	/* TOIE1 <- 1 : Allow Timer compare match interrupt */
-	TIMSK0 = _BV(OCIE0B); // Arduino 
-	/* at every 16 Binary milliseconds (1024 BMS = 1 Second) */
-	TCNT0 = 0;
-	OCR0A = 32; // Arduino
-	/* Timer CTC mode with external clock */
-	TCCR0A = AVR_TIMER_CTC | AVR_TIMER_CLK_1; // Arduino
+	
+	TCCR1B |= _BV(WGM12); // CTC mode with value in OCR1A 
+	TCCR1B |= _BV(CS12);  // CS12 = 1; CS11 = 0; CS10 =1 => CLK/1024 prescaler
+	TCCR1B |= _BV(CS10);
+	OCR1A   = NB_TICK;
+	TIMSK1 |= _BV(OCIE1A);
 }
 
 void hardware_init() {
-	sei();
 	hardware_timer_init();
 	dev_init();
+	sei();
 }
 

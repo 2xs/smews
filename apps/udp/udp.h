@@ -1,23 +1,23 @@
 /*
-* Copyright or Â© or Copr. 2008, Simon Duquennoy
-* 
-* Author e-mail: simon.duquennoy@lifl.fr
-* 
+* Copyright or © or Copr. 2013, Michael Hauspie
+*
+* Author e-mail: michael.hauspie@lifl.fr
+*
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
-* 
+*
 * This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use, 
+* abiding by the rules of distribution of free software.  You can  use,
 * modify and/ or redistribute the software under the terms of the CeCILL
 * license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info". 
-* 
+* "http://www.cecill.info".
+*
 * As a counterpart to the access to the source code and  rights to copy,
 * modify and redistribute granted by the license, users are provided only
 * with a limited warranty  and the software's author,  the holder of the
 * economic rights,  and the successive licensors  have only  limited
-* liability. 
-* 
+* liability.
+*
 * In this respect, the user's attention is drawn to the risks associated
 * with loading,  using,  modifying and/or developing or reproducing the
 * software by the user in light of its specific status of free software,
@@ -25,40 +25,35 @@
 * therefore means  that it is reserved for developers  and  experienced
 * professionals having in-depth computer knowledge. Users are therefore
 * encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or 
-* data to be ensured and,  more generally, to use and operate it in the 
-* same conditions as regards security. 
-* 
+* requirements in conditions enabling the security of their systems and/or
+* data to be ensured and,  more generally, to use and operate it in the
+* same conditions as regards security.
+*
 * The fact that you are presently reading this means that you have had
 * knowledge of the CeCILL license and that you accept its terms.
 */
+#ifndef __UDP_H__
+#define __UDP_H__
 
-#ifndef __SLIP_DEV_H__
-#define __SLIP_DEV_H__
+struct udp_args_t
+{
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint16_t payload_size;
+    uint16_t chk;
+    const void *connection_info;
+    const void *udp_handle;
+};
 
-/* Extern variables */
 
-extern void hardware_init(void);
-extern int16_t dev_get(void);
-extern void dev_put(unsigned char byte);
-extern void dev_init(void);
-extern void serial_line_write(unsigned char value);
+typedef char (*udp_packet_in_t)(struct udp_args_t *);
+typedef char (*udp_packet_out_t)(struct udp_args_t *);
 
-/* SLIP */
-#define SLIP_END             0xC0    /* indicates end of packet */
-#define SLIP_ESC             0xDB    /* indicates byte stuffing */
-#define SLIP_ESC_END         0xDC    /* ESC ESC_END means END data byte */
-#define SLIP_ESC_ESC         0xDD    /* ESC ESC_ESC means ESC data byte */
+void *udp_listen(uint16_t port, udp_packet_in_t packet_in_callback, udp_packet_out_t packet_out_callback);
+void udp_request_send(unsigned char *dst_ip, uint16_t dst_port, uint16_t source_port);
 
-//#define INBUF_SIZE 256
-#define INBUF_SIZE 128
-/* Serial line */
-typedef struct {
-	volatile unsigned char buffer[INBUF_SIZE];
-	volatile unsigned char *volatile writePtr;
-	volatile unsigned char *volatile readPtr;
-} serial_line_t;
-
-extern volatile serial_line_t serial_line;
+char udp_in();
+void udp_outc(char c);
+void udp_outa(const void *array, uint16_t array_size);
 
 #endif

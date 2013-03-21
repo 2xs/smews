@@ -33,32 +33,40 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef __SLIP_DEV_H__
-#define __SLIP_DEV_H__
+#ifndef __ARCH_H__
+#define __ARCH_H__
 
-/* Extern variables */
 
-extern void hardware_init(void);
-extern int16_t dev_get(void);
-extern void dev_put(unsigned char byte);
-extern void dev_init(void);
-extern void serial_line_write(unsigned char value);
+/* Architecture dependent macro for i386 */
 
-/* SLIP */
-#define SLIP_END             0xC0    /* indicates end of packet */
-#define SLIP_ESC             0xDB    /* indicates byte stuffing */
-#define SLIP_ESC_END         0xDC    /* ESC ESC_END means END data byte */
-#define SLIP_ESC_ESC         0xDD    /* ESC ESC_ESC means ESC data byte */
+#ifdef __i386__
 
-//#define INBUF_SIZE 256
-#define INBUF_SIZE 128
-/* Serial line */
-typedef struct {
-	volatile unsigned char buffer[INBUF_SIZE];
-	volatile unsigned char *volatile writePtr;
-	volatile unsigned char *volatile readPtr;
-} serial_line_t;
+#define BACKUP_CTX(sp) \
+	asm ("movl %%esp, %0" : "=r"((sp)[0])); \
+	asm ("movl %%ebp, %0" : "=r"((sp)[1])); \
+		
+#define RESTORE_CTX(sp) \
+	asm ("movl %0, %%esp" :: "r"((sp)[0])); \
+	asm ("movl %0, %%ebp" :: "r"((sp)[1])); \
 
-extern volatile serial_line_t serial_line;
+
+#define PUSHREGS asm( \
+	"pushl	%edi\n" \
+	"pushl	%esi\n" \
+	"pushl	%ebx\n" \
+); \
+
+#define POPREGS asm( \
+	"popl	%ebx\n" \
+	"popl	%esi\n" \
+	"popl	%edi\n" \
+); \
+
+#else
+
+#error "This file is for i386 architecture"
 
 #endif
+
+
+#endif /* __ARCH_H__ */

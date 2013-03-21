@@ -88,7 +88,11 @@ static inline void smews_init(void) {
 
 	x = 0;
 	while((output_handler = CONST_ADDR(resources_index[x])) != NULL) {
-		if(CONST_UI8(output_handler->handler_type) == type_generator) {
+	    if(CONST_UI8(output_handler->handler_type) == type_generator 
+#ifndef DISABLE_GP_IP_HANDLER
+				|| CONST_UI8(output_handler->handler_type) == type_general_ip_handler
+#endif
+				) {
 			generator_init_func_t * init_handler = CONST_ADDR(GET_GENERATOR(output_handler).init);
 			if(init_handler)
 				init_handler();

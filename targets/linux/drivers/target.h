@@ -117,53 +117,23 @@ extern fd_set fdset;
 
 #ifdef __x86_64__
 
-#define BACKUP_CTX(sp) \
-	asm ("mov %%rsp, %0" : "=r"((sp)[0])); \
-	asm ("mov %%rbp, %0" : "=r"((sp)[1])); \
+#include "arch/x86/x86_64/arch.h"
 
-#define RESTORE_CTX(sp) \
-	asm ("mov %0, %%rsp" :: "r"((sp)[0])); \
-	asm ("mov %0, %%rbp" :: "r"((sp)[1])); \
+#elif defined __i386__
 
+#include "arch/x86/i386/arch.h"
 
-#define PUSHREGS asm( \
-	"push	%rbx\n" \
-	"push	%r12\n" \
-	"push	%r13\n" \
-	"push	%r14\n" \
-	"push	%r15\n" \
-); \
+#elif defined __arm__
 
-#define POPREGS asm( \
-	"pop	%r15\n" \
-	"pop	%r14\n" \
-	"pop	%r13\n" \
-	"pop	%r12\n" \
-	"pop	%rbx\n" \
-); \
+#include "arch/arm/arm/arch.h"
+
+#elif defined __thumb__
+
+#include "arch/arm/thumb/arch.h"
 
 #else
 
-#define BACKUP_CTX(sp) \
-	asm ("movl %%esp, %0" : "=r"((sp)[0])); \
-	asm ("movl %%ebp, %0" : "=r"((sp)[1])); \
-
-#define RESTORE_CTX(sp) \
-	asm ("movl %0, %%esp" :: "r"((sp)[0])); \
-	asm ("movl %0, %%ebp" :: "r"((sp)[1])); \
-
-
-#define PUSHREGS asm( \
-	"pushl	%edi\n" \
-	"pushl	%esi\n" \
-	"pushl	%ebx\n" \
-); \
-
-#define POPREGS asm( \
-	"popl	%ebx\n" \
-	"popl	%esi\n" \
-	"popl	%edi\n" \
-); \
+#error "Architecture is not supported"
 
 #endif
 

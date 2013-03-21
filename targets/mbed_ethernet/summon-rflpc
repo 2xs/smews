@@ -7,32 +7,72 @@
 # Created:
 # Time-stamp: <2012-05-16 14:48:37 (hauspie)>
 #
-
-RFLPC_REPOSITORY="http://github.com/hauspie/rflpc.git"
-RFLPC_RELEASE="v0.9b"
+RFLPC_REPOSITORY="http://github.com/hauspie/rflpc"
+RFLPC_RELEASE="v0.10a"
 LOCAL_FOLDER="`cd \`dirname $0\` && pwd`"
 RFLPC_FOLDER=$LOCAL_FOLDER/rflpc
 RFLPC_CONFIG_FILE_SRC=$LOCAL_FOLDER/rflpc-config-file/config-options.h
 RFLPC_CONFIG_FOLDER=$RFLPC_FOLDER/rflpc17xx/config
 
-if [ -d $RFLPC_FOLDER ]
-then
-    cd $RFLPC_FOLDER
-    if ! git fetch
-    then
+function download()
+{
+	url=$1
+	if which wget >& /dev/null
+	then
+		wget -O - $url > /tmp/rflpc.tar.gz
+	elif which curl >& /dev/null
+	then
+		curl -L $url > /tmp/rflpc.tar.gz
+	else
+		echo "Neither git, wget or curl present in path... abort." 2>&1
+		exit 1
+	fi
+}
+
+function summon-nogit()
+{
+	if [ -d $RFLPC_FOLDER ]
+	then
+		rm -rf $RFLPC_FOLDER
+	fi
+	url="$RFLPC_REPOSITORY/tarball/$RFLPC_RELEASE"
+	download $url
+	cd /tmp
+	folder_name=`tar tf /tmp/rflpc.tar.gz 2> /dev/null 2> /dev/null | head -1 | cut -d/ -f 1`
+	tar zxf /tmp/rflpc.tar.gz
+	mv $folder_name $RFLPC_FOLDER
+	cd $RFLPC_FOLDER
+}
+
+function summon-git()
+{
+	if [ -d $RFLPC_FOLDER ]
+	then
+	    cd $RFLPC_FOLDER
+	    if ! git fetch
+	    then
 		echo "Failed to update rflpc" 1>&2
 		exit 1
-    fi
-else
-    if ! git clone $RFLPC_REPOSITORY $RFLPC_FOLDER
-    then
+	    fi
+	else
+	    if ! git clone $RFLPC_REPOSITORY.git $RFLPC_FOLDER
+	    then
 		echo "Failed to clone rflpc repository. Do you have git installed?" 1>&2
 		exit 1
-    fi
-    cd $RFLPC_FOLDER
+	fi
+    	cd $RFLPC_FOLDER
+	fi	
+
+	git checkout -B $RFLPC_RELEASE >& /dev/null
+}
+
+if ! which git >& /dev/null
+then
+	summon-nogit
+else
+	summon-git
 fi
 
-git checkout -B $RFLPC_RELEASE >& /dev/null
 
 TMP_LOG_FILE=`mktemp /tmp/tmp.XXXXXXXX`
 echo "Compiling library"
