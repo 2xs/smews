@@ -291,5 +291,4 @@ const void *request_packet_out_call(unsigned char protocol, unsigned char *dst_i
     connection->protocol.gpip.want_to_send = 1;
     return connection;
 }
-
 #endif

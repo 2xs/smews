@@ -80,6 +80,7 @@ extern unsigned char local_ip_addr[4];
 #define OPTION_SUBNET_MASK 1
 #define OPTION_ROUTER 3
 #define OPTION_DHCP_CLIENT_FQDN 81
+#define OPTION_DHCP_CLIENT_HOSTNAME 12
 #define OPTION_DHCP_REQUESTED_IP 50
 #define OPTION_DHCP_LEASE_TIME 51
 #define OPTION_DHCP_MESSAGE_TYPE 53
@@ -256,37 +257,6 @@ static void dhcp_send_common_header(void)
     out_16bits(0);                     /* Flags: set to 0 */
 }
 
-static void dhcp_send_client_fqdn_option(void)
-{
-    /* Option is defined in RFC 4702 */
-    udp_outc(OPTION_DHCP_CLIENT_FQDN);
-    udp_outc(10); /* 10 bytes is the length of the option */
-    udp_outc(0x5); /* flags. 0x5=1 | 4. 1 indicates that the dhcp server should update the dns entry and 1 specify the encoding of the fqdn */
-    udp_outc(0); udp_outc(0); /* RCODE1, RCODE2 -> deprecated, must set to 0 */
-    /* FQDN as defined in RFC1035 (canonical wire encoding) */
-    udp_outc(5); /* FQDN size */
-    out_a("smews", 5);
-    udp_outc(0); /* FQDN must end with a zero length label */
-}
-
-static void dhcp_send_common_footer(void)
-{
-    uint8_t i,llsize = LINK_LAYER_ADDRESS_SIZE > 16 ? 16 : LINK_LAYER_ADDRESS_SIZE;
-    for (i = 0 ; i < llsize ; ++i)
-    {
-	udp_outc(LINK_LAYER_ADDRESS[i]); /* chaddr */
-    }
-    for (i = 0 ; i < (16 - llsize) ; ++i)
-	udp_outc(0); /* chaddr padding */
-    for (i = 0 ; i < 64 + 128 ; ++i) /* sname + file */
-	udp_outc(0);
-    /* Magic cookie (see rfc for details) */
-    udp_outc(99);
-    udp_outc(130);
-    udp_outc(83);
-    udp_outc(99);
-}
-
 static void dhcp_put_option_a(uint8_t code, uint8_t len, void *val)
 {
     uint8_t i;
@@ -307,6 +277,41 @@ static void dhcp_put_option_32(uint8_t code, uint32_t val)
     val = (val >> 24) | ((val & 0xff) << 24) | ((val & 0xff0000) >> 8) | ((val & 0xff00) << 8);
     dhcp_put_option_a(code, 4, &val);
 }
+
+static void dhcp_send_client_fqdn_option(void)
+{
+    /* Option is defined in RFC 4702 */
+    udp_outc(OPTION_DHCP_CLIENT_FQDN);
+    udp_outc(10); /* 10 bytes is the length of the option */
+    udp_outc(0x5); /* flags. 0x5=1 | 4. 1 indicates that the dhcp server should update the dns entry and 1 specify the encoding of the fqdn */
+    udp_outc(0); udp_outc(0); /* RCODE1, RCODE2 -> deprecated, must set to 0 */
+    /* FQDN as defined in RFC1035 (canonical wire encoding) */
+    udp_outc(5); /* FQDN size */
+    out_a("smews", 5);
+    udp_outc(0); /* FQDN must end with a zero length label */
+    
+    /* Also adds the Hostname option */
+    dhcp_put_option_a(OPTION_DHCP_CLIENT_HOSTNAME, 5, "smews");
+}
+
+static void dhcp_send_common_footer(void)
+{
+    uint8_t i,llsize = LINK_LAYER_ADDRESS_SIZE > 16 ? 16 : LINK_LAYER_ADDRESS_SIZE;
+    for (i = 0 ; i < llsize ; ++i)
+    {
+	udp_outc(LINK_LAYER_ADDRESS[i]); /* chaddr */
+    }
+    for (i = 0 ; i < (16 - llsize) ; ++i)
+	udp_outc(0); /* chaddr padding */
+    for (i = 0 ; i < 64 + 128 ; ++i) /* sname + file */
+	udp_outc(0);
+    /* Magic cookie (see rfc for details) */
+    udp_outc(99);
+    udp_outc(130);
+    udp_outc(83);
+    udp_outc(99);
+}
+
 
 
 static void dhcp_send_discover(void)

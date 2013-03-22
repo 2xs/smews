@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-02
-  Time-stamp: <2013-03-04 14:57:03 (hauspie)>
+  Time-stamp: <2013-03-22 10:43:18 (hauspie)>
 */
 #include <stdint.h>
 #include <string.h> /* memcpy */
