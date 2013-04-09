@@ -260,7 +260,7 @@ extern uint16_t get_protocol(const void *connection);
  * This is useful when the doPacketOut action depends on the doPacketIn (see the icmpv6 app where
  * this code is used to differenciate the need to answer a ECHO REQUEST or a NEIGHBOR SOLICITATION)
  */
-extern char get_send_code(const void *connection);
+extern uint8_t get_send_code(const void *connection);
 
 /** Requests smews to call the packet_out handler of a GPIP handler.
  * This will create a new connection for ::dst_ip so that smews will call the packet out
