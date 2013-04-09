@@ -216,7 +216,7 @@ char out_c (char c)
 	cr_run(NULL);
 #endif
 
-#else /* DISABLE_CORTOUTINES */	
+#else /* DISABLE_COROUTINES */	
 	checksum_end ();
 	UI16 (curr_output.checksum) = UI16 (current_checksum);
         /* save the current checksum in the in flight segment infos */
@@ -716,12 +716,13 @@ char smews_send (void)
 	    (OUTPUT_BUFFER_SIZE + IP_HEADER_SIZE >
 	     DEV_MTU) ? DEV_MTU - IP_HEADER_SIZE : OUTPUT_BUFFER_SIZE;
 #endif
-	if (curr_output.buffer == NULL)	/* no more memory */
-	    return 0;
+//	if (curr_output.buffer == NULL)	/* no more memory */
+//	    return 0;
 	curr_output.content_length = 0;
 	curr_output.service = NULL;
-	active_connection->output_handler->handler_data.generator.handlers.gp_ip.
-	    dopacketout (active_connection);
+//	active_connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout (active_connection);
+		generator_dopacket_out_func_t *callback = CONST_ADDR(active_connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketout);
+		callback(active_connection);
 	active_connection->protocol.gpip.want_to_send = 0;
 	smews_send_packet (active_connection);
 	free_connection (active_connection);
@@ -946,13 +947,13 @@ char smews_send (void)
 		    /* we will generate a segment for the first time, so we will need to store new in-flight information */
 		    if (!is_retransmitting)
 		    {
-			if_infos = mem_alloc (sizeof (struct in_flight_infos_t));	/* test NULL: done */
-			if_infos->next = NULL;
-			if (if_infos == NULL)
-			{
-			    mem_free (curr_output.buffer, OUTPUT_BUFFER_SIZE);
-			    return 1;
-			}
+				if_infos = mem_alloc (sizeof (struct in_flight_infos_t));	/* test NULL: done */
+				if (if_infos == NULL)
+				{
+				    mem_free (curr_output.buffer, OUTPUT_BUFFER_SIZE);
+			    	return 1;
+				}
+				if_infos->next = NULL;
 		    }
 
 #ifndef DISABLE_COROUTINES

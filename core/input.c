@@ -96,7 +96,7 @@ static char dev_get16(unsigned char *word) {
     return 1;
 }
 
-/* gets 16 bits and checks if nothing wrong appened */
+/* gets 32 bits and checks if nothing wrong appened */
 static char dev_get32(unsigned char *dword) {
     if(dev_get16(&dword[2]) == -1)
         return -1;
@@ -260,7 +260,7 @@ const struct output_handler_t *smews_gpip_get_output_handler(uint8_t protocol)
 		return NULL;
 	    if (!IS_GPIP_HANDLER(handler))
 		continue;
-	    if (handler->handler_data.generator.handlers.gp_ip.protocol == protocol) /* found one */
+	    if (CONST_UI8(handler->handler_data.generator.handlers.gp_ip.protocol) == protocol) /* found one */
 		return handler;
 	}
 	return NULL;
@@ -457,7 +457,9 @@ char smews_receive(void) {
         curr_input.connection = NULL;
 #endif
         connection->protocol.gpip.payload_size = packet_length;
-        connection->protocol.gpip.want_to_send = connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(connection);
+        //connection->protocol.gpip.want_to_send = connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin(connection);
+		generator_dopacket_in_func_t *callback = CONST_ADDR(connection->output_handler->handler_data.generator.handlers.gp_ip.dopacketin);
+		connection->protocol.gpip.want_to_send =  callback(connection);
         if (!connection->protocol.gpip.want_to_send)
             free_connection(connection);
         return 1;
