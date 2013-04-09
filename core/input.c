@@ -441,7 +441,11 @@ char smews_receive(void) {
 				return 1;
 			tmp_connection.protocol.gpip.protocol = protocol;
 			/* add the connection */
-			connection = add_connection(&tmp_connection);
+			connection = add_connection(&tmp_connection
+#ifdef IPV6
+						    , compressed_ip_size(comp_ipv6_addr)
+#endif
+			    );
 			if (connection == NULL)
 				return 1;
 		}
@@ -1378,7 +1382,11 @@ char smews_receive(void) {
 		}
 
 		if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
-			connection = add_connection(&tmp_connection);
+			connection = add_connection(&tmp_connection
+#ifdef IPV6
+						    , compressed_ip_size(comp_ipv6_addr)
+#endif
+			    );
 			/* update the pointer in the tmp_connection because
 			 * it will be copied later so if the pointers do not have the right value, the list
 			 * will be screwed */

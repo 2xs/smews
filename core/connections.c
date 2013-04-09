@@ -144,12 +144,17 @@ char something_to_send(const struct connection *connection) {
 }
 
 /*-----------------------------------------------------------------------------------*/
-struct connection *add_connection(const struct connection *from)
+struct connection *add_connection(const struct connection *from
+#ifdef IPV6
+				  , uint8_t compressed_ip_size /* Used in ipv6 to allocation enough bytes to 
+								  store the compressed ip */
+#endif
+)
 {
 	struct connection *connection;
 #ifdef IPV6
 	/* Size of a connection + size of the IPv6 adress (+ compression indexes) */
-	connection = mem_alloc((sizeof(struct connection) + (17-((from->ip_addr[0])&15))) * sizeof(unsigned char));
+	connection = mem_alloc(sizeof(struct connection) + compressed_ip_size);
 #else
 	connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
 #endif
@@ -271,7 +276,11 @@ const void *request_packet_out_call(unsigned char protocol, unsigned char *dst_i
 
     tmp_connection.protocol.gpip.protocol = protocol;
     /* add the connection */
-    connection = add_connection(&tmp_connection);
+    connection = add_connection(&tmp_connection
+#ifdef IPV6
+				, compressed_ip_size(connection->ip_addr)
+#endif
+);
     if (connection == NULL)
 	return NULL;
 
