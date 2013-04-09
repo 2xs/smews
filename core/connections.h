@@ -201,7 +201,12 @@ extern unsigned char local_ip_addr[4];
 extern char something_to_send(const struct connection *connection);
 extern void free_connection(const struct connection *connection);
 /* Allocates and insert a new connection. The inserted connection will be a copy of the from parameter */
-extern struct connection *add_connection(const struct connection *from);
+extern struct connection *add_connection(const struct connection *from
+#ifdef IPV6
+				  , uint8_t compressed_ip_size /* Used in ipv6 to allocation enough bytes to 
+								  store the compressed ip */
+#endif
+    );
 
 #ifndef DISABLE_POST
 /* Shared coroutine state (in = 0 / out = 1)*/
