@@ -54,13 +54,13 @@ typedef struct
     unsigned char link_layer[LINK_LAYER_ADDRESS_SIZE];
 } LinkLayerEntry;
 
-LinkLayerEntry _link_layer_table[LINK_LAYER_CACHE_MAX_ENTRY];
+static LinkLayerEntry _link_layer_table[LINK_LAYER_CACHE_MAX_ENTRY];
 
-#ifndef DISABLE_TIMERS
-#define NOW TIME_MILLIS
+#ifdef TIME_MILLIS
+#define NOW (TIME_MILLIS)
 #else
 static uint32_t _current_time = 0;
-#define NOW (_current_time++)
+#define NOW (++_current_time)
 #endif
 
 #ifndef LINK_LAYER_ADDRESS_SIZE
@@ -71,17 +71,19 @@ static uint32_t _current_time = 0;
 static inline int _ip_equal(const unsigned char *ip1, const unsigned char *ip2)
 {
 	uint8_t i;
-	for (i = 0 ; i < 16 ; ++i)
-		if (ip1[i] != ip2[i])
-			return 0;
+	for (i = 0 ; i < 16; ++i)
+	    if (ip1[i] != ip2[i])
+		return 0;
 	return 1;
 }
 static inline int _ip_is_null(const unsigned char *ip)
 {
 	uint8_t i;
 	for (i = 0 ; i < 16 ; ++i)
-		if (ip[i])
-			return 0;
+	{
+	    if (ip[i])
+		return 0;
+	}
 	return 1;
 }
 #define IP_EQUAL(ip1, ip2) _ip_equal(ip1,ip2)
@@ -93,6 +95,7 @@ static inline int _ip_is_null(const unsigned char *ip)
 #define COPY_IP(ip1, ip2) UI32(ip1) = UI32(ip2)
 #endif
 
+
 void add_link_layer_address(unsigned char *ip, unsigned char *link_layer)
 {
     uint8_t i, min_time_idx = 0;
@@ -102,25 +105,25 @@ void add_link_layer_address(unsigned char *ip, unsigned char *link_layer)
 
     for (i = 0 ; i < LINK_LAYER_CACHE_MAX_ENTRY ; ++i)
     {
-		if (_link_layer_table[i].timestamp < min_time)
-		{
-			min_time = _link_layer_table[i].timestamp;
-			min_time_idx = i;
-		}
-		if (IP_EQUAL(_link_layer_table[i].ip,ip) || IP_IS_NULL(_link_layer_table[i].ip))
-		{
-			memcpy(_link_layer_table[i].link_layer, link_layer, LINK_LAYER_ADDRESS_SIZE);
-			_link_layer_table[i].timestamp = NOW;
-			if (IP_IS_NULL(_link_layer_table[i].ip))
-			{
-				COPY_IP(_link_layer_table[i].ip,ip);
-			}
-			return;
-		}
+	if (_link_layer_table[i].timestamp < min_time)
+	{
+	    min_time = _link_layer_table[i].timestamp;
+	    min_time_idx = i;
+	}
+	if (IP_EQUAL(_link_layer_table[i].ip,ip) || IP_IS_NULL(_link_layer_table[i].ip))
+	{
+	    memcpy(_link_layer_table[i].link_layer, link_layer, LINK_LAYER_ADDRESS_SIZE);
+	    _link_layer_table[i].timestamp = NOW;
+	    if (IP_IS_NULL(_link_layer_table[i].ip))
+	    {
+		COPY_IP(_link_layer_table[i].ip,ip);
+	    }
+	    return;
+	}
     }
     /* every entry is used, remove the oldest one */
     COPY_IP(_link_layer_table[min_time_idx].ip,ip);
-	memcpy(_link_layer_table[min_time_idx].link_layer, link_layer, LINK_LAYER_ADDRESS_SIZE);
+    memcpy(_link_layer_table[min_time_idx].link_layer, link_layer, LINK_LAYER_ADDRESS_SIZE);
 }
 
 int get_link_layer_address(const unsigned char *ip, unsigned char *link_layer)

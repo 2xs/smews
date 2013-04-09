@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-07-13
-  Time-stamp: <2013-03-01 13:21:28 (hauspie)>
+  Time-stamp: <2013-03-22 11:02:49 (hauspie)>
 */
 
 
@@ -240,6 +240,9 @@ void mbed_init_timer(void)
 void mbed_print_configuration(void)
 {
 	printf("Disabled options: ");
+#ifdef DISABLE_COROUTINES
+	printf("coroutines ");
+#endif
 #ifdef DISABLE_COMET
 	printf("comet ");
 #endif
@@ -336,6 +339,7 @@ void mbed_eth_hardware_init(void)
     lcd_init_ports();
     lcd_clear();
     rflpc_printf_set_putchar(mbed_smews_putchar);
+    printf("Using LCD display\r\n");
 #endif
     /* Init rand */
     srand(LPC_RTC->CTIME0);

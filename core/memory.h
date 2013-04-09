@@ -56,3 +56,6 @@ extern void mem_free(void *ptr, uint16_t size);
  * free ptr
  * return NULL if failed */
 extern void *mem_realloc(void *ptr, uint16_t size, uint16_t size_to_add);
+
+extern int debug_mem_buffers;
+extern int debug_mem_infos;
