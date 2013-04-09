@@ -371,8 +371,6 @@ char smews_receive(void) {
 	/* Compress the received IPv6 adress
 		compress_ip(FullIPv6, IP's Offset, Indexe's offset) */
 	compress_ip(full_ipv6_addr, comp_ipv6_addr+1, &comp_ipv6_addr[0]);
-	/* copy compressed ip */
-	copy_compressed_ip(tmp_connection.ip_addr, comp_ipv6_addr);
 	/* discard the dest IP */
 	DEV_GET32(tmp_ui32);
 	DEV_GET32(tmp_ui32);
