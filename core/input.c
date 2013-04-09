@@ -371,8 +371,6 @@ char smews_receive(void) {
     /* Compress the received IPv6 adress
        compress_ip(FullIPv6, IP's Offset, Indexe's offset) */
     compress_ip(full_ipv6_addr, comp_ipv6_addr+1, &comp_ipv6_addr[0]);
-    /* copy compressed ip */
-    copy_compressed_ip(tmp_connection.ip_addr, comp_ipv6_addr);
     /* discard the dest IP */
     DEV_GET32(tmp_ui32);
     DEV_GET32(tmp_ui32);
@@ -429,23 +427,27 @@ char smews_receive(void) {
 #ifndef DISABLE_GP_IP_HANDLER
     if (protocol != IP_PROTO_TCP)
     {
-        /* Finaly, the decision has been made to create a new connection for each packet and to
-         * free it after having called the output handler.
-         * Previous code left in comments if we change our mind later */
-        connection = NULL; /* smews_gpip_get_connection(protocol, NULL);*/
-
-        if (connection == NULL) /* no connection found, create one */
-        {
-            tmp_connection.output_handler = smews_gpip_get_output_handler(protocol);
-            if (tmp_connection.output_handler == NULL)
-                return 1;
-            tmp_connection.protocol.gpip.protocol = protocol;
-            /* add the connection */
-            connection = add_connection(&tmp_connection);
-            if (connection == NULL)
-                return 1;
-        }
-        /* update the connection */
+	/* Finaly, the decision has been made to create a new connection for each packet and to
+	 * free it after having called the output handler.
+	 * Previous code left in comments if we change our mind later */
+	connection = NULL; /* smews_gpip_get_connection(protocol, NULL);*/
+	
+	if (connection == NULL) /* no connection found, create one */
+	{
+	    tmp_connection.output_handler = smews_gpip_get_output_handler(protocol);
+	    if (tmp_connection.output_handler == NULL)
+		return 1;
+	    tmp_connection.protocol.gpip.protocol = protocol;
+	    /* add the connection */
+	    connection = add_connection(&tmp_connection
+#ifdef IPV6
+					, compressed_ip_size(comp_ipv6_addr)
+#endif
+		);
+	    if (connection == NULL)
+		return 1;
+	}
+		/* update the connection */
 #ifdef IPV6
         copy_compressed_ip(connection->ip_addr, comp_ipv6_addr);
 #else
@@ -1393,24 +1395,28 @@ char smews_receive(void) {
 #ifndef DISABLE_ARGS
                 mem_free(defer_free_args, defer_free_args_size);
 #endif
-            }
-        }
-
-        if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
-            connection = add_connection(&tmp_connection);
-            /* update the pointer in the tmp_connection because
-             * it will be copied later so if the pointers do not have the right value, the list
-             * will be screwed */
-            if (connection)
-            {
-                tmp_connection.prev = connection->prev;
-                tmp_connection.next = connection->next;
-            }
-        }
-
-        if(!connection) {
-            /* no valid connection has been found for this packet, send a reset */
-            UI32(tmp_connection.protocol.http.next_outseqno) = UI32(current_inack);
+	    }
+	}
+	
+	if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
+	    connection = add_connection(&tmp_connection
+#ifdef IPV6
+					, compressed_ip_size(comp_ipv6_addr)
+#endif
+		);
+	    /* update the pointer in the tmp_connection because
+	     * it will be copied later so if the pointers do not have the right value, the list
+	     * will be screwed */
+	    if (connection)
+	    {
+		tmp_connection.prev = connection->prev;
+		tmp_connection.next = connection->next;
+	    }
+	}
+	
+	if(!connection) {
+	    /* no valid connection has been found for this packet, send a reset */
+	    UI32(tmp_connection.protocol.http.next_outseqno) = UI32(current_inack);
 #ifdef IPV6
             memcpy(rst_connection.ip_addr, full_ipv6_addr, 16);
 #else
