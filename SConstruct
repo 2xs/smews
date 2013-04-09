@@ -87,6 +87,7 @@ disabledHash['comet'] = 'DISABLE_COMET'
 disabledHash['arguments'] = 'DISABLE_ARGS'
 disabledHash['post'] = 'DISABLE_POST'
 disabledHash['gpip'] = 'DISABLE_GP_IP_HANDLER'
+disabledHash['coroutines'] = 'DISABLE_COROUTINES'
 opts.Add(ListVariable('disable', 'Disable smews functionnalities', 'none', disabledHash.keys()))
 opts.Add(ListVariable('endian', 'Force endianness', 'none', ['little','big']))
 opts.Add('chuncksNbits', 'Set the checksum chuncks size', 5)
@@ -101,6 +102,8 @@ debug = globalEnv['debug']
 sdump = globalEnv['sdump']
 chuncksNbits = int(globalEnv['chuncksNbits'])
 toDisable = globalEnv['disable']
+if 'coroutines' in toDisable and 'post' not in toDisable:
+    toDisable.append('post')
 endian = globalEnv['endian']
 test = globalEnv['test']
 if endian:
@@ -188,7 +191,8 @@ if sdump:
 if debug:
 	globalEnv.Append(CCFLAGS = '-O0 -g')
 else:
-	globalEnv.Append(CCFLAGS =  '-Os')
+	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections')
+	globalEnv.Append(LINKFLAGS = '-Wl,--gc-sections -Wl,--print-gc-sections')
 globalEnv.Append(CPPDEFINES = {'CHUNCKS_NBITS' : str(chuncksNbits)})
 for func in toDisable:
 	globalEnv.Append(CPPDEFINES = { disabledHash[func] : '1'})

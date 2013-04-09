@@ -1,4 +1,6 @@
 Next version:
+	- Adds an option to disable coroutines
+	- Now only links functions actually used
 	- Adds support for multiple linux architecture
 		- tested on kernel armv6h (raspberry pi) and armv7h (mele A1000)
 	- Adds LCD screen support for mbed target

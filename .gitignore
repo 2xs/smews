@@ -3,4 +3,5 @@
 bin
 gen
 .sconsign.dblite
+*.swp
 rflpc.map
