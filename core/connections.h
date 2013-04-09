@@ -224,7 +224,7 @@ struct curr_output_t {
 extern struct curr_output_t curr_output;
 
 #ifdef DISABLE_COROUTINES
-#define DYNAMIC_STATE_CHANGE(s) do { /*printf("%s(%d)-%p-%x: %d -> %d (%s) (cl: %d, mb: %d)\r\n", __FILE__, __LINE__, curr_output.service, UI32(curr_output.next_outseqno), curr_output.dynamic_service_state, (s), #s, curr_output.content_length, curr_output.max_bytes);*/ curr_output.dynamic_service_state = (s); } while(0)
+#define DYNAMIC_STATE_CHANGE(s) do { curr_output.dynamic_service_state = (s); } while(0)
 #endif
 
 /* Local IP address */
