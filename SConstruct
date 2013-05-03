@@ -191,7 +191,7 @@ if sdump:
 if debug:
 	globalEnv.Append(CCFLAGS = '-O0 -g')
 else:
-	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections')
+	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections -fno-strict-aliasing')
 	globalEnv.Append(LINKFLAGS = '-Wl,--gc-sections -Wl,--print-gc-sections')
 globalEnv.Append(CPPDEFINES = {'CHUNCKS_NBITS' : str(chuncksNbits)})
 for func in toDisable:
