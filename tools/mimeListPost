@@ -15,7 +15,7 @@
 #application/mspowerpoint
 #application/msword
 #application/mswordf
-#application/octet-stream
+application/octet-stream
 #application/oda
 #application/pdf
 #application/postscript

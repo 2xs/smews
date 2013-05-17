@@ -43,6 +43,12 @@
 #include "blobs.h"
 #include "defines.h"
 
+#define DEBUG_INPUT
+
+#ifdef DEBUG_INPUT
+#include <stdio.h>
+#endif
+
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
 int16_t stack_i;
@@ -206,13 +212,18 @@ short in(){
 
     if(coroutine_state.state == cor_out)
         return -1;
+
     if(!curr_input.connection->protocol.http.post_data->content_length)
         return -1;
+
     if(curr_input.connection->protocol.http.post_data->boundary && (curr_input.connection->protocol.http.post_data->boundary->index == (uint8_t)-1)) /* index = -1 => boundary found */
         return -1;
+
     if(!curr_input.length)
         cr_run(NULL,cor_type_get); /* input buffer is empty, changing context */
+
     if(curr_input.connection->protocol.http.post_data->boundary){
+
         /* getting next value in input buffer */
         tmp = curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index];
         DEV_GETC(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]);
@@ -240,6 +251,7 @@ short in(){
     }
     else
         DEV_GETC(tmp);
+
     /* updating counters */
     if(curr_input.connection->protocol.http.post_data->content_length != (uint16_t)-1)
         curr_input.connection->protocol.http.post_data->content_length--;
@@ -316,7 +328,7 @@ char smews_receive(void) {
     /* tmp connection used to store the current state until checksums are checked */
     struct connection tmp_connection;
 
-    if(!DEV_DATA_TO_READ)
+    if(!DEV_DATA_TO_READ) 
         return 0;
 
 #ifdef IPV6
@@ -328,7 +340,6 @@ char smews_receive(void) {
     /* get IP version & header length */
     DEV_GETC(tmp_char);
 #endif
-
 
 #ifdef SMEWS_RECEIVING
     SMEWS_RECEIVING;
@@ -360,7 +371,6 @@ char smews_receive(void) {
     if (tmp_char != IP_PROTO_TCP) /* If not TCP and general purpose IP is disabled, drop packet */
         return 1;
 #endif
-
 
     /* We don't care about the Hop Limit (TTL) */
     DEV_GET(tmp_char);
@@ -422,6 +432,7 @@ char smews_receive(void) {
 
     if(UI16(current_checksum) != 0xffff)
         return 1;
+
 #endif
 
 #ifndef DISABLE_GP_IP_HANDLER
@@ -467,6 +478,7 @@ char smews_receive(void) {
         return 1;
     }
 #endif
+
     /* End of IP, starting TCP */
     checksum_init();
 
@@ -705,6 +717,11 @@ char smews_receive(void) {
               && output_handler != &http_505_handler
 #endif
             ) {
+
+#ifdef DEBUG_INPUT
+    printf("SMEWS-> x=%d segment length = %d, parsing state=%d\n", x, segment_length, tmp_connection.protocol.http.parsing_state);
+#endif
+
             blob_curr = CONST_READ_UI8(blob);
 #ifndef DISABLE_POST
             /* testing end multipart */
@@ -727,8 +744,12 @@ char smews_receive(void) {
                     ||(tmp_connection.protocol.http.post_data
                        && tmp_connection.protocol.http.post_data->boundary
                        && tmp_connection.protocol.http.post_data->boundary->ready_to_count))
-                   && tmp_connection.protocol.http.post_data->content_length != (uint16_t)-1)
+                   && tmp_connection.protocol.http.post_data->content_length != (uint16_t)-1) {
+		    
+		    printf("Decrementing content length. Parsing State %d POST DATA IS %p\n", tmp_connection.protocol.http.parsing_state, tmp_connection.protocol.http.post_data);
                     tmp_connection.protocol.http.post_data->content_length--;
+		    
+		}
             }
             /* initializing buffer before parsing data */
             if(tmp_connection.protocol.http.parsing_state == parsing_init_buffer){
@@ -875,6 +896,10 @@ char smews_receive(void) {
                     curr_input.connection = &tmp_connection;
                     coroutine_state.state = cor_in;
                     /* running coroutine */
+#ifdef DEBUG_INPUT
+    printf("SMEWS RECEIVING CR_RUN\n");
+#endif
+
                     cr_run(&(tmp_connection.protocol.http.post_data->coroutine),cor_type_post_in);
                     coroutine_state.state = cor_out;
                     x += (length_temp-curr_input.length);
@@ -1289,8 +1314,17 @@ char smews_receive(void) {
               || output_handler == &http_505_handler
 #endif
                 ) && tmp_connection.protocol.http.parsing_state != parsing_cmd)){
+
+#ifdef DEBUG_INPUT
+	    printf("SETTING Parsing end\n");
+#endif
+
             tmp_connection.protocol.http.parsing_state = parsing_end;
             tmp_connection.protocol.http.ready_to_send = 1;
+#ifdef DEBUG_INPUT
+	    printf("Parsing end SET\n");
+#endif
+
         }
         if(!output_handler)
             tmp_connection.protocol.http.blob = blob;
