@@ -1,4 +1,5 @@
 Next version:
+	- Fixes a bug in the doPost handler generation
 	- Fixes a stack trash in ipv6
 	- Adds an option to disable coroutines
 	- Now only links functions actually used
