@@ -443,7 +443,7 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 
 		generatedOutputHandler += '\t\t\t.handlers = {\n'
 
-		if dstFileInfos.has_key('initGet') or dstFileInfos.has_key('doGet'):
+		if dstFileInfos.has_key('initGet') or dstFileInfos.has_key('doGet') or dstFileInfos.has_key('doPost'):
 			generatedOutputHandler += '\t\t\t\t.get = {\n'
 			# initGet
 			if dstFileInfos.has_key('initGet'):
