@@ -47,6 +47,15 @@
 
 #ifdef DEBUG_INPUT
 #include <stdio.h>
+
+
+static const char *cParsingStatesLabels[] = {
+"parsing_out", "parsing_cmd", "parsing_url", "parsing_end"
+#ifndef DISABLE_POST
+	, "parsing_post_attributes", "parsing_post_end", "parsing_post_content_type", "parsing_post_args", "parsing_post_data", "parsing_boundary", "parsing_init_buffer"
+#endif
+};
+
 #endif
 
 /* Used to dump the runtime stack */
@@ -719,7 +728,7 @@ char smews_receive(void) {
             ) {
 
 #ifdef DEBUG_INPUT
-    printf("SMEWS-> x=%d segment length = %d, parsing state=%d\n", x, segment_length, tmp_connection.protocol.http.parsing_state);
+    printf("SMEWS-> x=%d segment length = %d, parsing state=%s\n", x, segment_length, cParsingStatesLabels[tmp_connection.protocol.http.parsing_state]);
 #endif
 
             blob_curr = CONST_READ_UI8(blob);
@@ -745,8 +754,7 @@ char smews_receive(void) {
                        && tmp_connection.protocol.http.post_data->boundary
                        && tmp_connection.protocol.http.post_data->boundary->ready_to_count))
                    && tmp_connection.protocol.http.post_data->content_length != (uint16_t)-1) {
-		    
-		    printf("Decrementing content length. Parsing State %d POST DATA IS %p\n", tmp_connection.protocol.http.parsing_state, tmp_connection.protocol.http.post_data);
+
                     tmp_connection.protocol.http.post_data->content_length--;
 		    
 		}
