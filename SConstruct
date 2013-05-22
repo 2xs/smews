@@ -35,6 +35,7 @@ import os
 import sys
 sys.path.append('tools')
 import GenApps
+from SCons.Errors import BuildError
 
 import sys, string
 
@@ -95,6 +96,14 @@ opts.Add('chuncksNbits', 'Set the checksum chuncks size', 5)
 # environment creation, options extraction
 globalEnv = Environment(tools = ['gcc','as','ar','gnulink'], ENV = os.environ, options = opts)
 Help(opts.GenerateHelpText(globalEnv))
+
+# Check for bad options
+if opts.UnknownVariables():
+        err_msg = "Following options are not supported:"
+        for k in opts.UnknownVariables().keys():
+                err_msg = err_msg + " {0}".format(k)
+        sys.stderr.write("{0}\n".format(err_msg))
+        raise BuildError(err_msg)
 
 # arguments are stored into variables
 gzipped = globalEnv['gzip']
