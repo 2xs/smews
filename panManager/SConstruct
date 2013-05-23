@@ -1,12 +1,29 @@
 import os
 
+AddOption('--plugin',
+	dest='plugin',
+	type='string',
+	nargs=1,
+	action='store',
+	metavar='DIR',
+	help='Choose only one plugin to compile')
+
 VariantDir('bin', 'src',duplicate=0)
+
 env = Environment()
+PLUGIN = GetOption('plugin')
 env.Append(CCFLAGS =  '-g -O0 -Wall')
 env.Append(LINKFLAGS =  '-rdynamic')
 env.Append(LIBS = 'dl')
 env.Program('bin/panManager', Glob('bin/*.c'))
 
-for plugin in os.listdir('plugins'):
+if(PLUGIN != None):
+    path = 'plugins/%s/SConscript' %PLUGIN
+    if os.path.isfile(path):
+        SConscript(path)
+    else:
+        raise Exception('SConscript %s not found' %path)
+else:
+    for plugin in os.listdir('plugins'):
         if not plugin.startswith('disabled-'):
-	      SConscript('plugins/%s/SConscript' %plugin)
+            SConscript('plugins/%s/SConscript' %plugin)
