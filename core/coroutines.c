@@ -59,7 +59,12 @@ void cr_init(struct coroutine_t *coroutine) {
 	coroutine->curr_context.stack = NULL;
 	coroutine->curr_context.stack_size = 0;
 	/* the stack pointer starts at the end of the shared stack */
+#ifndef INITIAL_SHARED_STACK_SP
 	coroutine->curr_context.sp[0] = shared_stack + STACK_SIZE;
+#else
+	coroutine->curr_context.sp[0] = INITIAL_SHARED_STACK_SP(shared_stack,STACK_SIZE);
+#endif
+
 #ifdef USE_FRAME_POINTER
 	coroutine->curr_context.sp[1] = shared_stack + STACK_SIZE;
 #endif

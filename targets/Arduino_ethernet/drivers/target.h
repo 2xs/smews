@@ -1,8 +1,7 @@
 /*
 * Copyright or © or Copr. 2008, Simon Duquennoy
-* Copyright or © or Copr. 2013, Thomas Vantroys
 * 
-* Author e-mail: thomas.vantroys@univ-lille1.fr
+* Author e-mail: simon.duquennoy@lifl.fr
 * 
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
@@ -37,25 +36,38 @@
 #ifndef __TARGET_H__
 #define __TARGET_H__
 
+#include <string.h> //memcpy
 #include <stdint.h>
-#include <string.h>
+
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 
-#include "serial_line.h"
+#include "ethernet.h"
+#include "dev.h"
 
-extern volatile uint32_t global_timer;
+
+
+#ifndef NULL
+	#define NULL ((void*)0)
+#endif
+
+
+
 
 /* Drivers interface */
-
+ 
 #define HARDWARE_INIT hardware_init()
 #define HARDWARE_STOP
+#ifndef DISABLE_TIMERS
+extern volatile uint32_t global_timer;
 #define TIME_MILLIS global_timer
+#endif
 #define DEV_GET(c) {(c) = dev_get();}
 #define DEV_PUT(c) dev_put(c)
-#define DEV_PREPARE_OUTPUT(length) serial_line_write(SLIP_END);
-#define DEV_OUTPUT_DONE serial_line_write(SLIP_END);
-#define DEV_DATA_TO_READ (serial_line.readPtr != NULL)
+#define DEV_PREPARE_OUTPUT(length) dev_prepare_output(length)
+#define DEV_OUTPUT_DONE dev_output_done()
+#define DEV_DATA_TO_READ data_available()
 
 /* Smews states */
 
@@ -82,23 +94,22 @@ extern volatile uint32_t global_timer;
 #define CONST_ADDR(x) CONST_READ_ADDR(&(x))
 
 /* Endianness */
-
 #define ENDIANNESS LITTLE_ENDIAN
 
 /* Context switching */
+#define INITIAL_SHARED_STACK_SP(addr,size)	(addr + size - 1)
+
 #define BACKUP_CTX(sp) \
-		{\
-			uint16_t temp = SP;\
-			sp[0] = (void *)temp;\
-		}
+{\
+	sp[0] = (void *)SP;\
+}
 
 #define RESTORE_CTX(sp) \
-		{\
-			uint16_t temp = (uint16_t)sp[0];\
-			SP = temp; \
-		}
- 
-#define PUSHREGS \
+{ \
+	SP = (uint16_t)sp[0];\
+}\
+
+#define PUSHREGS  \
 	({ \
 	 asm volatile ( \
 		 "push r0 \n\t" \
@@ -136,7 +147,7 @@ extern volatile uint32_t global_timer;
 		);\
 	 })
 
-#define POPREGS \
+#define POPREGS  \
 	({ \
 	 asm volatile ( \
 		 "pop r31 \n\t" \
@@ -174,13 +185,36 @@ extern volatile uint32_t global_timer;
 		); \
 	})
 
-
 /* Smews configuration */
-#define OUTPUT_BUFFER_SIZE 256
-#define ALLOC_SIZE 768
-#define STACK_SIZE 256
+//#define OUTPUT_BUFFER_SIZE 512
+//#define OUTPUT_BUFFER_SIZE 256
+#define OUTPUT_BUFFER_SIZE 200
+//#define OUTPUT_BUFFER_SIZE 128
+//#define OUTPUT_BUFFER_SIZE 96
+//#define OUTPUT_BUFFER_SIZE 64
+//#define ALLOC_SIZE 1024
+//#define ALLOC_SIZE 768
+#define ALLOC_SIZE 512
+//#define ALLOC_SIZE 401
+//#define ALLOC_SIZE 384
+//#define ALLOC_SIZE 257
+//#define STACK_SIZE 384
+//#define STACK_SIZE 256
+//#define STACK_SIZE 200
+#define STACK_SIZE 192
+//#define STACK_SIZE 128
+//#define STACK_SIZE 64 // original
+
+extern ethAddr_t localEthAddr;
+#define LINK_LAYER_ADDRESS (localEthAddr.addr)
+#define LINK_LAYER_ADDRESS_SIZE 6
+
+#define DEV_MTU 1500
+
 
 /* For automatic test purpose */
-#define TEST_ARRAY_SIZE	128
+//#define TEST_ARRAY_SIZE	128
+#define TEST_ARRAY_SIZE	64
+//#define TEST_ARRAY_SIZE	32
 
 #endif /* __TARGET_H__ */
