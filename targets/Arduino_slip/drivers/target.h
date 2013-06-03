@@ -1,5 +1,6 @@
 /*
-* Copyright or © or Copr. 2008-2013, Simon Duquennoy, Thomas Vantroys
+* Copyright or © or Copr. 2008, Simon Duquennoy
+* Copyright or © or Copr. 2013, Thomas Vantroys
 * 
 * Author e-mail: thomas.vantroys@univ-lille1.fr
 * 
@@ -91,13 +92,11 @@ extern volatile uint32_t global_timer;
 			sp[0] = (void *)temp;\
 		}
 
-
 #define RESTORE_CTX(sp) \
 		{\
 			uint16_t temp = (uint16_t)sp[0];\
 			SP = temp; \
 		}
-
  
 #define PUSHREGS \
 	({ \
@@ -136,7 +135,6 @@ extern volatile uint32_t global_timer;
 		 "push r31 \n\t" \
 		);\
 	 })
-
 
 #define POPREGS \
 	({ \
@@ -180,7 +178,7 @@ extern volatile uint32_t global_timer;
 /* Smews configuration */
 #define OUTPUT_BUFFER_SIZE 256
 #define ALLOC_SIZE 768
-#define STACK_SIZE 200
+#define STACK_SIZE 256
 
 /* For automatic test purpose */
 #define TEST_ARRAY_SIZE	128
