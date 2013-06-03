@@ -160,9 +160,8 @@ int16_t dev_get(void)
 	
 	if(first)
 	{
-//	 	ENC624J600WriteOp16(ENC624J600_WRITE_ERXRDPT,IPPacketTab[read_idx].packetPtr+8+14); // 6 for mac src + 6 for mac dst + 2 for protocol + 8 for header
-////	 	ENC624J600WritePTR(ENC624J600_WRITE_ERXRDPT,IPPacketTab[read_idx].packetPtr+8+14,1); // 6 for mac src + 6 for mac dst + 2 for protocol + 8 for header
-	 	ENC624J600ReadRXBuffer(IPPacketTab[read_idx].packetPtr+8+14,tampon_read,MAX_TAMPON);
+	 	ENC624J600ReadRXBuffer(IPPacketTab[read_idx].packetPtr+8+14,tampon_read,MIN(MAX_TAMPON,IPPacketTab[read_idx].size)); // 6 for mac src + 6 for mac dst + 2 for protocol + 8 for header
+
 		indice_read=0;
 		first = 0;
 	}
