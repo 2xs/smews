@@ -1,0 +1,103 @@
+# Copyright or c or Copr. 2012, Thomas Vantroys, Maxime Wantiez
+# 
+# Author e-mail: thomas.vantroys@lifl.fr
+# 
+# This software is a computer program whose purpose is to design an
+# efficient Web server for very-constrained embedded system.
+# 
+# This software is governed by the CeCILL license under French law and
+# abiding by the rules of distribution of free software.  You can  use, 
+# modify and/ or redistribute the software under the terms of the CeCILL
+# license as circulated by CEA, CNRS and INRIA at the following URL
+# "http://www.cecill.info". 
+# 
+# As a counterpart to the access to the source code and  rights to copy,
+# modify and redistribute granted by the license, users are provided only
+# with a limited warranty  and the software's author,  the holder of the
+# economic rights,  and the successive licensors  have only  limited
+# liability. 
+# 
+# In this respect, the user's attention is drawn to the risks associated
+# with loading,  using,  modifying and/or developing or reproducing the
+# software by the user in light of its specific status of free software,
+# that may mean  that it is complicated to manipulate,  and  that  also
+# therefore means  that it is reserved for developers  and  experienced
+# professionals having in-depth computer knowledge. Users are therefore
+# encouraged to load and test the software's suitability as regards their
+# requirements in conditions enabling the security of their systems and/or 
+# data to be ensured and,  more generally, to use and operate it in the 
+# same conditions as regards security. 
+# 
+# The fact that you are presently reading this means that you have had
+# knowledge of the CeCILL license and that you accept its terms.
+
+
+import os
+import sys
+import IPy
+from IPy import IP
+
+
+# Calcum du checksum IP pour le pattern matching
+
+def unsigned(n):
+	return n & 0xFFFF
+
+
+def ip_checksum(buff):
+
+	word16=0
+	sum=0
+	i=0
+	length=20
+	while i < length:
+		word16 = ((buff[i]<<8&0xFF00) + (buff[i+1]&0xFF))
+		sum += word16
+		i=i+2
+	while sum>>16:
+		sum = (sum &0xFFFF) + (sum>>16)
+
+	sum = ~sum
+
+	return unsigned(sum)
+
+
+
+
+Import('env binDir projectName elfName')
+
+env.Replace(CC = 'avr-gcc')
+env.Replace(AS = 'avr-as')
+env.Replace(AR = 'avr-ar')
+env.Replace(LD = 'avr-ld')
+env.Replace(RANLIB = 'avr-ranlib')
+#env.Append(CCFLAGS = '-mmcu=atmega328p -Os -mcall-prologues -DF_CPU=16000000 -fno-strict-aliasing')
+#env.Append(CCFLAGS = '-mmcu=atmega328p -DF_CPU=16000000 -Os')
+env.Append(CCFLAGS = '-mmcu=atmega328p -DF_CPU=16000000 -Os -ffunction-sections ')
+#env.Append(LINKFLAGS = '-mmcu=atmega328p')
+env.Append(LINKFLAGS = '-mmcu=atmega328p -Wl,--gc-sections')
+
+
+
+# Compute the checksum for the pattern matching in IPv4
+# Allow only arp for our IPv4 address
+if env.has_key('ipaddr'):
+	ipVersion = IP(env['ipaddr']).version();
+	if(ipVersion == 4):
+		parts = str(IP(env['ipaddr']).strFullsize()).split(".");
+		env.Append(CPPDEFINES = { 'IP_ADDR_0' : parts[0] })
+		env.Append(CPPDEFINES = { 'IP_ADDR_1' : parts[1] })
+		env.Append(CPPDEFINES = { 'IP_ADDR_2' : parts[2] })
+		env.Append(CPPDEFINES = { 'IP_ADDR_3' : parts[3] })
+		data = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x08, 0x06, 0x00, 0x01, 0x08, 0x00, 0x06, 0x04, 0x00, 0x01, int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])]
+		checksum=ip_checksum(data)
+		env.Append(CPPDEFINES = { 'CHECKSUM_PATTERN' : checksum})
+
+env.Append(CCFLAGS = '-DENABLE_LL_CACHE')
+env.Append(CCFLAGS = '-DDEBUG_STACK')
+env.Append(CCFLAGS = '-DDEBUG_ENCX24J600')
+#env.Append(CCFLAGS = '-DDEBUG_COROUTINE')
+
+
+binaryName = projectName + '.bin'
+env.Command(binaryName, elfName,  'avr-objcopy -j .text -j .data -O ihex $SOURCE $TARGET')
