@@ -32,7 +32,6 @@ static unsigned char indice_read = 0;
 
 static uint16_t choix_TX;
 
-static volatile uint16_t count_dev_put;
 
 void dev_init(void) 
 {
@@ -51,22 +50,14 @@ void dev_init(void)
 void dev_prepare_output(uint16_t size)
 {
 	packet_size = size + 8; // 6 for MAC address destination + 2 for protocol
-#if 0
-	if (read_idx!=0)
-		ENC624J600WriteGPBuffer(choix_TX, IPPacketTab[read_idx-1].mac_src, 6); 
-	else
-		ENC624J600WriteGPBuffer(choix_TX, IPPacketTab[MAX_PACKET-1].mac_src, 6); 
-	ENC624J600WriteGPBuffer2(ipProto, 2);
-#endif
 
-	ENC624J600WriteGPBuffer(choix_TX+6, ipProto, 2); 
+	ENC624J600WriteGPBuffer(choix_TX+6, ipProto, 2); // +6 because we add the MAC destination in dev_output_done
 	indice_write=0;
 }
 
 
 void dev_put(unsigned char byte)
 {
-	count_dev_put++;
 	tampon[indice_write++]=byte;
 	
 	if(indice_write == MAX_TAMPON)
@@ -116,42 +107,6 @@ void dev_output_done(void)
 
 int16_t dev_get(void)
 {
-#if 0 
-// METALLICA VERSION
-	uint8_t byte=0;
-	static unsigned char first=1;
-
-	if(IPPacketTab[read_idx].size == 0)
-		return -1;
-	
-	if(first && IPPacketTab[read_idx].size>0)
-	{
-		ENC624J600WritePTR(ENC624J600_WRITE_ERXRDPT,IPPacketTab[read_idx].packetPtr+7+15,1);
-		first = 0;
-	}
-	
-	if(IPPacketTab[read_idx].size > 0)
-	{	
-		byte=ENC624J600ReadOp(ENC624J600_READ_ERXDATA,0);
-		IPPacketTab[read_idx].size--;
-	}
-
-	if(IPPacketTab[read_idx].size == 0)
-	{
-		first=1;
-		ENC624J600Write(ERXTAILL, (IPPacketTab[read_idx].nextPtr-2)&0x00FF);
-		ENC624J600Write(ERXTAILH, (IPPacketTab[read_idx].nextPtr-2)>>8);
-		if(read_idx < (MAX_PACKET-1))
-			read_idx++;
-		else
-			read_idx=0;
-	}
-	
-	return byte;
-#endif
-
-//MAXIME BUFFER
-//#if 0
 	uint8_t byte=0;
 	static unsigned char first=1;
 	
@@ -188,7 +143,6 @@ int16_t dev_get(void)
 			read_idx=0;
 	}
 	return byte;
-//#endif
 }
 
 //check if data is available!
@@ -212,13 +166,13 @@ ISR(INT0_vect, ISR_BLOCK)
 	sei();
 }
 
-
+// External interruption for debug
+// pushing the button will dump the memory (stack + bss) 
+// via the serial port
 ISR(INT1_vect, ISR_BLOCK)
 {
 	cli();
 	dump_stack();
 	sei();
 }
-
-
 

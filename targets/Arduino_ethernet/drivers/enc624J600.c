@@ -276,21 +276,6 @@ static void ENC624J600_READ_TBI(uint8_t instruction,volatile uint8_t *data)
 }
 
 
-static void saveContext(void)
-{
-	ENC624J600_READ_TBI(ENC624J600_READ_ERXRDPT,save.ERXRDPT); // toujours modifié
-	ENC624J600_READ_TBI(ENC624J600_READ_EGPWRPT,save.EGPWRPT);
-}
-
-
-static void restoreContext(void)
-{
-	ENC624J600_Write_TBI(ENC624J600_WRITE_ERXRDPT,save.ERXRDPT);
-	ENC624J600_Write_TBI(ENC624J600_WRITE_EGPWRPT,save.EGPWRPT);
-}
-
-
-
 
 
 //MAJ 22/05/12
@@ -522,7 +507,6 @@ void ENC624J600Send(uint16_t address, uint16_t len)
 #ifndef IPV6
 static void ENC624J600WriteUser(uint16_t address,uint8_t data)
 {
-	//ENC624J600WriteOp16(ENC624J600_WRITE_EGPWRPT,address);
 	ENC624J600WritePTR(ENC624J600_WRITE_EGPWRPT,address, 1);
 	ENC624J600WriteOp(ENC624J600_WRITE_EGPDATA,0,data);
 }
@@ -584,7 +568,10 @@ uint16_t ENC624J600PacketReceive(void)
 	if( !(ENC624J600Read(EIRL) & EIR_PKTIF) )
 		return 0;
 	
-	saveContext();
+	// Save the context, i.e., read and write pointers
+	ENC624J600_READ_TBI(ENC624J600_READ_ERXRDPT,save.ERXRDPT);
+	ENC624J600_READ_TBI(ENC624J600_READ_EGPWRPT,save.EGPWRPT);
+
 	PacketPtr=NextPacketPtr;
 	ENC624J600ReadRXBuffer(PacketPtr,head,PACKET_HEADER_SIZE);
 	NextPacketPtr=head[1]<<8 | head[0];
@@ -627,8 +614,8 @@ uint16_t ENC624J600PacketReceive(void)
 			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+27,IP_ADDR_1);
 			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+28,IP_ADDR_2);
 			ENC624J600WriteUser(PacketPtr+PACKET_HEADER_SIZE+29,IP_ADDR_3);
-			/*------------------------Send-------------------------*/
 			
+			/*------------------------Send-------------------------*/
 			ENC624J600Send(PacketPtr+PACKET_HEADER_SIZE+6,length-10);
 
 			// freed up memory by updating ERXTAIL if needed !
@@ -651,7 +638,7 @@ uint16_t ENC624J600PacketReceive(void)
 			IPPacketTab[write_idx].size = length-18; // 6 for Mac Src, 6 for Mac Dst, 2 for ethernet type, 4 for ethernet CRC
 	
 			ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+MAC_ADDR_SIZE,mac,MAC_ADDR_SIZE);
-			ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+ETH_HEADER_SIZE+IP_START,ip_src,IP_ADDR_SIZE); // 6 for Mac Src, 6 for Mac Dst, 2 for ethernet type, 12 for start of IPv4 src address
+			ENC624J600ReadRXBuffer(PacketPtr+PACKET_HEADER_SIZE+ETH_HEADER_SIZE+IP_START,ip_src,IP_ADDR_SIZE);
 	
 			// reverse to little endian
 			for(temp_i=0; temp_i<IP_ADDR_SIZE; temp_i++)
@@ -671,7 +658,9 @@ uint16_t ENC624J600PacketReceive(void)
 
 	// decrement the packet counter indicate we are done with this packet
 	ENC624J600SBI(ENC624J600_SETPKTDEC);
-	restoreContext();
+	// Restore context, i.e., Read and Write Pointers
+	ENC624J600_Write_TBI(ENC624J600_WRITE_ERXRDPT,save.ERXRDPT);
+	ENC624J600_Write_TBI(ENC624J600_WRITE_EGPWRPT,save.EGPWRPT);
 	
 	return length;
 }

@@ -456,9 +456,7 @@
 
 
 #define USER_START_INIT		0x0000
-//#define USER_STOP_INIT		0x0025
 #define USER_STOP_INIT		0x0029
-//#define TXSTART_INIT		0x0026
 #define TXSTART_INIT		0x0030
 #define TXSTART_2			0x0A00
 #define TXSTOP_INIT			0x1339
@@ -493,10 +491,8 @@
 
 
 typedef struct sauvegarde_s {
-	//uint8_t EGPRDPT[2];
 	uint8_t ERXRDPT[2];
 	uint8_t EGPWRPT[2];
-	//uint8_t ERXWRPT[2];
 } sauvegarde_t;
 
 
@@ -526,13 +522,9 @@ void ENC624J600Send(uint16_t address, uint16_t len);
 
 uint16_t ENC624J600PacketReceive(void);
 
-//void ENC624J600WriteOp16(uint8_t op, uint16_t data);
-//void ENC624J600WritePTR(uint8_t op, uint16_t data, uint8_t disable_cs);
-
 void ENC624J600SBI(uint8_t instruction);
 
 void ENC624J600ReadRXBuffer(uint16_t address, volatile uint8_t *data, uint16_t len);
-//void ENC624J600WriteUser(uint16_t address,uint8_t data);
 
 #endif
 
