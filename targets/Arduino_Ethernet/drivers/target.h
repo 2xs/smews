@@ -1,8 +1,7 @@
 /*
 * Copyright or © or Copr. 2008, Simon Duquennoy
-* Copyright or © or Copr. 2013, Thomas Vantroys
 * 
-* Author e-mail: thomas.vantroys@univ-lille1.fr
+* Author e-mail: simon.duquennoy@lifl.fr
 * 
 * This software is a computer program whose purpose is to design an
 * efficient Web server for very-constrained embedded system.
@@ -38,24 +37,30 @@
 #define __TARGET_H__
 
 #include <stdint.h>
-#include <string.h>
 #include <avr/pgmspace.h>
-#include <avr/interrupt.h>
 
-#include "serial_line.h"
+#ifndef NULL
+	#define NULL ((void*)0)
+#endif
+
+
+#include "dev.h"
+
+
+extern packet_t IPPacket;
 
 extern volatile uint32_t global_timer;
 
 /* Drivers interface */
-
+ 
 #define HARDWARE_INIT hardware_init()
 #define HARDWARE_STOP
 #define TIME_MILLIS global_timer
 #define DEV_GET(c) {(c) = dev_get();}
 #define DEV_PUT(c) dev_put(c)
-#define DEV_PREPARE_OUTPUT(length) serial_line_write(SLIP_END);
-#define DEV_OUTPUT_DONE serial_line_write(SLIP_END);
-#define DEV_DATA_TO_READ (serial_line.readPtr != NULL)
+#define DEV_PREPARE_OUTPUT(length) dev_prepare_output(length)
+#define DEV_OUTPUT_DONE dev_output_done()
+#define DEV_DATA_TO_READ data_available()
 
 /* Smews states */
 
@@ -86,101 +91,30 @@ extern volatile uint32_t global_timer;
 #define ENDIANNESS LITTLE_ENDIAN
 
 /* Context switching */
-#define BACKUP_CTX(sp) \
-		{\
-			uint16_t temp = SP;\
-			sp[0] = (void *)temp;\
-		}
+/* To be done */
 
-#define RESTORE_CTX(sp) \
-		{\
-			uint16_t temp = (uint16_t)sp[0];\
-			SP = temp; \
-		}
- 
-#define PUSHREGS \
-	({ \
-	 asm volatile ( \
-		 "push r0 \n\t" \
-		 "push r1 \n\t" \
-		 "push r2 \n\t" \
-		 "push r3 \n\t" \
-		 "push r4 \n\t" \
-		 "push r5 \n\t" \
-		 "push r6 \n\t" \
-		 "push r7 \n\t" \
-		 "push r8 \n\t" \
-		 "push r9 \n\t" \
-		 "push r10 \n\t" \
-		 "push r11 \n\t" \
-		 "push r12 \n\t" \
-		 "push r13 \n\t" \
-		 "push r14 \n\t" \
-		 "push r15 \n\t" \
-		 "push r16 \n\t" \
-		 "push r17 \n\t" \
-		 "push r18 \n\t" \
-		 "push r19 \n\t" \
-		 "push r20 \n\t" \
-		 "push r21 \n\t" \
-		 "push r22 \n\t" \
-		 "push r23 \n\t" \
-		 "push r24 \n\t" \
-		 "push r25 \n\t" \
-		 "push r26 \n\t" \
-		 "push r27 \n\t" \
-		 "push r28 \n\t" \
-		 "push r29 \n\t" \
-		 "push r30 \n\t" \
-		 "push r31 \n\t" \
-		);\
-	 })
+#define BACKUP_CTX(sp)
+		
+#define RESTORE_CTX(sp)
 
-#define POPREGS \
-	({ \
-	 asm volatile ( \
-		 "pop r31 \n\t" \
-		 "pop r30 \n\t" \
-		 "pop r29 \n\t" \
-		 "pop r28 \n\t" \
-		 "pop r27 \n\t" \
-		 "pop r26 \n\t" \
-		 "pop r25 \n\t" \
-		 "pop r24 \n\t" \
-		 "pop r23 \n\t" \
-		 "pop r22 \n\t" \
-		 "pop r21 \n\t" \
-		 "pop r20 \n\t" \
-		 "pop r19 \n\t" \
-		 "pop r18 \n\t" \
-		 "pop r17 \n\t" \
-		 "pop r16 \n\t" \
-		 "pop r15 \n\t" \
-		 "pop r14 \n\t" \
-		 "pop r13 \n\t" \
-		 "pop r12 \n\t" \
-		 "pop r11 \n\t" \
-		 "pop r10 \n\t" \
-		 "pop r9 \n\t" \
-		 "pop r8 \n\t" \
-		 "pop r7 \n\t" \
-		 "pop r6 \n\t" \
-		 "pop r5 \n\t" \
-		 "pop r4 \n\t" \
-		 "pop r3 \n\t" \
-		 "pop r2 \n\t" \
-		 "pop r1 \n\t" \
-		 "pop r0 \n\t" \
-		); \
-	})
+#define PUSHREGS
 
+#define POPREGS
 
 /* Smews configuration */
-#define OUTPUT_BUFFER_SIZE 256
-#define ALLOC_SIZE 768
-#define STACK_SIZE 256
+//#define OUTPUT_BUFFER_SIZE 512
+#define OUTPUT_BUFFER_SIZE 128
+//#define ALLOC_SIZE 2048
+//#define ALLOC_SIZE 768 // Arduino
+#define ALLOC_SIZE 512
+#define STACK_SIZE 128
+//#define STACK_SIZE 64 // original
+//#define STACK_SIZE 256
 
-/* For automatic test purpose */
-#define TEST_ARRAY_SIZE	128
+/* IP address */
+#define IP_ADDR_0 134
+#define IP_ADDR_1 206
+#define IP_ADDR_2 90
+#define IP_ADDR_3 3
 
 #endif /* __TARGET_H__ */
