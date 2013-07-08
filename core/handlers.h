@@ -53,7 +53,7 @@ typedef char (generator_dopacket_out_func_t)(const void *connection_info);
 #endif
 
 #ifndef DISABLE_POST
-typedef char (generator_dopost_in_func_t)(uint8_t,uint8_t,char *,void **);
+typedef char (generator_dopost_in_func_t)(uint8_t,uint16_t,uint8_t,char *,void **);
 typedef char (generator_dopost_out_func_t)(uint8_t,void *);
 #endif
 

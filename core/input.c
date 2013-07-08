@@ -43,20 +43,7 @@
 #include "blobs.h"
 #include "defines.h"
 
-#define DEBUG_INPUT
-
-#ifdef DEBUG_INPUT
 #include <stdio.h>
-
-
-static const char *cParsingStatesLabels[] = {
-"parsing_out", "parsing_cmd", "parsing_url", "parsing_end"
-#ifndef DISABLE_POST
-	, "parsing_post_attributes", "parsing_post_end", "parsing_post_content_type", "parsing_post_args", "parsing_post_data", "parsing_boundary", "parsing_init_buffer"
-#endif
-};
-
-#endif
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
@@ -232,10 +219,13 @@ short in(){
         cr_run(NULL,cor_type_get); /* input buffer is empty, changing context */
 
     if(curr_input.connection->protocol.http.post_data->boundary){
-
         /* getting next value in input buffer */
         tmp = curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index];
         DEV_GETC(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]);
+
+        /*printf("%c",  
+curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]);*/
+
         curr_input.connection->protocol.http.post_data->boundary->index++;
         /* searching boundary */
         if(curr_input.connection->protocol.http.post_data->boundary->index == curr_input.connection->protocol.http.post_data->boundary->boundary_size)
@@ -250,12 +240,22 @@ short in(){
             for(i = 1 ; i < curr_input.connection->protocol.http.post_data->boundary->boundary_size-1 ; i++){
                 if(index == curr_input.connection->protocol.http.post_data->boundary->boundary_size)
                     index = 0;
-                if(curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i] != curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index])
+
+                /*printf("BRef %c VS BBuffer %c\r\n", 
+                  curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i],
+                  curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index]);*/
+                if(curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i] != curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index]) {
+                    printf("Boundary ref differs from buffer at %d (%c VS %c)\r\n", 
+                            i,curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i],
+                            curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index] );
                     break;
+                }
                 index++;
             }
-            if(i == curr_input.connection->protocol.http.post_data->boundary->boundary_size-1)
+            if(i == curr_input.connection->protocol.http.post_data->boundary->boundary_size-1) {
                 curr_input.connection->protocol.http.post_data->boundary->index = -1;
+                printf("Boundary MET !!!\r\n");
+            }
         }
     }
     else
@@ -727,10 +727,6 @@ char smews_receive(void) {
 #endif
             ) {
 
-#ifdef DEBUG_INPUT
-    printf("SMEWS-> x=%d segment length = %d, parsing state=%s\n", x, segment_length, cParsingStatesLabels[tmp_connection.protocol.http.parsing_state]);
-#endif
-
             blob_curr = CONST_READ_UI8(blob);
 #ifndef DISABLE_POST
             /* testing end multipart */
@@ -886,6 +882,9 @@ char smews_receive(void) {
                         cr_init(&(tmp_connection.protocol.http.post_data->coroutine));
                         tmp_connection.protocol.http.post_data->coroutine.func.func_post_in = CONST_ADDR(GET_GENERATOR(output_handler).handlers.post.dopostin);
                         tmp_connection.protocol.http.post_data->coroutine.params.in.content_type = tmp_connection.protocol.http.post_data->content_type;
+
+			                  tmp_connection.protocol.http.post_data->coroutine.params.in.content_length = tmp_connection.protocol.http.post_data->content_length;
+
                         tmp_connection.protocol.http.post_data->coroutine.params.in.filename = tmp_connection.protocol.http.post_data->filename;
                         tmp_connection.protocol.http.post_data->coroutine.params.in.post_data = tmp_connection.protocol.http.post_data->post_data;
                         if(tmp_connection.protocol.http.post_data->boundary){
@@ -904,10 +903,6 @@ char smews_receive(void) {
                     curr_input.connection = &tmp_connection;
                     coroutine_state.state = cor_in;
                     /* running coroutine */
-#ifdef DEBUG_INPUT
-    printf("SMEWS RECEIVING CR_RUN\n");
-#endif
-
                     cr_run(&(tmp_connection.protocol.http.post_data->coroutine),cor_type_post_in);
                     coroutine_state.state = cor_out;
                     x += (length_temp-curr_input.length);
@@ -970,6 +965,7 @@ char smews_receive(void) {
                         if(tmp_char != ' ' && tmp_char != '\r'){
                             tmp_connection.protocol.http.post_data->content_length *= 10;
                             tmp_connection.protocol.http.post_data->content_length += tmp_char - '0';
+                            printf("Content-length %d\n", tmp_connection.protocol.http.post_data->content_length);
                         }
                     }
                     else if(blob_curr == ATTRIBUT_FILENAME_61_ + 128){ /* filename */
@@ -1031,24 +1027,32 @@ char smews_receive(void) {
                         else{
                             /* final reallocation */
                             uint8_t i = 0;
-                            char *new_tab = mem_alloc((tmp_connection.protocol.http.post_data->boundary->index+5)*sizeof(char));
+                            char *new_tab = mem_alloc((tmp_connection.protocol.http.post_data->boundary->index/*+5*/)*sizeof(char));
                             if(!new_tab){
                                 output_handler = &http_404_handler;
                                 break;
                             }
-                            new_tab[0] = '\n';
+                            /*new_tab[0] = '\n';
                             new_tab[1] = '\r';
                             new_tab[2] = '\n';
                             new_tab[3] = '-';
-                            new_tab[4] = '-';
+                            new_tab[4] = '-';*/
                             /* copying boundary */
                             for(i = 0 ; i < tmp_connection.protocol.http.post_data->boundary->index ; i++)
-                                new_tab[i+5] = tmp_connection.protocol.http.post_data->boundary->boundary_ref[i];
+                                new_tab[i/*+5*/] = tmp_connection.protocol.http.post_data->boundary->boundary_ref[i];
                             mem_free(tmp_connection.protocol.http.post_data->boundary->boundary_ref,(tmp_connection.protocol.http.post_data->boundary->boundary_size)*sizeof(char));
-                            tmp_connection.protocol.http.post_data->boundary->boundary_size = tmp_connection.protocol.http.post_data->boundary->index + 5;
+                            tmp_connection.protocol.http.post_data->boundary->boundary_size = tmp_connection.protocol.http.post_data->boundary->index /*+ 5*/;
                             tmp_connection.protocol.http.post_data->boundary->boundary_ref = new_tab;
                             tmp_connection.protocol.http.post_data->boundary->index = -1;
                             tmp_connection.protocol.http.post_data->boundary->boundary_buffer = mem_alloc(tmp_connection.protocol.http.post_data->boundary->boundary_size*sizeof(char));
+
+                            printf("Boundary size is %d\r\n", tmp_connection.protocol.http.post_data->boundary->boundary_size);
+                            printf("Boundary ref is ");
+                            for(i = 0; i < tmp_connection.protocol.http.post_data->boundary->boundary_size; i++)
+                              printf("%c", tmp_connection.protocol.http.post_data->boundary->boundary_ref[i]);
+
+                            printf("\r\n");
+
                             if(!tmp_connection.protocol.http.post_data->boundary->boundary_buffer){
                                 /* If no space for boundary_ref, free boundary */
                                 mem_free(tmp_connection.protocol.http.post_data->boundary, sizeof(struct boundary_t));
@@ -1323,16 +1327,8 @@ char smews_receive(void) {
 #endif
                 ) && tmp_connection.protocol.http.parsing_state != parsing_cmd)){
 
-#ifdef DEBUG_INPUT
-	    printf("SETTING Parsing end\n");
-#endif
-
             tmp_connection.protocol.http.parsing_state = parsing_end;
             tmp_connection.protocol.http.ready_to_send = 1;
-#ifdef DEBUG_INPUT
-	    printf("Parsing end SET\n");
-#endif
-
         }
         if(!output_handler)
             tmp_connection.protocol.http.blob = blob;
