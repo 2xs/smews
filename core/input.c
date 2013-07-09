@@ -194,7 +194,7 @@ short in()
 #ifndef DISABLE_POST
 /* called from dopostin or dopacketin */
 short in(){
-    unsigned char tmp;
+    unsigned char tmp, lastPositionInBoundary;
 
 #ifndef DISABLE_GP_IP_HANDLER
     /* If post AND general purpose ip, then check if the connection is null
@@ -222,16 +222,17 @@ short in(){
         /* getting next value in input buffer */
         tmp = curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index];
         DEV_GETC(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]);
-
-        /*printf("%c",  
-curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]);*/
-
         curr_input.connection->protocol.http.post_data->boundary->index++;
         /* searching boundary */
         if(curr_input.connection->protocol.http.post_data->boundary->index == curr_input.connection->protocol.http.post_data->boundary->boundary_size)
             curr_input.connection->protocol.http.post_data->boundary->index = 0;
         /* comparing first and last characters of buffer with boundary, then all characters */
-        if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[(unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1) % curr_input.connection->protocol.http.post_data->boundary->boundary_size]
+        if(curr_input.connection->protocol.http.post_data->boundary->index == 0)
+          lastPositionInBoundary = curr_input.connection->protocol.http.post_data->boundary->boundary_size - 1;
+        else
+          lastPositionInBoundary = (unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1) % curr_input.connection->protocol.http.post_data->boundary->boundary_size;
+
+        if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[lastPositionInBoundary]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[curr_input.connection->protocol.http.post_data->boundary->boundary_size-1]
            && curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[0]){
@@ -241,21 +242,12 @@ curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_i
                 if(index == curr_input.connection->protocol.http.post_data->boundary->boundary_size)
                     index = 0;
 
-                /*printf("BRef %c VS BBuffer %c\r\n", 
-                  curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i],
-                  curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index]);*/
-                if(curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i] != curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index]) {
-                    printf("Boundary ref differs from buffer at %d (%c VS %c)\r\n", 
-                            i,curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i],
-                            curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index] );
+                if(curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i] != curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index])
                     break;
-                }
                 index++;
             }
-            if(i == curr_input.connection->protocol.http.post_data->boundary->boundary_size-1) {
+            if(i == curr_input.connection->protocol.http.post_data->boundary->boundary_size-1)
                 curr_input.connection->protocol.http.post_data->boundary->index = -1;
-                printf("Boundary MET !!!\r\n");
-            }
         }
     }
     else
@@ -965,7 +957,6 @@ char smews_receive(void) {
                         if(tmp_char != ' ' && tmp_char != '\r'){
                             tmp_connection.protocol.http.post_data->content_length *= 10;
                             tmp_connection.protocol.http.post_data->content_length += tmp_char - '0';
-                            printf("Content-length %d\n", tmp_connection.protocol.http.post_data->content_length);
                         }
                     }
                     else if(blob_curr == ATTRIBUT_FILENAME_61_ + 128){ /* filename */
@@ -1027,31 +1018,24 @@ char smews_receive(void) {
                         else{
                             /* final reallocation */
                             uint8_t i = 0;
-                            char *new_tab = mem_alloc((tmp_connection.protocol.http.post_data->boundary->index/*+5*/)*sizeof(char));
+                            char *new_tab = mem_alloc((tmp_connection.protocol.http.post_data->boundary->index+4)*sizeof(char));
                             if(!new_tab){
                                 output_handler = &http_404_handler;
                                 break;
                             }
-                            /*new_tab[0] = '\n';
-                            new_tab[1] = '\r';
-                            new_tab[2] = '\n';
+                            
+                            new_tab[0] = '\r';
+                            new_tab[1] = '\n';
+                            new_tab[2] = '-';
                             new_tab[3] = '-';
-                            new_tab[4] = '-';*/
                             /* copying boundary */
                             for(i = 0 ; i < tmp_connection.protocol.http.post_data->boundary->index ; i++)
-                                new_tab[i/*+5*/] = tmp_connection.protocol.http.post_data->boundary->boundary_ref[i];
+                                new_tab[i+4] = tmp_connection.protocol.http.post_data->boundary->boundary_ref[i];
                             mem_free(tmp_connection.protocol.http.post_data->boundary->boundary_ref,(tmp_connection.protocol.http.post_data->boundary->boundary_size)*sizeof(char));
-                            tmp_connection.protocol.http.post_data->boundary->boundary_size = tmp_connection.protocol.http.post_data->boundary->index /*+ 5*/;
+                            tmp_connection.protocol.http.post_data->boundary->boundary_size = tmp_connection.protocol.http.post_data->boundary->index + 4;
                             tmp_connection.protocol.http.post_data->boundary->boundary_ref = new_tab;
                             tmp_connection.protocol.http.post_data->boundary->index = -1;
                             tmp_connection.protocol.http.post_data->boundary->boundary_buffer = mem_alloc(tmp_connection.protocol.http.post_data->boundary->boundary_size*sizeof(char));
-
-                            printf("Boundary size is %d\r\n", tmp_connection.protocol.http.post_data->boundary->boundary_size);
-                            printf("Boundary ref is ");
-                            for(i = 0; i < tmp_connection.protocol.http.post_data->boundary->boundary_size; i++)
-                              printf("%c", tmp_connection.protocol.http.post_data->boundary->boundary_ref[i]);
-
-                            printf("\r\n");
 
                             if(!tmp_connection.protocol.http.post_data->boundary->boundary_buffer){
                                 /* If no space for boundary_ref, free boundary */
