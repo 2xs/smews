@@ -230,7 +230,7 @@ short in(){
         if(curr_input.connection->protocol.http.post_data->boundary->index == 0)
           lastPositionInBoundary = curr_input.connection->protocol.http.post_data->boundary->boundary_size - 1;
         else
-          lastPositionInBoundary = (unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1) % curr_input.connection->protocol.http.post_data->boundary->boundary_size;
+          lastPositionInBoundary = (unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1);
 
         if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[lastPositionInBoundary]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[curr_input.connection->protocol.http.post_data->boundary->boundary_size-1]
@@ -1023,7 +1023,7 @@ char smews_receive(void) {
                                 output_handler = &http_404_handler;
                                 break;
                             }
-                            
+
                             new_tab[0] = '\r';
                             new_tab[1] = '\n';
                             new_tab[2] = '-';
