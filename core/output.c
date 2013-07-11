@@ -730,10 +730,11 @@ char smews_send (void)
     }
 #endif
 
-    if (!active_connection->protocol.http.ready_to_send)
+    if(!active_connection->protocol.http.ready_to_send)
     {
 	old_output_handler = active_connection->output_handler;
 	active_connection->output_handler = &ref_ack;
+	
     }
 #ifndef DISABLE_COMET
     /* do we need to acknowledge a comet request without answering it? */
@@ -749,7 +750,15 @@ char smews_send (void)
     {
 	case type_control:
 	    /* preparing to send TCP control data */
-	    smews_send_packet (active_connection);
+#ifndef DISABLE_POST
+      /* Added to prevent from duplicate ack generation while dealing with post requests
+       * When dealing with post requests, it happens that smews has to handle packets acknowlegment while the post data 
+       * are still not fully received :
+       * in the meantime, smews acknowledges multiple times (read dozens) the same packet, till post data reception completes.
+       */
+      if(!active_connection->protocol.http.post_data)
+#endif
+	      smews_send_packet (active_connection);
 	    active_connection->output_handler = NULL;
 	    if (active_connection->protocol.http.tcp_state == tcp_closing)
 	    {

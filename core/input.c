@@ -194,7 +194,7 @@ short in()
 #ifndef DISABLE_POST
 /* called from dopostin or dopacketin */
 short in(){
-    unsigned char tmp, lastPositionInBoundary;
+    unsigned char tmp, last_position_in_boundary;
 
 #ifndef DISABLE_GP_IP_HANDLER
     /* If post AND general purpose ip, then check if the connection is null
@@ -228,11 +228,11 @@ short in(){
             curr_input.connection->protocol.http.post_data->boundary->index = 0;
         /* comparing first and last characters of buffer with boundary, then all characters */
         if(curr_input.connection->protocol.http.post_data->boundary->index == 0)
-          lastPositionInBoundary = curr_input.connection->protocol.http.post_data->boundary->boundary_size - 1;
+          last_position_in_boundary = curr_input.connection->protocol.http.post_data->boundary->boundary_size - 1;
         else
-          lastPositionInBoundary = (unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1);
+          last_position_in_boundary = (unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1);
 
-        if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[lastPositionInBoundary]
+        if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[last_position_in_boundary]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[curr_input.connection->protocol.http.post_data->boundary->boundary_size-1]
            && curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[0]){
@@ -553,7 +553,6 @@ char smews_receive(void) {
 
     /* get TCP ack */
     DEV_GETC32(current_inack);
-
 
     /* duplicate ACK: set nextoutseqno for retransmission */
     if(UI32(tmp_connection.protocol.http.next_outseqno) - UI16(tmp_connection.protocol.http.inflight) == UI32(current_inack)) {
