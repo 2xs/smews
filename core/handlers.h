@@ -59,17 +59,17 @@ typedef char (generator_dopost_out_func_t)(uint8_t,void *);
 
 /* Generator: init and run functions */
 struct dynamic_resource {
-	generator_init_func_t *init;
-	union handlers_u {
-		struct get_handlers {
-			generator_initget_func_t *initget;
-			generator_doget_func_t *doget;
-		} get;
+  generator_init_func_t *init;
+  union handlers_u {
+    struct get_handlers {
+      generator_initget_func_t *initget;
+      generator_doget_func_t *doget;
+    } get;
 #ifndef DISABLE_POST
-		struct post_handlers{
-			generator_dopost_in_func_t *dopostin;
-			generator_dopost_out_func_t *dopostout;
-		} post;
+    struct post_handlers{
+      generator_dopost_in_func_t *dopostin;
+      generator_dopost_out_func_t *dopostout;
+    } post;
 #endif
 #ifndef DISABLE_GP_IP_HANDLER
 		struct gp_ip_handlers {
@@ -136,7 +136,7 @@ struct output_handler_t {
 		const struct dynamic_resource generator;
 	} handler_data;
 #ifndef DISABLE_ARGS
-	struct handler_args_t {
+  struct handler_args_t {
 		unsigned const char * /*CONST_VAR*/ args_tree;
 		const struct arg_ref_t * /*CONST_VAR*/ args_index;
 		uint16_t args_size;
@@ -147,6 +147,18 @@ struct output_handler_t {
 		unsigned const char * /*CONST VAR*/ mimes_index;
 		uint8_t mimes_size;
 	}handler_mimes;
+#endif
+#ifdef HTTP_AUTH
+  #if HTTP_AUTH == HTTP_AUTH_BASIC
+  struct handler_restrictions_t {
+    unsigned const char *realm;              /* Realm of restriction :
+						- no restriction if NULL */
+    uint8_t credentials_offset;              /* Offset to the first credential */
+    uint8_t credentials_count;               /* Credentials count from offset */
+  } handler_restriction;
+  #elif HTTP_AUTH == HTTP_AUTH_DIGEST
+  /* TODO */
+  #endif
 #endif
 };
 

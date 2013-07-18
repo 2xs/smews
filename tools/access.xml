@@ -1,0 +1,11 @@
+<http-authentication type="basic">
+  <authorizations>
+    <user login="admin" passwd="jesuisunadmin" />
+  </authorizations>
+  <restrictions>
+    <realm name="HTTP-Auth deployment @ Smews">
+      <uri path="/"
+	   users="admin" />
+    </realm>
+  </restrictions>
+</http-authentication>

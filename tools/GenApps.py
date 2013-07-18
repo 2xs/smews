@@ -53,6 +53,8 @@ requestListFileName = os.path.join('tools','supportedRequestList')
 requestList = []
 attributListFileName = os.path.join('tools','supportedPostAttributList')
 attributList = []
+httpAuthTypeListFileName = os.path.join('tools', 'supportedHttpAuthTypeList')
+httpAuthTypeList = []
 contentTypeList = []
 postList = []
 # doGet:1 doPost:2 doPostIn:4 doPostOut:8 args:16 content-types:32 doPacketIn:64 doPacketOut: 128
@@ -97,6 +99,13 @@ for line in open(attributListFileName,'r'):
 	if(len(split) > 0):
 		attributList.append(split[0])
 
+for line in open(httpAuthTypeListFileName, 'r'):
+	indice = line.find('#')
+	if indice >= 0:
+		line = line[:indice]
+	if (len(line) > 0):
+		httpAuthTypeList.append(line)
+
 def generateBlobsH(dstFile):
 	hOut = open(dstFile,'w')
 	writeHeader(hOut,0)
@@ -135,6 +144,16 @@ def writeDefinesH(dstFile):
 			if(re.search('\W',c)):
 				att =	att.replace(c,'_'+str(ord(c))+'_')
 		hOut.write('#define \t ATTRIBUT_' + att + '\t' + str(attributList.index(m)) + '\n')
+
+	# HTTP_AUTH_BASIC & HTTP_AUTH_DIGEST definitions
+	value = 0
+	for m in httpAuthTypeList:
+		type = m.upper()
+		for c in type:
+			if (re.search('\W', c)):
+				type = type.replace(c, '_' + str(ord(c)) + '_')
+		hOut.write('#define \t HTTP_AUTH_' + type + '\t' + str(value) + '\n')
+		value += 1
 
 	hOut.write('\n#endif\n')
 	hOut.close()
@@ -367,14 +386,18 @@ def generateResourceProps(srcFile,dstFileInfos):
 	pOut.close()
 
 # launches a Web applicative resource file generation
-def generateResource(srcFile,dstFile,chuncksNbits,gzipped,dstFileInfos):
+def generateResource(srcFile,dstFile,chuncksNbits,gzipped,dstFileInfos,realm,offsetCountCouple):
 	if getResourceType(srcFile) == DynamicResource:
-		generateDynamicResource(srcFile,dstFile,dstFileInfos)
+		generateDynamicResource(srcFile,dstFile,dstFileInfos,realm,offsetCountCouple)
 	else:
-		generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped)
+		generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,realm,offsetCountCouple)
 
 # dynamic resources: the generator file is enriched
-def generateDynamicResource(srcFile,dstFile,dstFileInfos):
+def generateDynamicResource(srcFile,
+			    dstFile,
+			    dstFileInfos,
+			    realm,
+			    offsetCountCouple):
 	# extract the properties from the XML (if needed)
 	fileData = extractPropsFromXml(srcFile,dstFileInfos)
 	# if the c/h file does not conatin any XML, we simply copy it: this is not a generator
@@ -389,6 +412,9 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 		generatedHeader = '#include "generators.h"\n'
 		generatedHeader += '#include "stddef.h"\n\n'
 		generatedHeader += '#include "defines.h"\n\n'
+
+		if realm != '':
+			generatedHeader += '#include "http_auth_data.h"\n\n'
 
 		generatedOutputHandler = '/********** Output handler **********/\n'
 		# handler functions declaration
@@ -513,6 +539,30 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 
 		generatedOutputHandler += '\t},\n'
 		generatedOutputHandler += '#endif\n'
+		
+		# HTTP Authentication data generation
+		generatedOutputHandler += '#ifdef HTTP_AUTH\n'
+
+		if realm != '':
+			realmVar = realm
+			for c in realmVar:
+				if (re.search('\W', c)):
+					realmVar = realmVar.replace(c, '_' + str(ord(c)) + '_')
+			generatedOutputHandler += '\t.handler_restriction = {\n'
+			generatedOutputHandler += '\t\t.realm = (unsigned char*)&' + realmVar.lower() + ',\n'
+			generatedOutputHandler += '\t\t.credentials_offset = ' + str(offsetCountCouple[0]) + ',\n'
+			generatedOutputHandler += '\t\t.credentials_count = ' + str(offsetCountCouple[1]) + '\n'
+			generatedOutputHandler += '\t}\n'		
+		else:
+			generatedOutputHandler += '\t.handler_restriction = {\n'
+			generatedOutputHandler += '\t\t.realm = NULL,\n'
+			generatedOutputHandler += '\t\t.credentials_offset = 0,\n'
+			generatedOutputHandler += '\t\t.credentials_count = 0\n'
+			generatedOutputHandler += '\t}\n'
+
+		generatedOutputHandler += '#endif\n'
+
+
 		generatedOutputHandler += '};\n'
 
 		if (dstFileInfos.has_key('doPost') or dstFileInfos.has_key('doPostIn')):
@@ -595,7 +645,7 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 # static file: the file is completely pre-processed into a c file:
 # HTTP header insertion
 # chuncks checksums calculation
-def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
+def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,realm,offsetCountCouple):
 	# HTTP header generation and concatenation with file data
 	try:
 		# open the source file
@@ -627,6 +677,11 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 			fileData = 'HTTP/1.1 404 Not Found\r\nContent-Length: ' + fileData
 		elif os.path.basename(srcFile) == '505.html':
 			fileData = 'HTTP/1.1 505 HTTP Version Not Supported\r\nContent-Length: ' + fileData
+		# bacara:
+		# HTTP Authentication needs runtime data, such as realm and nonce. At this
+		# point, we cannot process the full generation for 401.html.
+		elif os.path.basename(srcFile) == '401.html':
+			fileData = '\r\nContent-Length: ' + fileData
 		else:
 			fileData = 'HTTP/1.1 200 OK\r\nContent-Length: ' + fileData
 
@@ -654,6 +709,8 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 
 	# inclusions
 	cOut.write('#include "handlers.h"\n')
+	if realm != '':
+		cOut.write('#include "http_auth_data.h"\n')
 
 	# data structures declaration
 	cName = getCName(srcFile)
@@ -672,6 +729,26 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 			+ '\t\t\t.data = data_' + cName + '\n'
 			+ '\t\t}\n'
 			+ '\t},\n')
+
+	cOut.write('#ifdef HTTP_AUTH\n')
+	if realm != '':
+		realmVar = realm
+		for c in realmVar:
+			if (re.search('\W', c)):
+				realmVar = realmVar.replace(c, '_' + str(ord(c)) + '_')
+		cOut.write('\t.handler_restriction = {\n'
+			   + '\t\t.realm = (unsigned char*)&' + realmVar.lower() + ',\n'
+			   + '\t\t.credentials_offset = ' + str(offsetCountCouple[0]) + ',\n'
+			   + '\t\t.credentials_count = ' + str(offsetCountCouple[1]) + '\n'
+			   + '\t}\n')
+	else:
+		cOut.write('\t.handler_restriction = {\n'
+			   + '\t\t.realm = NULL,\n'
+			   + '\t\t.credentials_offset = 0,\n'
+			   + '\t\t.credentials_count = 0\n'
+			   + '\t}\n')
+	cOut.write('#endif\n')
+
 	cOut.write('};\n')
 
 	# chuncks checksums data generation

@@ -35,6 +35,7 @@ import os
 import sys
 sys.path.append('tools')
 import GenApps
+import GenAuthData
 from SCons.Errors import BuildError
 
 import sys, string
@@ -81,6 +82,7 @@ opts.Add(BoolVariable('debug', 'Set to 1 to build for debug', False))
 opts.Add(BoolVariable('sdump', 'Set to 1 to include stack dump', False))
 opts.Add(BoolVariable('test', 'Set to 1 to test the test apps', False))
 opts.Add('ipaddr', 'Set the IP address of Smews', None)
+opts.Add('accessfile', 'Set the path to XML-defined restrictions file', None)
 # the list of disableable options
 disabledHash = {}
 disabledHash['timers'] = 'DISABLE_TIMERS'
@@ -190,6 +192,31 @@ for appDir in dirsMap.keys():
 		appSource = os.path.join(appBase,appDir,file)
 		sourcesMap[appSource] = os.path.join(dirsMap[appDir],file)
 
+# Contains a data structure for HTTP authentication restrictions.
+# Refer to GenAuthData.py for more details.
+restrictMap = { }
+if globalEnv.has_key('accessfile'):
+	http_auth = GenAuthData.parseAuthData(globalEnv['accessfile'])
+	#restrictMap = GenAuthData.genHTTPAuthDataFile(genBase + '/' + str(globalEnv['target']) + '/http_auth_data')
+	restrictMap = GenAuthData.genHTTPAuthDataFile('gen/linux/http_auth_data')
+
+# DEBUG PURPOSE
+#	restrictMap = GenAuthData.parseAuthData(globalEnv['accessfile'])
+#	for realm in restrictMap:
+#		print '%s' % (realm)
+#		for uri in restrictMap[realm]:
+#			print '\t%s' % (uri)
+#			for credential in restrictMap[realm][uri]:
+#				print '\t\t%s' % (credential)
+#	uriDatasMap = GenAuthData.genHTTPAuthDataFile('http-auth-data.c')
+#	for uri in uriDatasMap:
+#		offset = uriDatasMap[uri][0]
+#		count = uriDatasMap[uri][1]
+#		print '%s credentials: from %s to %s' % (uri,
+#							 str(offset),
+#							 str(offset + count - 1))
+#	exit()
+		
 # compilation options
 globalEnv.Replace(CC = 'gcc')
 globalEnv.Replace(AS = 'as')
@@ -199,6 +226,8 @@ if sdump:
 	globalEnv.Append(CCFLAGS = '-DSTACK_DUMP')
 if debug:
 	globalEnv.Append(CCFLAGS = '-O0 -g')
+if 'http_auth' in locals():
+	globalEnv.Append(CCFLAGS = '-DHTTP_AUTH=HTTP_AUTH_' + http_auth.upper())
 else:
 	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections -fno-strict-aliasing')
 	globalEnv.Append(LINKFLAGS = '-Wl,--gc-sections -Wl,--print-gc-sections')
@@ -235,7 +264,7 @@ for target in targets:
 	# export variables for external SConscript files
 	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
 	Export('env targetDir binDir projectName elfName')
-	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
+	Export('dirsMap sourcesMap restrictMap target sconsBasePath httpCodesDir tmpBase')
 	# target dependent SConscript call
 	SConscript(os.path.join(targetDir,'SConscript'),variant_dir = binDir,duplicate = 0)
 	# possible web applications SConscript calls

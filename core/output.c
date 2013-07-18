@@ -43,10 +43,9 @@
 #include "memory.h"
 #include "input.h"		/* for *_HEADER_SIZE defines */
 #include "handlers.h"
-
-#ifndef DISABLE_POST
 #include "defines.h"
-#endif
+#include "auth.h"
+
 
 /* IPV6 Common values */
 #ifdef IPV6
@@ -100,7 +99,6 @@ static CONST_VAR (char, serviceHttpHeaderChunked[]) = "HTTP/1.1 200 OK\r\nConten
 #define SERVICE_HTTP_HEADER_CHUNKED_CHK 0x2876u
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
-
 
 struct curr_output_t curr_output;
 
@@ -312,7 +310,17 @@ void smews_send_packet (struct connection *connection)
 	    max_out_size = MAX_OUT_SIZE (connection->protocol.http.tcp_mss);
 	    file_remaining_bytes = UI32 (connection->protocol.http.final_outseqno) - UI32 (next_outseqno);
 	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
+
+#ifdef HTTP_AUTH
+	    if (output_handler == &http_401_handler)
+	      index_in_file = 
+		http_401_handler_length ((struct output_handler_t*)connection->protocol.http.blob)
+		- file_remaining_bytes;
+	    else
+	      index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
+#else
 	    index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
+#endif
 	    break;
 	}
 	case type_generator:
@@ -538,9 +546,50 @@ void smews_send_packet (struct connection *connection)
 	{
 	    uint16_t i;
 	    uint32_t tmp_sum = 0;
+
+	    /* TODO: (bacara) Beware of bugs with index_in_file */
 	    uint16_t *tmpptr =
 		(uint16_t *) CONST_ADDR (GET_FILE (output_handler).chk) +
 		DIV_BY_CHUNCKS_SIZE (index_in_file);
+
+#ifdef HTTP_AUTH
+	    if (output_handler == &http_401_handler) {
+	      /* Getting the realm */
+	      unsigned const char *char_p = 
+		((struct output_handler_t*)connection->protocol.http.blob)->handler_restriction.realm;
+
+#if HTTP_AUTH == HTTP_AUTH_BASIC
+	      /* Precalculated checksum */
+	      checksum_add16 (HTTP_AUTHENTICATE_HEADER_CHK);
+	    
+	      /* Checksum the double quoted realm */
+	      checksum_add ('\"');
+	      while (*char_p)
+		checksum_add (*char_p++);
+	      checksum_add ('\"');
+	    
+#elif HTTP_AUTH == HTTP_AUTH_DIGEST
+	      /* Precalculated checksum */
+	      checksum_add16 (HTTP_AUTHENTICATE_HEADER_CHK);
+
+	      /* Checksum the double quoted realm */
+	      checksum_add ('\"');
+	      while (*char_p)
+		checksum_add (*char_p++);
+	      checksum_add ('\"');
+
+	      /* Precalculated checksum */
+	      checksum_add16 (HTTP_AUTHENTICATE_HEADER_NONCE_CHK);
+
+	      /* Checksum the double quoted nonce */
+	      char_p = http_auth_nonce;
+	      checksum_add ('\"');
+	      while (*char_p)
+		checksum_add (*char_p++);
+	      checksum_add ('\"');
+#endif
+	    }
+#endif
 
 	    for (i = 0; i < GET_NB_BLOCKS (segment_length); i++)
 	    {
@@ -597,12 +646,46 @@ void smews_send_packet (struct connection *connection)
 	    break;
 	case type_file:
 	{
-	    /* Send the payload of the packet */
-	    const char *tmpptr =
-		(const char *) (CONST_ADDR (GET_FILE (output_handler).data) +
-				index_in_file);
-	    DEV_PUTN_CONST (tmpptr, segment_length);
-	    break;
+	  /* Send the payload of the packet */
+	  unsigned const char *tmpptr;
+
+#ifdef HTTP_AUTH
+	  uint8_t tmp;
+
+	  /* Sending the http header */
+	  DEV_PUTN_CONST (HttpAuthenticateHeader, HTTP_AUTHENTICATE_HEADER_LEN);
+
+	  /* Sending the double quoted realm */
+	  tmpptr =
+	    ((struct output_handler_t*)(connection->protocol.http.blob))->handler_restriction.realm;
+	  tmp = 0;
+	  while (*tmpptr++)
+	    ++tmp;
+
+	  DEV_PUT ('\"');
+	  DEV_PUTN_CONST (tmpptr, tmp);
+	  DEV_PUT ('\"');
+
+#if HTTP_AUTH != HTTP_AUTH_BASIC
+	  /* Sending the second part of the http header */
+	  DEV_PUTN_CONST (HttpAuthenticateHeaderNonce, HTTP_AUTHENTICATE_HEADER_NONCE_LEN);
+	  
+	  /* Sending the double quoted nonce */
+	  tmpptr = http_auth_nonce;
+	  tmp = 0;
+	  while (*tmpptr++)
+	    ++tmp;
+
+	  DEV_PUT ('\"');
+	  DEV_PUTN (http_auth_nonce, sizeof (http_auth_nonce));
+	  DEV_PUT ('\"');	  
+#endif
+#endif
+
+	  tmpptr = (unsigned const char*)(CONST_ADDR (GET_FILE (output_handler).data) + index_in_file);
+
+	  DEV_PUTN_CONST (tmpptr, segment_length);
+	  break;
 	}
 	default:			/* Should never happen but avoid warnings */
 	    return;
