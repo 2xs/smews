@@ -201,6 +201,46 @@ def getResourceType(path):
 
 # extracts c file properties from its xml data
 # returns the file data
+def extractPropsFromXmlForDynApp(srcFile,dstFileInfos):
+	# open the source file in order to parse the XML and return the file data
+	file = open(srcFile,'r')
+	lines = file.readlines()
+	if len(lines) > 1:
+		fileData = reduce(lambda x,y: x + y,lines)
+	else:
+		fileData = ''
+	# process XML only if dstFileInfos do not already contains informations
+	# 3 XML handler functions
+	def start_element_dyn_app(name, attrs):
+		global handlerInfosDynApp
+		if name == 'handlers' :
+			handlerInfosDynApp = attrs
+	def end_element_dyn_app(name):
+		return
+	def char_data_dyn_app(data):
+		return
+	xmlRoot = 'dynApp'
+	xmlData = fileData[fileData.rfind('<' + xmlRoot + '>'):]
+	xmlData = xmlData[:xmlData.rfind('</' + xmlRoot + '>') + len(xmlRoot) + 3]
+	# parse the XML
+	p = xml.parsers.expat.ParserCreate()
+	p.StartElementHandler = start_element_dyn_app
+	p.EndElementHandler = end_element_dyn_app
+	p.CharacterDataHandler = char_data_dyn_app
+	p.Parse(xmlData, 0)
+	if len(xmlData) > 1:
+		global handlerInfosDynApp
+
+		if handlerInfosDynApp.has_key('init'):
+			dstFileInfos['initDynApp'] = handlerInfosDynApp['init']
+			dstFileInfos['isDynApp']   = True
+		if handlerInfosDynApp.has_key('shutdown'):
+			dstFileInfos['shutdownDynApp'] = handlerInfosDynApp['shutdown']
+			dstFileInfos['isDynApp']   = True
+	return fileData
+
+# extracts c file properties from its xml data
+# returns the file data
 def extractPropsFromXml(srcFile,dstFileInfos):
 	# open the source file in order to parse the XML and return the file data
 	file = open(srcFile,'r')
@@ -310,7 +350,7 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 				if (controlByte == 128):
 					exit('Error: the file ' + srcFile + ' only defines a doPacketOut without a doPacketIn handler')
 
-				exit('Error: the file ' + srcFile + 'has an incompatible decription (' +
+				exit('Error: the file ' + srcFile + 'has an incompatible description (' +
 						((controlByte & 1 == 1 and 'doGet,') or '') +
 						((controlByte & 2 == 2 and 'doPost,') or '') +
 						((controlByte & 4 == 4 and 'doPostIn,') or '') +
@@ -377,6 +417,7 @@ def generateResource(srcFile,dstFile,chuncksNbits,gzipped,dstFileInfos):
 def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 	# extract the properties from the XML (if needed)
 	fileData = extractPropsFromXml(srcFile,dstFileInfos)
+	extractPropsFromXmlForDynApp(srcFile, dstFileInfos)
 	# if the c/h file does not conatin any XML, we simply copy it: this is not a generator
 	if not dstFileInfos['hasXml']:
 		shutil.copyfile(srcFile,dstFile)
@@ -569,6 +610,28 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			generatedIndex += '\t{arg_type: ' + argsTypesMap[attrs['type']] + ', arg_size: sizeof(' + tmpType + '), arg_offset: offsetof(struct args_t,' + attrs['name'] + ')},\n'
 		generatedIndex += '};\n'
 
+
+		# uploadable application
+		generatedDynApp = '';
+		if dstFileInfos.has_key('isDynApp') :
+			forwardDeclarations = '';
+			generatedDynApp += 'CONST_VAR(struct elf_application_environment_t, elf_application_environment) = {\n' 
+			if dstFileInfos.has_key('initDynApp'):
+				forwardDeclarations += 'static elf_application_init_t ' + dstFileInfos['initDynApp'] + ';\n'
+				generatedDynApp += '\t.init = ' + dstFileInfos['initDynApp'] + ',\n'
+			else :
+				generatedDynApp += '\t.init = NULL,\n'
+			if dstFileInfos.has_key('shutdownDynApp'):
+				forwardDeclarations += 'static elf_application_shutdown_t ' + dstFileInfos['shutdownDynApp'] + ';\n'
+				generatedDynApp += '\t.shutdown = ' + dstFileInfos['shutdownDynApp'] + ',\n'
+			else :
+				generatedDynApp += '\t.shutdown = NULL,\n'
+			forwardDeclarations += 'extern CONST_VAR(const struct output_handler_t *, resources_index[]);\n'
+			forwardDeclarations += 'extern CONST_VAR(unsigned char, urls_tree[]);\n'
+			generatedDynApp += '\t.urls_tree = urls_tree,\n';
+			generatedDynApp += '\t.resources_index = resources_index,\n';
+			generatedDynApp = forwardDeclarations + generatedDynApp + '};\n'
+
 		# new c file creation
 		cOut = open(dstFile,'w')
 		writeHeader(cOut,1)
@@ -587,6 +650,8 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			cOut.write('#endif\n')
 		cOut.write('\n')
 		cOut.write(generatedOutputHandler)
+		cOut.write('\n')
+		cOut.write(generatedDynApp)
 		# the end of the file contains the original c file
 		cOut.write('\n/* End of the enriched part */\n\n')
 		cOut.write(fileData)

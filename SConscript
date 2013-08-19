@@ -156,6 +156,7 @@ env.GenChannelsH(channelsH,propsFilesList)
 env.Depends(channelsH,toolsList)
 env.GenDefinesH(definesH,[])
 env.GenBlobsH(blobsH,[])
+
 # engine source code dependencies
 coreFiles = getAllSourceFiles(coreDir, os.path.join(binDir,'core'))
 # target drivers source code dependencies
@@ -169,3 +170,4 @@ else:
 	final = None
 # clean
 Clean([lib,final],[binDir,genDir])
+print "Link is ", env.subst('$LINK')

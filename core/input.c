@@ -874,7 +874,7 @@ char smews_receive(void) {
                         tmp_connection.protocol.http.post_data->coroutine.func.func_post_in = CONST_ADDR(GET_GENERATOR(output_handler).handlers.post.dopostin);
                         tmp_connection.protocol.http.post_data->coroutine.params.in.content_type = tmp_connection.protocol.http.post_data->content_type;
 
-			                  tmp_connection.protocol.http.post_data->coroutine.params.in.content_length = tmp_connection.protocol.http.post_data->content_length;
+	                      /*tmp_connection.protocol.http.post_data->coroutine.params.in.content_length = tmp_connection.protocol.http.post_data->content_length;*/
 
                         tmp_connection.protocol.http.post_data->coroutine.params.in.filename = tmp_connection.protocol.http.post_data->filename;
                         tmp_connection.protocol.http.post_data->coroutine.params.in.post_data = tmp_connection.protocol.http.post_data->post_data;
@@ -933,6 +933,7 @@ char smews_receive(void) {
                         continue;
                     break;
                 }
+
                 /* searching end character of post url detection */
                 if(tmp_connection.protocol.http.parsing_state == parsing_url && blob_curr == URL_POST_END){
                     if(tmp_connection.protocol.http.post_data){
@@ -1045,6 +1046,7 @@ char smews_receive(void) {
                         }
                     }
                 }
+
                 /* parsing content-type */
                 else if(tmp_connection.protocol.http.parsing_state == parsing_post_content_type){
                     if(blob_curr - 128 == CONTENT_TYPE_MULTIPART_47_FORM_45_DATA){ /* multipart */
@@ -1115,8 +1117,9 @@ char smews_receive(void) {
                             }
                             else{
 #endif
-                                if(!output_handler)
+                                if(!output_handler) {
                                     output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
+                                }
 #ifndef DISABLE_POST
                                 if(tmp_connection.protocol.http.post_data){
                                     tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
@@ -1180,6 +1183,7 @@ char smews_receive(void) {
                     }
                 blob_curr = CONST_READ_UI8(blob);
             }
+
 #ifndef DISABLE_POST
             /* end header detection */
             if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && tmp_char == 13){
@@ -1299,6 +1303,7 @@ char smews_receive(void) {
                     } while(1);
                 }
         }
+
         /* detecting parsing_end */
         if(
 #ifndef DISABLE_POST
@@ -1378,6 +1383,7 @@ char smews_receive(void) {
                 tmp_connection.protocol.http.blob = blob;
         }
     }
+
     /* drop remaining TCP data */
     while(x++ < segment_length)
         DEV_GETC(tmp_char);
@@ -1434,7 +1440,7 @@ char smews_receive(void) {
 		tmp_connection.next = connection->next;
 	    }
 	}
-	
+
 	if(!connection) {
 	    /* no valid connection has been found for this packet, send a reset */
 	    UI32(tmp_connection.protocol.http.next_outseqno) = UI32(current_inack);
@@ -1470,5 +1476,6 @@ char smews_receive(void) {
             }
         }
     }
+
     return 1;
 }

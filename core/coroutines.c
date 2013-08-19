@@ -90,7 +90,7 @@ void cr_run(struct coroutine_t *coroutine
 			if(type == cor_type_post_out)
 				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);
 			else if(type == cor_type_post_in)
-			    current_cr->func.func_post_in(current_cr->params.in.content_type, current_cr->params.in.content_length, current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
+			    current_cr->func.func_post_in(current_cr->params.in.content_type,/* current_cr->params.in.content_length,*/ current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
 			else
 #endif
 				current_cr->func.func_get(current_cr->params.args);
@@ -112,10 +112,12 @@ void cr_run(struct coroutine_t *coroutine
 struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 	if(cr_in_stack != coroutine) {
 		if(cr_in_stack != NULL) { /* is there a coroutine currently using the shared stack? */
+
 			/* backup its context in a freshly allocated buffer of the exact needed size */
 			char *sp = cr_in_stack->curr_context.sp[0];
 			uint16_t stack_size = shared_stack + STACK_SIZE - sp;
 			cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
+
 			if(cr_in_stack->curr_context.stack == NULL) {
 				return NULL;
 			}
@@ -133,6 +135,7 @@ struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 		/* update the cr_in_stack pointer */
 		cr_in_stack = coroutine;
 	}
+
 	return cr_in_stack;
 }
 

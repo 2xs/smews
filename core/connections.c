@@ -36,6 +36,8 @@
 #include "connections.h"
 #include "memory.h"
 
+#include "elf_application.h"
+
 /* Local IP address */
 #ifdef IPV6
 
@@ -175,6 +177,11 @@ struct connection *add_connection(const struct connection *from
 		connection->next = all_connections;
 		all_connections->prev = connection;
 	}
+
+#ifndef DISABLE_ELF
+	elf_application_add_connection(connection);
+#endif
+
 	return connection;
 }
 
@@ -200,6 +207,10 @@ void free_connection(const struct connection *connection) {
 	    clean_service(connection->protocol.http.generator_service, NULL);
 	    mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
 	}
+#ifndef DISABLE_ELF
+	elf_application_remove_connection(connection);
+#endif
+
     }
 
 #ifdef IPV6
