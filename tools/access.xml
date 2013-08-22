@@ -1,11 +1,18 @@
-<http-authentication type="basic">
+<http-authentication type="digest">
   <authorizations>
-    <user login="admin" passwd="jesuisunadmin" />
+    <user login="admin" passwd="pwd" />
+    <user login="user" passwd="pwd" />
+    <user login="guest" passwd="pwd" />
+    <user login="other" passwd="pwd" />
   </authorizations>
   <restrictions>
-    <realm name="HTTP-Auth deployment @ Smews">
-      <uri path="/"
-	   users="admin" />
+    <realm name="Admin and users @ 2xs">
+      <uri path="/stats/"
+	   users="admin;user" />
+    </realm>
+    <realm name="Guests @ 2xs">
+      <uri path="/welcome/"
+	   users="guest;other;admin" />
     </realm>
   </restrictions>
 </http-authentication>

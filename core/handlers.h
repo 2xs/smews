@@ -149,16 +149,15 @@ struct output_handler_t {
 	}handler_mimes;
 #endif
 #ifdef HTTP_AUTH
-  #if HTTP_AUTH == HTTP_AUTH_BASIC
-  struct handler_restrictions_t {
+  struct handler_restriction_t {
     unsigned const char *realm;              /* Realm of restriction :
 						- no restriction if NULL */
     uint8_t credentials_offset;              /* Offset to the first credential */
     uint8_t credentials_count;               /* Credentials count from offset */
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
+    unsigned const char resource_digest[33]; /* Digest of md5("METHOD:uri") */
+#endif
   } handler_restriction;
-  #elif HTTP_AUTH == HTTP_AUTH_DIGEST
-  /* TODO */
-  #endif
 #endif
 };
 

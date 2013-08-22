@@ -35,7 +35,7 @@ import os
 import GenApps
 
 # imports from SConstruct
-Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits dirsMap sourcesMap restrictMap gzipped test')
+Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits dirsMap sourcesMap restrictMap httpAuthType gzipped test')
 
 # returns the list of .c and .s files in dir, prefixed by dstDir
 def getAllSourceFiles(dir, dstDir):
@@ -50,13 +50,14 @@ def getAllSourceFiles(dir, dstDir):
 	return sourceFiles
 
 # builders for web applicative resources creation
-# used to geerate both static and dynamic resources
+# used to generate both static and dynamic resources
 def generateResource(target, source, env):
 	realm = ''
 	offsetCount = (-1, -1)
-	
+
 	# Checking for HTTP Authentication data
 	finalUri = sourcesMap[str(source[0])]
+
 	maxlen = 0
 	for r in restrictMap:
 		for uri in restrictMap[r]:
@@ -67,9 +68,9 @@ def generateResource(target, source, env):
 				maxlen = len(uri)
 
 	if propsFilesMap.has_key(str(source[0])):
-		GenApps.generateResource(str(source[0]),str(target[0]),chuncksNbits,gzipped,propsFilesMap[str(source[0])], realm, offsetCount)
+		GenApps.generateResource(str(source[0]),str(target[0]),chuncksNbits,gzipped,propsFilesMap[str(source[0])], httpAuthType, realm, offsetCount, finalUri)
 	else:
-		GenApps.generateResource(str(source[0]),str(target[0]),chuncksNbits,gzipped,None,realm, offsetCount)
+		GenApps.generateResource(str(source[0]),str(target[0]),chuncksNbits,gzipped,None,httpAuthType, realm, offsetCount, finalUri)
 	return None
 
 # builder used to generate the file index, with the URLs tree

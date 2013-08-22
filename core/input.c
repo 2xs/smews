@@ -42,7 +42,14 @@
 #include "coroutines.h"
 #include "blobs.h"
 #include "defines.h"
+#include "utils.h"
+
+#ifdef HTTP_AUTH
 #include "auth.h"
+#include "md5.h"
+#endif
+
+#include <stdio.h>
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
@@ -54,17 +61,11 @@ unsigned char *stack_base;
 #define http_404_handler apps_httpCodes_404_html_handler
 extern CONST_VAR(struct output_handler_t, apps_httpCodes_404_html_handler);
 
-/* 401 Authorization required handler */
-/* #ifdef HTTP_AUTH */
-/* #define http_401_handler apps_httpCodes_401_html_handler */
-/* extern CONST_VAR(struct output_handler_t, apps_httpCodes_401_html_handler); */
-/* #endif */
-
 /* Maximal TCP MSS */
 #ifndef DEV_MTU
 #define MAX_MSS 0xffff
 #else
-#define MAX_MSS (DEV_MTU - (IP_HEADER_SIZE+ TCP_HEADER_SIZE))
+#define MAX_MSS (DEV_MTU - (IP_HEADER_SIZE + TCP_HEADER_SIZE))
 #endif
 
 /* IP and TCP constants */
@@ -80,7 +81,7 @@ extern CONST_VAR(struct output_handler_t, apps_httpCodes_404_html_handler);
 /* Initial sequence number */
 #define BASIC_SEQNO 0x42b7a491
 
-#ifndef DISABLE_POST
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 #define URL_POST_END 255
 #define HEADER_POST_END 128
 static CONST_VAR(unsigned char, blob_http_header_end[]) = {13,10,13,128};
@@ -304,6 +305,23 @@ char smews_receive(void) {
   unsigned char tmp_char;
   uint16_t x;
   unsigned char new_tcp_data;
+
+#ifdef HTTP_AUTH
+  /* (bacara): Temporary solution, this will need to be stored into a 
+   * connection struct later */
+  struct auth_data_s auth_data = {
+    .scheme_parsed = 0,
+    .parsing_offset = NO_OFFSET,
+#if HTTP_AUTH == HTTP_AUTH_BASIC
+    .credentials = NULL,
+#elif HTTP_AUTH == HTTP_AUTH_DIGEST
+    .username_blob = 0,
+    .response = { 0 },
+    .nonce = { 0 },
+#endif
+  };
+#endif
+
 #ifndef DISABLE_GP_IP_HANDLER
   uint8_t protocol;
 #endif
@@ -326,6 +344,8 @@ char smews_receive(void) {
 
   if(!DEV_DATA_TO_READ)
     return 0;
+
+  printf("##### SMEWS IS RECEIVING A PACKET #####\n");
 
 #ifdef IPV6
   /* Get IP Version (and 4 bits of the traffic class) */
@@ -708,7 +728,11 @@ char smews_receive(void) {
       tmp_args_size_ref = CONST_UI16(output_handler->handler_args.args_size);
     }
 #endif
-    while(x < segment_length && output_handler != &http_404_handler
+    while(x < segment_length 
+	  && output_handler != &http_404_handler
+#ifdef HTTP_AUTH
+	  && output_handler != &http_401_handler
+#endif
 #ifndef DISABLE_POST
 	  && output_handler != &http_505_handler
 #endif
@@ -728,6 +752,7 @@ char smews_receive(void) {
 #endif
 	x++;
 	DEV_GETC(tmp_char);
+
 #ifndef DISABLE_POST
 	/* updating content length */
 	if((tmp_connection.protocol.http.parsing_state == parsing_init_buffer
@@ -804,13 +829,33 @@ char smews_receive(void) {
 	 && output_handler != &http_505_handler
 #endif
 	 ) {
-#ifndef DISABLE_POST
+
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 	/* "\n\r\n\r" detected (end header or end part of multipart )*/
-	if(tmp_connection.protocol.http.parsing_state == parsing_post_end){
-	  if(tmp_connection.protocol.http.post_data->content_type == (uint8_t)-1){ /* no content type */
+	if(tmp_connection.protocol.http.parsing_state == parsing_post_end) {
+
+#ifdef HTTP_AUTH
+	  /* HTTP-Auth:
+	   * We are ready to send if there is no more header to parse and if
+	   * requested url is not a post url.
+	   */
+	  if (IS_RESTRICTED (output_handler)
+#ifndef DISABLE_POST
+	      && !tmp_connection.protocol.http.post_data
+#endif
+	      ) {
+	    tmp_connection.protocol.http.parsing_state = parsing_end;
+	    tmp_connection.protocol.http.ready_to_send = 1;
+	    break;
+	  }
+#endif
+
+#ifndef DISABLE_POST
+	  if(tmp_connection.protocol.http.post_data->content_type == (uint8_t)-1) { /* no content type */
 	    output_handler = &http_505_handler;
 	    break;
 	  }
+
 	  if(tmp_connection.protocol.http.post_data->boundary){
 	    tmp_connection.protocol.http.post_data->boundary->ready_to_count = 1;
 	    /* parsing header part of multipart */
@@ -848,7 +893,12 @@ char smews_receive(void) {
 	    }
 	    tmp_connection.protocol.http.parsing_state = parsing_post_data;
 	  }
+#endif
+#endif
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 	}
+#endif
+#ifndef DISABLE_POST
 	/* parsing post data => run coroutine */
 	if(tmp_connection.protocol.http.parsing_state == parsing_post_data){
 	  /* starting buffer init */
@@ -922,6 +972,7 @@ char smews_receive(void) {
 	    continue;
 	  break;
 	}
+
 	/* searching end character of post url detection */
 	if(tmp_connection.protocol.http.parsing_state == parsing_url && blob_curr == URL_POST_END){
 	  if(tmp_connection.protocol.http.post_data){
@@ -933,8 +984,228 @@ char smews_receive(void) {
 	    break;
 	  }
 	}
+#endif
+
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+	if (tmp_connection.protocol.http.parsing_state == parsing_authorization_username) {
+	  if (blob_curr >= 128) {
+	    /* Username has been successfully parsed. */
+	    auth_data.username_blob = blob_curr;
+	    blob = blob_http_header_content;
+	    tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
+	    continue; /* Skip the final '"' */
+	  }
+	  else {
+	    /* Error: invalid username */
+	    tmp_connection.protocol.http.blob = (unsigned char *)(output_handler);
+	    output_handler = &http_401_handler;
+	    tmp_connection.protocol.http.parsing_state = parsing_end;
+	    break;
+	  }
+	}
+#endif
+
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 	/* parsing attributes of post header */
-	if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes){
+	if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes) {
+#endif
+
+#ifdef HTTP_AUTH
+	  if (blob_curr == ATTRIBUT_AUTHORIZATION_58_ + 128) {
+
+	    if (!auth_data.scheme_parsed) {
+	      if (IS_LWS_CHAR (tmp_char)) {
+		/* Parsing did not start yet (escape unsignificant whitespaces) */
+		if (auth_data.parsing_offset == NO_OFFSET)
+		  continue;
+
+		/* Parsing just ended */
+		if (HttpAuthenticateScheme[auth_data.parsing_offset] == '\0') {
+		  auth_data.scheme_parsed = 1;
+		  auth_data.parsing_offset = NO_OFFSET;
+		  continue;
+		}
+	      }
+	      else {
+		/* Parsing just started */
+		if (auth_data.parsing_offset == NO_OFFSET)
+		  auth_data.parsing_offset = 0;
+
+		if (LOWER_CASE (tmp_char)
+		    == HttpAuthenticateScheme[auth_data.parsing_offset]) {
+		  ++auth_data.parsing_offset;
+		  continue;
+		}
+	      }
+
+	      /* If execution flow reach this point, scheme parsing failed. */
+	      tmp_connection.protocol.http.blob = (unsigned char *)(output_handler);
+	      output_handler = &http_401_handler;
+	      auth_data.parsing_offset = NO_OFFSET;
+	      tmp_connection.protocol.http.parsing_state = parsing_end;
+	      break;
+	    }
+	    else {
+#if HTTP_AUTH == HTTP_AUTH_BASIC
+	      /* If no space has been allocated to store given credentials,
+	       * allocate it ! */
+	      if (!auth_data.credentials) {
+		auth_data.credentials = mem_alloc(10 * sizeof(char));
+		if (!auth_data.credentials) {
+		  output_handler = &http_404_handler;
+		  break;
+		}
+		
+		auth_data.credentials[0] = 2;   /* First byte is the used space */
+		auth_data.credentials[1] = 10;  /* Second byte is the allocated space */
+	      }
+	      
+	      /* Escape unsignificant whitespace */
+	      if (IS_LWS_CHAR(tmp_char) && auth_data.credentials[0] == 2)
+		  continue;
+
+	      /* As long as the character read is a base64 character, fill
+	       * credentials string */
+	      if (IS_B64_CHAR (tmp_char)) {
+		/* String container reallocation if needed */
+		if (auth_data.credentials[0] == auth_data.credentials[1]) {
+		  auth_data.credentials = mem_realloc(auth_data.credentials,
+						      auth_data.credentials[0],
+						      10);
+		  if (!auth_data.credentials) {
+		    output_handler = &http_404_handler;
+		    break;
+		  }
+		
+		  auth_data.credentials[1] += 10;
+		}
+
+		/* Add current character */
+		auth_data.credentials[auth_data.credentials[0]++] = tmp_char;
+	      }
+	      else {
+		uint8_t i = 0;
+		unsigned char *final_credentials;
+
+		final_credentials = mem_alloc((auth_data.credentials[0] - 1)
+					      * sizeof (unsigned char));
+		if (!final_credentials) {
+		  output_handler = &http_404_handler;
+		  break;
+		}
+
+		/* Copy credentials string into final buffer */
+		for (i = 0; i < auth_data.credentials[0] - 2; ++i)
+		  final_credentials[i] = auth_data.credentials[i + 2];
+		final_credentials[i] = '\0';
+		
+		mem_free (auth_data.credentials, 
+			 auth_data.credentials[1] * sizeof (unsigned char));
+
+		auth_data.credentials = final_credentials;
+		tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
+		blob = blob_http_header_content;
+	      }
+#elif HTTP_AUTH == HTTP_AUTH_DIGEST
+	      blob = blob_http_header_content;
+#endif
+	    }
+	  }
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
+	  else if (blob_curr == ATTRIBUT_USERNAME_61_ + 128) {
+	    blob = usernames_tree;
+	    tmp_connection.protocol.http.parsing_state = parsing_authorization_username;
+	    continue; /* Skip the current '"' */
+	  }
+	  else if (blob_curr == ATTRIBUT_NONCE_61_ + 128) {
+
+	    if (tmp_char == '"') {
+	      switch (auth_data.parsing_offset) {
+		/* Parsing just started: set offset and skip the double quote */
+	      case NO_OFFSET:
+		auth_data.parsing_offset = 0;
+		continue;
+
+		/* Parsing just ended: reset offset and skip the double quote */
+	      case NONCE_LEN:
+		auth_data.parsing_offset = NO_OFFSET;
+		blob = blob_http_header_content;
+		continue;
+
+		/* Error: nonce value doesn't have a valid length */
+	      default:
+		tmp_connection.protocol.http.blob = (unsigned char *)(output_handler);
+		output_handler = &http_401_handler;
+		auth_data.parsing_offset = NO_OFFSET;
+		break;
+	      }
+	    }
+	    else {
+	      switch (auth_data.parsing_offset) {
+		/* Parsing didn't start yet, but tmp_char is not a double quote */
+	      case NO_OFFSET: // WARNING: Fall through
+		/* Parsed string has a length > NONCE_LEN */
+	      case NONCE_LEN:
+		tmp_connection.protocol.http.blob = (unsigned char *)(output_handler);
+		output_handler = &http_401_handler;
+		auth_data.parsing_offset = NO_OFFSET;
+		tmp_connection.protocol.http.ready_to_send = 1;
+		break;
+		
+	      default:
+		auth_data.nonce[auth_data.parsing_offset++] = tmp_char;
+		break;
+	      }
+	    }
+	  }
+	  else if (blob_curr == ATTRIBUT_RESPONSE_61_ + 128) {
+
+	    if (tmp_char == '"') {
+	      switch (auth_data.parsing_offset) {
+		/* Parsing just started: set offset and skip the double quote */
+	      case NO_OFFSET:
+		auth_data.parsing_offset = 0;
+		continue;
+
+		/* Parsing just ended: reset offset and skip the double quote */
+	      case MD5_DIGEST_LEN:
+		auth_data.parsing_offset = NO_OFFSET;
+		blob = blob_http_header_content;
+		continue;
+
+		/* Error: response value doesn't have a valid length */
+	      default:
+		auth_data.parsing_offset = NO_OFFSET;
+		tmp_connection.protocol.http.blob = (unsigned char *)(output_handler);
+		output_handler = &http_401_handler;
+		break;
+	      }
+	    }
+	    else {
+	      switch (auth_data.parsing_offset) {
+		/* Parsing didn't start yet, but tmp_char is not a double quote */
+	      case NO_OFFSET: // WARNING: Fall through
+		/* Parsed string has a length > NONCE_LEN */
+	      case MD5_DIGEST_LEN:
+		auth_data.parsing_offset = NO_OFFSET;
+		tmp_connection.protocol.http.blob = (unsigned char *)(output_handler);
+		output_handler = &http_401_handler;
+		break;
+		
+	      default:
+		auth_data.response[auth_data.parsing_offset++] = tmp_char;
+		break;
+	      }
+	    }
+	  }
+#endif
+
+#ifndef DISABLE_POST
+	  else
+#endif
+#endif
+
+#ifndef DISABLE_POST
 	  if(blob_curr == ATTRIBUT_CONTENT_45_TYPE + 128) { /* content-type */
 	    blob = mimes_tree;
 	    tmp_connection.protocol.http.parsing_state = parsing_post_content_type;
@@ -955,7 +1226,7 @@ char smews_receive(void) {
 		break;
 	      }
 	      tmp_connection.protocol.http.post_data->filename[0] = 2; /* first value is the size of filename */
-	      tmp_connection.protocol.http.post_data->filename[1] = 10; /* seconde value is the size allocated */
+	      tmp_connection.protocol.http.post_data->filename[1] = 10; /* second value is the size allocated */
 	    }
 	    else if(tmp_char == '\"'){ /* end of filename, the indexes are removed */
 	      uint8_t i = 0;
@@ -1032,7 +1303,11 @@ char smews_receive(void) {
 	      }
 	    }
 	  }
+#endif
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 	}
+#endif
+#ifndef DISABLE_POST
 	/* parsing content-type */
 	else if(tmp_connection.protocol.http.parsing_state == parsing_post_content_type){
 	  if(blob_curr - 128 == CONTENT_TYPE_MULTIPART_47_FORM_45_DATA){ /* multipart */
@@ -1073,11 +1348,15 @@ char smews_receive(void) {
 	  }
 	  tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
 	  blob = blob_http_header_content;
-	} else
+	} 
 #endif
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
+	else
+#endif
+
 	  if(tmp_connection.protocol.http.parsing_state == parsing_cmd) {
 #ifndef DISABLE_POST
-	    if(blob_curr == REQUEST_POST_32_ + 128){ /* post request */
+	    if(blob_curr == REQUEST_POST_32_ + 128) { /* post request */
 	      /* allocating post data structure */
 	      tmp_connection.protocol.http.post_data = mem_alloc(sizeof(struct post_data_t));
 	      if(!tmp_connection.protocol.http.post_data){
@@ -1107,21 +1386,35 @@ char smews_receive(void) {
 		  output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
 		  tmp_blob = blob_curr - 128;
 		}
+
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
+		if (
 #ifndef DISABLE_POST
-		if(tmp_connection.protocol.http.post_data){
+		    tmp_connection.protocol.http.post_data
+#endif
+#if !defined(DISABLE_POST) && defined(HTTP_AUTH)
+		    ||
+#endif
+#ifdef HTTP_AUTH
+		    IS_RESTRICTED(output_handler)
+#endif
+		   ) {
 		  tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
 		  blob = blob_http_header_content;
 		  tmp_connection.protocol.http.ready_to_send = 0;
 		}
-		else{
+		else {
 #endif
 		  tmp_connection.protocol.http.parsing_state = parsing_end;
 		  break;
-#ifndef DISABLE_POST
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 		}
+#endif
+#ifndef DISABLE_POST
 	      }
 #endif
 	    } else {
+
 #ifndef DISABLE_ARGS
 	      if(tmp_char == '?'
 #ifndef DISABLE_POST
@@ -1172,7 +1465,8 @@ char smews_receive(void) {
 	  }
 	blob_curr = CONST_READ_UI8(blob);
       }
-#ifndef DISABLE_POST
+
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
       /* end header detection */
       if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && tmp_char == 13){
 	blob = blob_http_header_end;
@@ -1191,11 +1485,13 @@ char smews_receive(void) {
 	  tmp_connection.protocol.http.arg_ref_index = 128;
 	  blob = (const unsigned char *)CONST_ADDR(output_handler->handler_args.args_tree);
 	  continue;
-	} else if(tmp_char == ' ') {
+	}
+	else if(tmp_char == ' ') {
 	  tmp_connection.protocol.http.ready_to_send = 1;
 	  tmp_connection.protocol.http.parsing_state = parsing_end;
 	  break;
-	} else {
+	}
+	else {
 	  switch(tmp_arg_ref.arg_type) {
 	  case arg_str: {
 	    unsigned char *tmp_size_ptr = ((unsigned char*)tmp_connection.protocol.http.curr_arg + tmp_arg_ref.arg_size - 1);
@@ -1217,16 +1513,29 @@ char smews_receive(void) {
 	}
       } else
 #endif
-#ifndef DISABLE_POST
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 	if(tmp_connection.protocol.http.parsing_state == parsing_post_end && blob_curr != HEADER_POST_END){
 	  blob++;
 	}
-	else if(
-		!(tmp_connection.protocol.http.parsing_state == parsing_post_content_type && (tmp_char == 32 || tmp_char == 58))
-		&& !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_CONTENT_45_LENGTH + 128)
-		&& !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_BOUNDARY_61_ + 128)
-		&& !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_FILENAME_61_ + 128)
-		)
+	else if (	  
+#ifndef DISABLE_POST
+		 !(tmp_connection.protocol.http.parsing_state == parsing_post_content_type && (tmp_char == 32 || tmp_char == 58))
+		 && !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_CONTENT_45_LENGTH + 128)
+		 && !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_BOUNDARY_61_ + 128)
+		 && !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_FILENAME_61_ + 128)
+#endif
+#if !defined(DISABLE_POST) && defined(HTTP_AUTH)
+		 &&
+#endif
+#ifdef HTTP_AUTH
+		 !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_AUTHORIZATION_58_ + 128)
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
+		 && !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_USERNAME_61_ + 128)
+		 && !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_NONCE_61_ + 128)
+		 && !(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && blob_curr == ATTRIBUT_RESPONSE_61_ + 128)
+#endif
+#endif
+			  )
 #endif
 	  {
 	    do {
@@ -1234,55 +1543,86 @@ char smews_receive(void) {
 	      unsigned char offsetInf = 0;
 	      unsigned char offsetEq = 0;
 	      unsigned char blob_next;
-#ifndef DISABLE_POST
-	      if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && tmp_char < 123 && tmp_char > 96)
+
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
+	      if ((tmp_connection.protocol.http.parsing_state == parsing_post_attributes
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+		   || tmp_connection.protocol.http.parsing_state == parsing_authorization_username
+#endif
+		   )
+		  && tmp_char < 123 && tmp_char > 96)
 		tmp_char = tmp_char - 'a' + 'A';
 #endif
+
 	      blob_curr = CONST_READ_UI8(blob);
 	      blob_next = CONST_READ_UI8(++blob);
+
 	      if (tmp_char != blob_curr && blob_next >= 128) {
 		blob_next = CONST_READ_UI8(++blob);
 	      }
+
 	      if (blob_next < 32) {
 		offsetInf += ((blob_next>>2) & 1) + ((blob_next>>1) & 1) + (blob_next & 1);
 		offsetEq = offsetInf + ((blob_next & 2)?CONST_READ_UI8(blob+1):0);
 	      }
+
 	      if (tmp_char == blob_curr) {
 		if (blob_next < 32) {
 		  if (blob_next & 2) {
 		    blob += offsetEq;
-		  } else {
-#ifndef DISABLE_POST
-		    if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes)
+		  } 
+		  else {
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
+		    if (tmp_connection.protocol.http.parsing_state == parsing_post_attributes)
 		      blob = blob_http_header_content;
 		    else
+#endif
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+		      if (tmp_connection.protocol.http.parsing_state == parsing_authorization_username)
+			break;
+		      else
 #endif
 		      output_handler = &http_404_handler;
 		    break;
 		  }
 		}
 		break;
-	      } else if (tmp_char < blob_curr) {
+	      } 
+	      else if (tmp_char < blob_curr) {
 		if (blob_next < 32 && blob_next & 1) {
 		  blob += offsetInf;
-		} else {
-#ifndef DISABLE_POST
+		} 
+		else {
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
 		  if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes)
 		    blob = blob_http_header_content;
 		  else
 #endif
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+		    if (tmp_connection.protocol.http.parsing_state == parsing_authorization_username)
+		      break;
+		    else
+#endif
 		    output_handler = &http_404_handler;
 		  break;
 		}
-	      } else {
+	      } 
+	      else {
 		if (blob_next < 32 && blob_next & 4) {
 		  unsigned char offsetSup = offsetEq + ((blob_next & 3)?CONST_READ_UI8(blob+(offsetInf-1)):0);
 		  blob += offsetSup;
-		} else {
-#ifndef DISABLE_POST
-		  if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes)
+		} 
+		else {
+#if !defined(DISABLE_POST) || defined(HTTP_AUTH)
+		  if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes) {
 		    blob = blob_http_header_content;
+		  }
 		  else
+#endif
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+		    if (tmp_connection.protocol.http.parsing_state == parsing_authorization_username)
+		      break;
+		    else
 #endif
 		    output_handler = &http_404_handler;
 		  break;
@@ -1291,6 +1631,7 @@ char smews_receive(void) {
 	    } while(1);
 	  }
     }
+
     /* detecting parsing_end */
     if(
 #ifndef DISABLE_POST
@@ -1300,41 +1641,84 @@ char smews_receive(void) {
 #ifndef DISABLE_POST
 	 || output_handler == &http_505_handler
 #endif
-	 ) && tmp_connection.protocol.http.parsing_state != parsing_cmd)){
+#ifdef HTTP_AUTH
+	 || output_handler == &http_401_handler
+#endif
+	 ) && tmp_connection.protocol.http.parsing_state != parsing_cmd)) {
       tmp_connection.protocol.http.parsing_state = parsing_end;
       tmp_connection.protocol.http.ready_to_send = 1;
     }
-    if(!output_handler)
-      tmp_connection.protocol.http.blob = blob;
-    else {
 
+    if(!output_handler) {
+      tmp_connection.protocol.http.blob = blob;
+    }
+    else {
 #ifdef HTTP_AUTH
-      /* HTTP-Auth: If the requested handler is restricted, we compare the
-       * given credentials with expected ones. In case of failure, the
-       * output handler will be set on 401 handler, and requested resource
-       * index (blob - 128) will be stored into the blob field of the struct. */
-      if (IS_RESTRICTED(output_handler)) {
-	tmp_connection.protocol.http.blob = (unsigned char*)(int)tmp_blob;
+      char stale;
+
+      /* [HTTP-Auth]: 
+       * If the requested handler is restricted, we set the output handler
+       * on 401 if credentials are bad or missing, in which case we need to
+       * store the requested resource's handler into the blob field of the
+       * connection structure, in order to be able to determine when sending
+       * later which uri was requested. */
+      if (IS_RESTRICTED (output_handler)
+	  && output_handler != &http_401_handler
+	  && output_handler != &http_404_handler
+#ifndef DISABLE_POST
+	  && output_handler != &http_505_handler
+#endif
+#if HTTP_AUTH == HTTP_AUTH_BASIC
+	  && (!auth_data.credentials  
+	      || (http_basic_authenticate (output_handler,
+					   (unsigned const char *)(auth_data.credentials))
+		  != HTTP_AUTHENTICATE_SUCCESS))
+#elif HTTP_AUTH == HTTP_AUTH_DIGEST
+	  && (!auth_data.scheme_parsed
+	      || auth_data.username_blob < 128
+	      || auth_data.nonce[NONCE_LEN - 1] == '\0'
+	      || auth_data.response[MD5_DIGEST_LEN - 1] == '\0'
+	      || (stale = http_digest_authenticate (connection,
+						    output_handler,
+						    &auth_data)
+		  ) != HTTP_AUTHENTICATE_SUCCESS)
+#endif
+	  ) {
+	
+	tmp_connection.protocol.http.blob = (unsigned char*)output_handler;
 	output_handler = &http_401_handler;
+
+	/* Set ready_to_send and parsing_state on correct values if not. */
+	if (!tmp_connection.protocol.http.ready_to_send)
+	  tmp_connection.protocol.http.ready_to_send = 1;
+	if (tmp_connection.protocol.http.parsing_state != parsing_end)
+	  tmp_connection.protocol.http.parsing_state = parsing_end;
+
+#if HTTP_AUTH == HTTP_AUTH_BASIC
+	/* Compute credentials length and free memory */
+	if (auth_data.credentials) {
+	  uint8_t i = 0;
+	  while (auth_data.credentials[i++] != '\0'); /* Don't forget to count the '\0' */
+	  mem_free (auth_data.credentials, i * sizeof (char));
+	}
+#endif
       }
 #endif
-	  
+
       if (tmp_connection.protocol.http.parsing_state != parsing_cmd) {
 	tmp_connection.output_handler = output_handler;
 	UI32(tmp_connection.protocol.http.next_outseqno) = UI32(current_inack);
 
 	if (CONST_UI8(output_handler->handler_type) == type_file) {
-
 #ifdef HTTP_AUTH
-	  /* HTTP-Auth: Here, we need to compute the full length of the file,
-	   * including the missing header that we dynamically generate. To do
-	   * so, we need to pick the length of this header, add it the length
-	   * of realm (and nonce if digest auth), before getting the file's blob
-	   * size. */
+	  /* [HTTP-Auth]:
+	   * Here, we need to compute the full length of the file, including
+	   * the missing header that we dynamically generate. Please refer to
+	   * http_401_handler_length definitions in auth.c for more details. */
 	  if (output_handler == &http_401_handler) {
 	    UI32(tmp_connection.protocol.http.final_outseqno) = 
 	      UI32(tmp_connection.protocol.http.next_outseqno)
-	      + http_401_handler_length((struct output_handler_t*)tmp_connection.protocol.http.blob);
+	      + http_401_handler_length ((struct output_handler_t*)tmp_connection.protocol.http.blob, 0);
 	  }
 	  else {
 	    UI32(tmp_connection.protocol.http.final_outseqno) = 
@@ -1346,17 +1730,18 @@ char smews_receive(void) {
 	    UI32(tmp_connection.protocol.http.next_outseqno)
 	    + CONST_UI32(GET_FILE(output_handler).length);
 #endif
-
 	} 
 	else {
 	  UI32(tmp_connection.protocol.http.final_outseqno) = UI32(tmp_connection.protocol.http.next_outseqno) - 1;
 	}
+	
 #ifndef DISABLE_COMET
 	tmp_connection.protocol.http.comet_send_ack = CONST_UI8(output_handler->handler_comet) ? 1 : 0;
 	tmp_connection.protocol.http.comet_passive = 0;
 	tmp_connection.protocol.http.comet_streaming = 0;
 #endif
       }
+
       if(tmp_connection.protocol.http.parsing_state == parsing_end || tmp_connection.protocol.http.parsing_state == parsing_cmd){
 #ifndef DISABLE_POST
 	/* cleaning memory */
@@ -1376,6 +1761,7 @@ char smews_receive(void) {
 	  }
 	  tmp_connection.protocol.http.post_data->boundary = NULL;
 	}
+
 	if(output_handler == &http_404_handler
 #ifndef DISABLE_POST
 	   || output_handler == &http_505_handler
@@ -1398,6 +1784,10 @@ char smews_receive(void) {
 	tmp_connection.protocol.http.parsing_state = parsing_out;
 
 #ifdef HTTP_AUTH
+	/* [HTTP-Auth]:
+	 * If output_handler is the 401 handler, we cannot reset the blob field
+	 * of the temporary connection structure for now, 'cause we need to
+	 * keep a reference to the originally requested handler. */
 	if (output_handler != &http_401_handler)
 	  tmp_connection.protocol.http.blob = blob_http_rqt;
 #else
@@ -1412,6 +1802,7 @@ char smews_receive(void) {
 	tmp_connection.protocol.http.blob = blob;
     }
   }
+
   /* drop remaining TCP data */
   while(x++ < segment_length)
     DEV_GETC(tmp_char);
@@ -1468,7 +1859,7 @@ char smews_receive(void) {
 	  tmp_connection.next = connection->next;
 	}
     }
-	
+
     if(!connection) {
       /* no valid connection has been found for this packet, send a reset */
       UI32(tmp_connection.protocol.http.next_outseqno) = UI32(current_inack);
@@ -1480,8 +1871,9 @@ char smews_receive(void) {
       UI16(rst_connection.port) = UI16(tmp_connection.protocol.http.port);
       UI32(rst_connection.current_inseqno) = UI32(tmp_connection.protocol.http.current_inseqno);
       UI32(rst_connection.next_outseqno) = UI32(tmp_connection.protocol.http.next_outseqno);
-    } else {
-      if(tmp_connection.protocol.http.tcp_state == tcp_listen) {
+    }
+    else {
+      if (tmp_connection.protocol.http.tcp_state == tcp_listen) {
 #ifdef DISABLE_COROUTINES
 	if (curr_output.dynamic_service_state != none && tmp_connection.protocol.http.generator_service == curr_output.service)
 	  {
@@ -1495,12 +1887,17 @@ char smews_receive(void) {
 	  }
 #endif
 	free_connection(connection);
-      } else {
+      } 
+      else {
 	/* update the current connection */
 	*connection = tmp_connection;
 #ifdef HTTP_AUTH
-	if (tmp_connection.output_handler == &http_401_handler)
+	/* [HTTP-Auth]:
+	 * Reset the blob field of the temporary connection structure,
+	 * 'cause it wasn't done before if output handler is 401. */
+	if (tmp_connection.output_handler == &http_401_handler) {
 	  tmp_connection.protocol.http.blob = blob_http_rqt;
+	}
 #endif
 
 #ifdef IPV6
@@ -1509,5 +1906,6 @@ char smews_receive(void) {
       }
     }
   }
+
   return 1;
 }

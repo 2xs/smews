@@ -44,8 +44,12 @@
 #include "input.h"		/* for *_HEADER_SIZE defines */
 #include "handlers.h"
 #include "defines.h"
-#include "auth.h"
 
+#ifdef HTTP_AUTH
+#include "auth.h"         /* For authentication header and nonce control */
+#endif
+
+#include <stdio.h>
 
 /* IPV6 Common values */
 #ifdef IPV6
@@ -262,6 +266,13 @@ void smews_send_packet (struct connection *connection)
     unsigned char full_ipv6_addr[16];
 #endif
 
+#ifdef HTTP_AUTH
+    /* Buffer for dynamic header length */
+    uint16_t dynamic_header_length;
+    /* Buffer for static file length */
+    uint16_t static_length;
+#endif
+
 #ifdef SMEWS_SENDING
     SMEWS_SENDING;
 #endif
@@ -312,10 +323,18 @@ void smews_send_packet (struct connection *connection)
 	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
 
 #ifdef HTTP_AUTH
-	    if (output_handler == &http_401_handler)
-	      index_in_file = 
-		http_401_handler_length ((struct output_handler_t*)connection->protocol.http.blob)
+	    if (output_handler == &http_401_handler) {
+	      /* Compute generated header length */
+	      dynamic_header_length = http_401_handler_dynamic_header_length
+		((struct output_handler_t*)connection->protocol.http.blob, 0);
+	      /* Compute index in file while aware of the generated length */
+	      index_in_file =
+		CONST_UI32 (GET_FILE (output_handler).length)
+		+ dynamic_header_length
 		- file_remaining_bytes;
+	      /* Save static length */
+	      static_length = segment_length - dynamic_header_length;
+	    }
 	    else
 	      index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
 #else
@@ -402,7 +421,7 @@ void smews_send_packet (struct connection *connection)
     }
     else
 #endif
-	UI16 (current_checksum) = BASIC_IP_CHK;
+      UI16 (current_checksum) = BASIC_IP_CHK;
     checksum_add32 (local_ip_addr);
     checksum_add16 (segment_length + IP_HEADER_SIZE + TCP_HEADER_SIZE);
 
@@ -547,56 +566,67 @@ void smews_send_packet (struct connection *connection)
 	    uint16_t i;
 	    uint32_t tmp_sum = 0;
 
-	    /* TODO: (bacara) Beware of bugs with index_in_file */
 	    uint16_t *tmpptr =
-		(uint16_t *) CONST_ADDR (GET_FILE (output_handler).chk) +
-		DIV_BY_CHUNCKS_SIZE (index_in_file);
+	      (uint16_t *) CONST_ADDR (GET_FILE (output_handler).chk)
+	      + DIV_BY_CHUNCKS_SIZE (index_in_file);
 
 #ifdef HTTP_AUTH
+	    /* [HTTP-Auth]:
+	     * Checksum the dynamically generated header. Be careful
+	     * about odd alignment solved by space insertion. */
 	    if (output_handler == &http_401_handler) {
 	      /* Getting the realm */
-	      unsigned const char *char_p = 
-		((struct output_handler_t*)connection->protocol.http.blob)->handler_restriction.realm;
+	      unsigned const char *char_p =
+		((struct output_handler_t*)(connection->protocol.http.blob))->handler_restriction.realm;
 
-#if HTTP_AUTH == HTTP_AUTH_BASIC
 	      /* Precalculated checksum */
 	      checksum_add16 (HTTP_AUTHENTICATE_HEADER_CHK);
 	    
 	      /* Checksum the double quoted realm */
-	      checksum_add ('\"');
-	      while (*char_p)
+	      checksum_add ('"');
+	      while (*char_p){
 		checksum_add (*char_p++);
-	      checksum_add ('\"');
+		++tmp_sum;
+	      }
+	      checksum_add ('"');
+	      
+	      /* Add a space after the double quote if realm is odd string */
+	      if (tmp_sum % 2)
+		checksum_add (0x20);
 	    
-#elif HTTP_AUTH == HTTP_AUTH_DIGEST
-	      /* Precalculated checksum */
-	      checksum_add16 (HTTP_AUTHENTICATE_HEADER_CHK);
-
-	      /* Checksum the double quoted realm */
-	      checksum_add ('\"');
-	      while (*char_p)
-		checksum_add (*char_p++);
-	      checksum_add ('\"');
-
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
 	      /* Precalculated checksum */
 	      checksum_add16 (HTTP_AUTHENTICATE_HEADER_NONCE_CHK);
 
 	      /* Checksum the double quoted nonce */
-	      char_p = http_auth_nonce;
-	      checksum_add ('\"');
-	      while (*char_p)
-		checksum_add (*char_p++);
-	      checksum_add ('\"');
+	      checksum_add ('"');
+	      for (i = 0; i < NONCE_LEN; ++i)
+	      	checksum_add (nonce_state.nonce[i]);
+	      checksum_add ('"');
 #endif
 	    }
-#endif
+	    else
+	      /* If output_handler is not the 401 handler, static length
+	       * is segment length. */
+	      static_length = segment_length;
 
+	    tmp_sum = 0;
+	    for (i = 0; i < GET_NB_BLOCKS (static_length); i++)
+	    {
+		tmp_sum += CONST_READ_UI16 (tmpptr++);
+	    }
+
+	    checksum_add32 ((const unsigned char *) &tmp_sum);
+	    break;
+#else
 	    for (i = 0; i < GET_NB_BLOCKS (segment_length); i++)
 	    {
 		tmp_sum += CONST_READ_UI16 (tmpptr++);
 	    }
+
 	    checksum_add32 ((const unsigned char *) &tmp_sum);
 	    break;
+#endif
 	}
 	default:			/* Should never happen but avoids compile warnings */
 	    return;
@@ -648,43 +678,53 @@ void smews_send_packet (struct connection *connection)
 	{
 	  /* Send the payload of the packet */
 	  unsigned const char *tmpptr;
-
 #ifdef HTTP_AUTH
+	  unsigned const char *param;
 	  uint8_t tmp;
 
-	  /* Sending the http header */
-	  DEV_PUTN_CONST (HttpAuthenticateHeader, HTTP_AUTHENTICATE_HEADER_LEN);
+	  if (output_handler == &http_401_handler) {
+	    /* Sending the http header */
+	    DEV_PUTN_CONST (HttpAuthenticateHeader, HTTP_AUTHENTICATE_HEADER_LEN);
 
-	  /* Sending the double quoted realm */
-	  tmpptr =
-	    ((struct output_handler_t*)(connection->protocol.http.blob))->handler_restriction.realm;
-	  tmp = 0;
-	  while (*tmpptr++)
-	    ++tmp;
+	    /* Sending the double quoted realm */
+	    param =
+	      ((struct output_handler_t*)(connection->protocol.http.blob))->handler_restriction.realm;
+	    tmpptr = param;
+	    tmp = 0;
+	    while (*tmpptr++)
+	      ++tmp;
 
-	  DEV_PUT ('\"');
-	  DEV_PUTN_CONST (tmpptr, tmp);
-	  DEV_PUT ('\"');
+	    DEV_PUT ('"');
+	    DEV_PUTN_CONST (param, tmp);
+	    DEV_PUT ('"');
 
-#if HTTP_AUTH != HTTP_AUTH_BASIC
-	  /* Sending the second part of the http header */
-	  DEV_PUTN_CONST (HttpAuthenticateHeaderNonce, HTTP_AUTHENTICATE_HEADER_NONCE_LEN);
+	    if (tmp % 2)
+	      DEV_PUT (' ');
+
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
+	    /* Sending the second part of the http header */
+	    DEV_PUTN_CONST (HttpAuthenticateHeaderNonce, HTTP_AUTHENTICATE_HEADER_NONCE_LEN);
 	  
-	  /* Sending the double quoted nonce */
-	  tmpptr = http_auth_nonce;
-	  tmp = 0;
-	  while (*tmpptr++)
-	    ++tmp;
-
-	  DEV_PUT ('\"');
-	  DEV_PUTN (http_auth_nonce, sizeof (http_auth_nonce));
-	  DEV_PUT ('\"');	  
+	    /* Sending the double quoted nonce */
+	    DEV_PUT ('"');
+	    DEV_PUTN (nonce_state.nonce, NONCE_LEN);
+	    DEV_PUT ('"');
 #endif
+	  }
 #endif
 
 	  tmpptr = (unsigned const char*)(CONST_ADDR (GET_FILE (output_handler).data) + index_in_file);
 
+#ifdef HTTP_AUTH
+	  if (output_handler == &http_401_handler) {
+	    DEV_PUTN_CONST (tmpptr, static_length);
+	  }
+	  else {
+	    DEV_PUTN_CONST (tmpptr, segment_length);
+	  }
+#else
 	  DEV_PUTN_CONST (tmpptr, segment_length);
+#endif
 	  break;
 	}
 	default:			/* Should never happen but avoid warnings */
@@ -762,7 +802,6 @@ char smews_send (void)
     /* current handled connection */
     struct connection *active_connection = NULL;
     const struct output_handler_t * /*CONST_VAR */ old_output_handler = NULL;
-
 
     /* sending reset has the highest priority */
     if (UI16 (rst_connection.port))
@@ -963,6 +1002,7 @@ char smews_send (void)
 	     * This step has to be done before before any context_restore or context_backup */
 	    if (cr_prepare (&curr_output.service->coroutine) == NULL)
 		return 1;
+
 #else
 	    /* If no coroutines, then having smews_send called while in a handler is equivalent to 
 	       retransmit the buffer (as the type is forced to persistent)

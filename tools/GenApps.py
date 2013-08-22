@@ -34,6 +34,7 @@
 
 import xml.parsers.expat
 import GenBlob
+import GenAuthData
 import os
 import gzip
 import StringIO
@@ -42,6 +43,7 @@ import shutil
 import time
 import datetime
 import re
+import hashlib
 
 # initialization
 propertiesInfos = None
@@ -53,8 +55,7 @@ requestListFileName = os.path.join('tools','supportedRequestList')
 requestList = []
 attributListFileName = os.path.join('tools','supportedPostAttributList')
 attributList = []
-httpAuthTypeListFileName = os.path.join('tools', 'supportedHttpAuthTypeList')
-httpAuthTypeList = []
+httpAuthUsedUsernames = GenAuthData.getUsedUsernamesList()
 contentTypeList = []
 postList = []
 # doGet:1 doPost:2 doPostIn:4 doPostOut:8 args:16 content-types:32 doPacketIn:64 doPacketOut: 128
@@ -99,13 +100,6 @@ for line in open(attributListFileName,'r'):
 	if(len(split) > 0):
 		attributList.append(split[0])
 
-for line in open(httpAuthTypeListFileName, 'r'):
-	indice = line.find('#')
-	if indice >= 0:
-		line = line[:indice]
-	if (len(line) > 0):
-		httpAuthTypeList.append(line)
-
 def generateBlobsH(dstFile):
 	hOut = open(dstFile,'w')
 	writeHeader(hOut,0)
@@ -114,6 +108,12 @@ def generateBlobsH(dstFile):
 	GenBlob.genBlobTree(hOut,requestList,'blob_http_rqt',False)
 	GenBlob.genBlobTree(hOut,mimesListPost,'mimes_tree',False)
 	GenBlob.genBlobTree(hOut,attributList,'blob_http_header_content',False)
+	
+	userList = [ ]
+	for user in httpAuthUsedUsernames:
+		userList.append(user.upper())
+	GenBlob.genBlobTree(hOut,userList,'usernames_tree',False)
+
 	hOut.write('\n#endif\n')
 	hOut.close()
 
@@ -144,16 +144,6 @@ def writeDefinesH(dstFile):
 			if(re.search('\W',c)):
 				att =	att.replace(c,'_'+str(ord(c))+'_')
 		hOut.write('#define \t ATTRIBUT_' + att + '\t' + str(attributList.index(m)) + '\n')
-
-	# HTTP_AUTH_BASIC & HTTP_AUTH_DIGEST definitions
-	value = 0
-	for m in httpAuthTypeList:
-		type = m.upper()
-		for c in type:
-			if (re.search('\W', c)):
-				type = type.replace(c, '_' + str(ord(c)) + '_')
-		hOut.write('#define \t HTTP_AUTH_' + type + '\t' + str(value) + '\n')
-		value += 1
 
 	hOut.write('\n#endif\n')
 	hOut.close()
@@ -386,18 +376,20 @@ def generateResourceProps(srcFile,dstFileInfos):
 	pOut.close()
 
 # launches a Web applicative resource file generation
-def generateResource(srcFile,dstFile,chuncksNbits,gzipped,dstFileInfos,realm,offsetCountCouple):
+def generateResource(srcFile,dstFile,chuncksNbits,gzipped,dstFileInfos,authType,realm,offsetCountCouple,finalUri):
 	if getResourceType(srcFile) == DynamicResource:
-		generateDynamicResource(srcFile,dstFile,dstFileInfos,realm,offsetCountCouple)
+		generateDynamicResource(srcFile,dstFile,dstFileInfos,authType,realm,offsetCountCouple,finalUri)
 	else:
-		generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,realm,offsetCountCouple)
+		generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,authType,realm,offsetCountCouple,finalUri)
 
 # dynamic resources: the generator file is enriched
 def generateDynamicResource(srcFile,
 			    dstFile,
 			    dstFileInfos,
+			    authType,
 			    realm,
-			    offsetCountCouple):
+			    offsetCountCouple,
+			    finalUri):
 	# extract the properties from the XML (if needed)
 	fileData = extractPropsFromXml(srcFile,dstFileInfos)
 	# if the c/h file does not conatin any XML, we simply copy it: this is not a generator
@@ -551,17 +543,44 @@ def generateDynamicResource(srcFile,
 			generatedOutputHandler += '\t.handler_restriction = {\n'
 			generatedOutputHandler += '\t\t.realm = (unsigned char*)&' + realmVar.lower() + ',\n'
 			generatedOutputHandler += '\t\t.credentials_offset = ' + str(offsetCountCouple[0]) + ',\n'
-			generatedOutputHandler += '\t\t.credentials_count = ' + str(offsetCountCouple[1]) + '\n'
+			generatedOutputHandler += '\t\t.credentials_count = ' + str(offsetCountCouple[1])
+			if authType == 'digest':
+				generatedOutputHandler += ',\n'
+				# Setting method string
+				if (dstFileInfos.has_key('doPost')
+				    or dstFileInfos.has_key('doPostIn')
+				    or dstFileInfos.has_key('doPostOut')):
+					method = 'POST'
+				else:
+					method = 'GET'
+
+				(fileName, fileExt) = os.path.splitext(finalUri)
+				if (fileExt == '.c' or fileExt == '.h'):
+					    print 'URI EXTENSION STRIP !!!'
+					    finalUri = fileName
+				md5 = hashlib.md5()
+				md5.update('%s:%s' % (method, finalUri))
+				hexdigest = md5.hexdigest()
+				generatedOutputHandler += '\t\t.resource_digest = "%s"\n' % hexdigest
+				# DEBUG PURPOSE
+				print 'MD5 Digest: %s (%s:%s)' % (hexdigest, method, finalUri)
+			else:
+				generatedOutputHandler += "\n"
+		
 			generatedOutputHandler += '\t}\n'		
 		else:
 			generatedOutputHandler += '\t.handler_restriction = {\n'
 			generatedOutputHandler += '\t\t.realm = NULL,\n'
 			generatedOutputHandler += '\t\t.credentials_offset = 0,\n'
-			generatedOutputHandler += '\t\t.credentials_count = 0\n'
+			generatedOutputHandler += '\t\t.credentials_count = 0'
+			if authType == 'digest':
+				generatedOutputHandler += ',\n'
+				generatedOutputHandler += '\t\t.resource_digest = ""\n'
+			else:
+				generatedOutputHandler += '\n'
 			generatedOutputHandler += '\t}\n'
 
 		generatedOutputHandler += '#endif\n'
-
 
 		generatedOutputHandler += '};\n'
 
@@ -645,7 +664,7 @@ def generateDynamicResource(srcFile,
 # static file: the file is completely pre-processed into a c file:
 # HTTP header insertion
 # chuncks checksums calculation
-def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,realm,offsetCountCouple):
+def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,authType,realm,offsetCountCouple,finalUri):
 	# HTTP header generation and concatenation with file data
 	try:
 		# open the source file
@@ -739,14 +758,26 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped,realm,offsetCoun
 		cOut.write('\t.handler_restriction = {\n'
 			   + '\t\t.realm = (unsigned char*)&' + realmVar.lower() + ',\n'
 			   + '\t\t.credentials_offset = ' + str(offsetCountCouple[0]) + ',\n'
-			   + '\t\t.credentials_count = ' + str(offsetCountCouple[1]) + '\n'
-			   + '\t}\n')
+			   + '\t\t.credentials_count = ' + str(offsetCountCouple[1]) + ',\n')
+		if authType == 'digest':
+			m = hashlib.md5()
+			m.update('%s:%s' % ('GET', finalUri))
+			hexdigest = m.hexdigest()
+			cOut.write('\t\t.resource_digest = "%s"\n' % hexdigest)
+			# DEBUG PURPOSE
+			print 'MD5 Digest: %s (GET:%s)' % (hexdigest, finalUri)
+		cOut.write('\t}\n')
 	else:
 		cOut.write('\t.handler_restriction = {\n'
 			   + '\t\t.realm = NULL,\n'
 			   + '\t\t.credentials_offset = 0,\n'
-			   + '\t\t.credentials_count = 0\n'
-			   + '\t}\n')
+			   + '\t\t.credentials_count = 0')
+		if authType == 'digest':
+			cOut.write(',\n\t\t.resource_digest = ""\n')
+		else:
+			cOut.write('\n')
+		cOut.write('\t}\n')
+
 	cOut.write('#endif\n')
 
 	cOut.write('};\n')

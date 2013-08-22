@@ -36,6 +36,7 @@
 #ifndef __CONNECTIONS_H__
 #define __CONNECTIONS_H__
 
+#include "auth.h"
 #include "handlers.h"
 #include "coroutines.h"
 
@@ -116,31 +117,73 @@ struct http_connection {
   unsigned const char * /*CONST_VAR*/ blob;
   struct generator_service_t *generator_service;
 
-#ifdef HTTP_AUTH
-  uint8_t authenticated: 1;
-#endif
-
 #ifndef DISABLE_ARGS
   struct args_t *args;
   unsigned char *curr_arg;
   unsigned char arg_ref_index;
 #endif
+
 #ifndef DISABLE_TIMERS
   unsigned char transmission_time;
 #endif
-  enum parsing_state_e {parsing_out, parsing_cmd, parsing_url, parsing_end
+
 #ifndef DISABLE_POST
-			, parsing_post_attributes, parsing_post_end, parsing_post_content_type, parsing_post_args, parsing_post_data, parsing_boundary, parsing_init_buffer	} parsing_state: 4;
-  uint8_t post_url_detected:1; /* bit used to know if url is post or get request */
+  enum parsing_state_e {
+    parsing_out,
+    parsing_cmd,
+    parsing_url,
+    parsing_end,
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+    parsing_authorization_username,
+#endif
+    parsing_post_attributes,
+    parsing_post_end,
+    parsing_post_content_type,
+    parsing_post_args,
+    parsing_post_data,
+    parsing_boundary,
+    parsing_init_buffer,
+  } parsing_state : 4;
+
+  uint8_t post_url_detected : 1;
   struct post_data_t *post_data;
 #else
-} parsing_state/*: 2*/; /* this field will be on one byte anyway as previous fields are exactly 16 bits.
-			   Using a full char does not change the struct size, but lower the code size needed to access it */
+#ifdef HTTP_AUTH
+  enum parsing_state_e {
+    parsing_out,
+    parsing_cmd,
+    parsing_url,
+    parsing_end,
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
+    parsing_authorization_username,
 #endif
+    parsing_post_attributes,
+    parsing_post_end
+  } parsing_state : 3;
+#else
+  enum parsing_state_e {
+    parsing_out,
+    parsing_cmd,
+    parsing_url,
+    parsing_end
+  } parsing_state : 2;
+#endif
+#endif
+
+/*   enum parsing_state_e {parsing_out, parsing_cmd, parsing_url, parsing_end */
+/* #ifndef DISABLE_POST */
+/* 			, parsing_post_attributes, parsing_post_end, parsing_post_content_type, parsing_post_args, parsing_post_data, parsing_boundary, parsing_init_buffer	} parsing_state: 4; */
+/*   uint8_t post_url_detected:1; /\* bit used to know if url is post or get request *\/ */
+/*   struct post_data_t *post_data; */
+/* #else */
+/* } parsing_state/\*: 2*\/; /\* this field will be on one byte anyway as previous fields are exactly 16 bits. */
+/* 			   Using a full char does not change the struct size, but lower the code size needed to access it *\/ */
+/* #endif */
+
 #ifndef DISABLE_COMET
-unsigned char comet_passive: 1;
-unsigned char comet_send_ack: 1;
-unsigned char comet_streaming: 1;
+  unsigned char comet_passive: 1;
+  unsigned char comet_send_ack: 1;
+  unsigned char comet_streaming: 1;
 #endif
 };
 
