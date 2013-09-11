@@ -756,7 +756,7 @@ char smews_send (void)
        * are still not fully received :
        * in the meantime, smews acknowledges multiple times (read dozens) the same packet, till post data reception completes.
        */
-      if(!active_connection->protocol.http.post_data)
+      //if(!active_connection->protocol.http.post_data)
 #endif
 	      smews_send_packet (active_connection);
 	    active_connection->output_handler = NULL;

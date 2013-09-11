@@ -77,6 +77,8 @@
 #ifndef __ELFLOADER_H__
 #define __ELFLOADER_H__
 
+#include "../../core/elf_application.h"
+
 /**
  * Return value from elfloader_load() indicating that loading worked.
  */
@@ -279,20 +281,13 @@ int elfloader_load(void *input_fd,
  * A pointer to the processes loaded with elfloader_load().
  */
 /*extern struct process **elfloader_autostart_processes;*/
-#ifdef CALLBACK_GETTERS_NAME
-#undef CALLBACK_GETTERS_NAME
+#ifdef ELF_APPLICATION_ENVIRONMENT_NAME
+#undef ELF_APPLICATION_ENVIRONMENT_NAME
 #endif
 
-#define CALLBACK_GETTERS_NAME "getCallbacks"
-typedef int (*CALLBACK)();
+#define ELF_APPLICATION_ENVIRONMENT_NAME "elf_application_environment"
 
-struct SCallbacks_t {
-	CALLBACK c0;
-	CALLBACK c1;
-};
-typedef struct SCallbacks_t *(*CALLBACKS_GETTER)();
-
-extern CALLBACKS_GETTER callbacksGetter;
+extern struct elf_application_environment_t *elf_application_environment;
 
 /**
  * If elfloader_load() could not find a specific symbol, it is copied

@@ -42,6 +42,7 @@
 #include "coroutines.h"
 #include "blobs.h"
 #include "defines.h"
+#include "elf_application.h"
 
 #include <stdio.h>
 
@@ -675,7 +676,7 @@ char smews_receive(void) {
     x = 0;
     if(segment_length && tmp_connection.protocol.http.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
         const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
-
+	struct output_handler_t * elf_application_output_handler     = NULL;
         /* parse the eventual GET request */
         unsigned const char * /*CONST_VAR*/ blob;
         unsigned char blob_curr;
@@ -1108,6 +1109,7 @@ char smews_receive(void) {
 #endif
                         tmp_connection.protocol.http.parsing_state = parsing_url;
                         blob = urls_tree;
+			/*elf_application_parsing_start(connection);*/
                     } else {
                         if(tmp_char == ' ') {
 #ifndef DISABLE_POST
@@ -1301,6 +1303,10 @@ char smews_receive(void) {
                             }
                         }
                     } while(1);
+
+                   /*elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
+		   if(elf_application_output_handler != &http_404_handler)
+			output_handler = elf_application_output_handler;*/
                 }
         }
 

@@ -59,6 +59,10 @@ unsigned char local_ip_addr[4] = { IP_ADDR };
 struct connection *all_connections;
 struct http_rst_connection rst_connection;
 
+struct connection *get_all_connections() {
+	return all_connections;
+}
+
 #ifdef IPV6
 /*-----------------------------------------------------------------------------------*/
 

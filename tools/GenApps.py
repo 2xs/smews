@@ -201,46 +201,6 @@ def getResourceType(path):
 
 # extracts c file properties from its xml data
 # returns the file data
-def extractPropsFromXmlForDynApp(srcFile,dstFileInfos):
-	# open the source file in order to parse the XML and return the file data
-	file = open(srcFile,'r')
-	lines = file.readlines()
-	if len(lines) > 1:
-		fileData = reduce(lambda x,y: x + y,lines)
-	else:
-		fileData = ''
-	# process XML only if dstFileInfos do not already contains informations
-	# 3 XML handler functions
-	def start_element_dyn_app(name, attrs):
-		global handlerInfosDynApp
-		if name == 'handlers' :
-			handlerInfosDynApp = attrs
-	def end_element_dyn_app(name):
-		return
-	def char_data_dyn_app(data):
-		return
-	xmlRoot = 'dynApp'
-	xmlData = fileData[fileData.rfind('<' + xmlRoot + '>'):]
-	xmlData = xmlData[:xmlData.rfind('</' + xmlRoot + '>') + len(xmlRoot) + 3]
-	# parse the XML
-	p = xml.parsers.expat.ParserCreate()
-	p.StartElementHandler = start_element_dyn_app
-	p.EndElementHandler = end_element_dyn_app
-	p.CharacterDataHandler = char_data_dyn_app
-	p.Parse(xmlData, 0)
-	if len(xmlData) > 1:
-		global handlerInfosDynApp
-
-		if handlerInfosDynApp.has_key('init'):
-			dstFileInfos['initDynApp'] = handlerInfosDynApp['init']
-			dstFileInfos['isDynApp']   = True
-		if handlerInfosDynApp.has_key('shutdown'):
-			dstFileInfos['shutdownDynApp'] = handlerInfosDynApp['shutdown']
-			dstFileInfos['isDynApp']   = True
-	return fileData
-
-# extracts c file properties from its xml data
-# returns the file data
 def extractPropsFromXml(srcFile,dstFileInfos):
 	# open the source file in order to parse the XML and return the file data
 	file = open(srcFile,'r')
@@ -367,6 +327,13 @@ def extractPropsFromXml(srcFile,dstFileInfos):
 			# initGet handler
 			if handlerInfos.has_key('initGet'):
 				dstFileInfos['initGet'] = handlerInfos['initGet']
+			# install handler
+			if handlerInfos.has_key('install'):
+				dstFileInfos['install'] = handlerInfos['install']
+			# shutdown handler
+			if handlerInfos.has_key('shutdown'):
+				dstFileInfos['shutdown'] = handlerInfos['shutdown']
+
 			# generator arguments
 			dstFileInfos['argsList'] = argsList
 			dstFileInfos['contentTypeList'] = contentTypeList
@@ -407,17 +374,16 @@ def generateResourceProps(srcFile,dstFileInfos):
 	pOut.close()
 
 # launches a Web applicative resource file generation
-def generateResource(srcFile,dstFile,chuncksNbits,gzipped,dstFileInfos):
+def generateResource(srcFile,dstFile,dynApp, chuncksNbits,gzipped,dstFileInfos):
 	if getResourceType(srcFile) == DynamicResource:
-		generateDynamicResource(srcFile,dstFile,dstFileInfos)
+		generateDynamicResource(srcFile,dstFile,dstFileInfos, dynApp)
 	else:
 		generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped)
 
 # dynamic resources: the generator file is enriched
-def generateDynamicResource(srcFile,dstFile,dstFileInfos):
+def generateDynamicResource(srcFile,dstFile,dstFileInfos, dynApp):
 	# extract the properties from the XML (if needed)
 	fileData = extractPropsFromXml(srcFile,dstFileInfos)
-	extractPropsFromXmlForDynApp(srcFile, dstFileInfos)
 	# if the c/h file does not conatin any XML, we simply copy it: this is not a generator
 	if not dstFileInfos['hasXml']:
 		shutil.copyfile(srcFile,dstFile)
@@ -613,17 +579,25 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 
 		# uploadable application
 		generatedDynApp = '';
-		if dstFileInfos.has_key('isDynApp') :
+		if dynApp :
+			generatedHeader += '#include "elf_application.h"\n\n'
 			forwardDeclarations = '';
-			generatedDynApp += 'CONST_VAR(struct elf_application_environment_t, elf_application_environment) = {\n' 
-			if dstFileInfos.has_key('initDynApp'):
-				forwardDeclarations += 'static elf_application_init_t ' + dstFileInfos['initDynApp'] + ';\n'
-				generatedDynApp += '\t.init = ' + dstFileInfos['initDynApp'] + ',\n'
+			generatedDynApp += 'struct elf_application_environment_t elf_application_environment = {\n' 
+			# already declared before
+			if dstFileInfos.has_key('init'):
+				generatedDynApp += '\t.init = ' + dstFileInfos['init'] + ',\n'
 			else :
 				generatedDynApp += '\t.init = NULL,\n'
-			if dstFileInfos.has_key('shutdownDynApp'):
-				forwardDeclarations += 'static elf_application_shutdown_t ' + dstFileInfos['shutdownDynApp'] + ';\n'
-				generatedDynApp += '\t.shutdown = ' + dstFileInfos['shutdownDynApp'] + ',\n'
+
+			if dstFileInfos.has_key('install'):
+				forwardDeclarations += 'static elf_application_install_t ' + dstFileInfos['install'] + ';\n'
+				generatedDynApp += '\t.install = ' + dstFileInfos['install'] + ',\n'
+			else :
+				generatedDynApp += '\t.install = NULL,\n'
+
+			if dstFileInfos.has_key('shutdown'):
+				forwardDeclarations += 'static elf_application_shutdown_t ' + dstFileInfos['shutdown'] + ';\n'
+				generatedDynApp += '\t.shutdown = ' + dstFileInfos['shutdown'] + ',\n'
 			else :
 				generatedDynApp += '\t.shutdown = NULL,\n'
 			forwardDeclarations += 'extern CONST_VAR(const struct output_handler_t *, resources_index[]);\n'

@@ -35,8 +35,7 @@ import os
 import GenApps
 
 # imports from SConstruct
-Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
-
+Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test dynApp projectName')
 # returns the list of .c and .s files in dir, prefixed by dstDir
 def getAllSourceFiles(dir, dstDir):
 	sourceFiles = []
@@ -53,9 +52,9 @@ def getAllSourceFiles(dir, dstDir):
 # used to generate both static and dynamic resources
 def generateResource(target, source, env):
 	if propsFilesMap.has_key(str(source[0])):
-		GenApps.generateResource(str(source[0]),str(target[0]),chuncksNbits,gzipped,propsFilesMap[str(source[0])])
+		GenApps.generateResource(str(source[0]),str(target[0]), dynApp, chuncksNbits,gzipped,propsFilesMap[str(source[0])])
 	else:
-		GenApps.generateResource(str(source[0]),str(target[0]),chuncksNbits,gzipped,None)
+		GenApps.generateResource(str(source[0]),str(target[0]), dynApp, chuncksNbits,gzipped,None)
 	return None
 
 # builder used to generate the file index, with the URLs tree
@@ -156,18 +155,29 @@ env.GenChannelsH(channelsH,propsFilesList)
 env.Depends(channelsH,toolsList)
 env.GenDefinesH(definesH,[])
 env.GenBlobsH(blobsH,[])
+if dynApp :
+	linkerCommand = env.subst('$LINK')
+	linkerCommand += ' -r '
 
-# engine source code dependencies
-coreFiles = getAllSourceFiles(coreDir, os.path.join(binDir,'core'))
-# target drivers source code dependencies
-targetFiles = getAllSourceFiles(driversDir, os.path.join(binDir,'drivers'))
-# create a library from all sources
-lib = env.Library(libFileName, targetFiles + coreFiles + genObjects)
-# link the library into a elf file
-if env['BUILDERS']['Program'] is not None:
-	final = env.Program(elfFileName, targetFiles + coreFiles + genObjects)
+	pathes = []
+	for elt in genObjects :
+		for inner_elt in elt.data :
+			pathes.append(inner_elt.path)
+	linkerCommand += ' '.join(pathes)
+	linkerCommand += ' -o $TARGET'
+	
+	env.Command(os.path.join(binDir, projectName + '.o'), None, linkerCommand)
 else:
-	final = None
-# clean
-Clean([lib,final],[binDir,genDir])
-print "Link is ", env.subst('$LINK')
+	# engine source code dependencies
+	coreFiles = getAllSourceFiles(coreDir, os.path.join(binDir,'core'))
+	# target drivers source code dependencies
+	targetFiles = getAllSourceFiles(driversDir, os.path.join(binDir,'drivers'))
+	# create a library from all sources
+	lib = env.Library(libFileName, targetFiles + coreFiles + genObjects)
+	# link the library into a elf file
+	if env['BUILDERS']['Program'] is not None:
+		final = env.Program(elfFileName, targetFiles + coreFiles + genObjects)
+	else:
+		final = None
+	# clean
+	Clean([lib,final],[binDir,genDir])

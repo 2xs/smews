@@ -100,8 +100,7 @@ write_segment(struct elfloader_output *output, const char *buf,
 	     }
 	   }
 
-	   ret = rflpc_iap_write_to_sector(memory->base + memory->offset,
-					   buf, len);
+	   ret = rflpc_iap_write_buffer(memory->base + memory->offset, buf, len);
 
 
 	   if(ret != 0) {

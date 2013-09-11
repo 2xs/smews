@@ -45,11 +45,12 @@ typedef void *(*elf_application_allocate_t)(unsigned int size);
 typedef void  (*elf_application_free_t)(void *memory);
 
 /* Callbacks */
-typedef char (*elf_application_init_t)();
+typedef char (*elf_application_install_t)();
 typedef void (*elf_application_shutdown_t)();
 
 struct elf_application_environment_t {
-  elf_application_init_t     init;
+  generator_init_func_t      *init;
+  elf_application_install_t  install;
   elf_application_shutdown_t shutdown;
   unsigned char *            urls_tree;
   struct output_handler_t ** resources_index;
@@ -87,7 +88,6 @@ struct elf_application_t {
 	}
 
 extern struct elf_application_t *all_applications;
-
 
 extern void elf_applications_init(elf_application_allocate_t allocate, elf_application_free_t free);
 

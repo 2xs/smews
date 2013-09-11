@@ -14,7 +14,7 @@
 #include "codeprop-otf.h"
 #include "RamFileSystem.h"
 
-#include "../../core/elf_application.h"
+#include "application.h"
 
 struct file_t {
   char *filename;
@@ -23,8 +23,10 @@ struct file_t {
 
 /* elf loader*/
 const char *elf_loader_return_labels[] = {
- "ok", "Bad Elf Header", "No Symbol Table", "No String Table", "No Text section", "Symbol not found", "Segment not found", "No StartPoint"
+ "ok", "Bad Elf Header", "No Symbol Table", "No String Table", "No Text section", "Symbol not found", "Segment not found", "No StartPoint",
+ "Unhandled Relocation", "Out Of Range", "Relocation Not Sorted", "Input Error", "Output Error"
 };
+
 
 /* Storage buffer */
 #define STORAGE_BUFFER_SIZE 128
@@ -120,20 +122,16 @@ static char doPostIn(uint8_t content_type, /*uint16_t content_length,*/ uint8_t 
       }
 
       k += STORAGE_BUFFER_SIZE;
+      printf("%d\r\n", k);
       storage_buffer[0] = value;
       j = 1;
     }
     
-    
-    /*if(rflpc_iap_write_to_sector(elf_allocator_storage + i, &value, 1) != 0) {
-        printf("An error happened while flashing elf to storage\r\n");
-        return 1;
-    }*/
     i++;
   }
 
   if(j > 0) {
-    if(rflpc_iap_write_to_sector(elf_allocator_storage + k, storage_buffer, j) != 0) {
+    if(APPLICATION_WRITE(elf_allocator_storage + k, storage_buffer, j) != 0) {
         printf("An error happened while flashing elf to storage\r\n");
         return 1;
       }
@@ -154,7 +152,7 @@ void clean_up(struct file_t *file) {
     while(file->filename[i++] != '\0');
 
     mem_free(file->filename, i * sizeof(char));
-    mem_free(file, sizeof(struct file_t));        
+    mem_free(file, sizeof(struct file_t));
 }
 
 /*-----------------------------------------------------------------------------*/
@@ -189,20 +187,22 @@ static char doPostOut(uint8_t content_type, void *data) {
     printf("Loading = %d\r\n", loading);
     if(loading == ELFLOADER_OK) {
       /*flash_dump();*/
+      printf("Elf Application Environment is %p\r\n", elf_application_environment);
 
-      printf("PRINTF address %p\r\n", printf);
-      printf("Calling Callbacks Getter %p\r\n", callbacksGetter);
-      printf("Callbacks Getter is : %p\r\n", callbacksGetter());
-      printf("Callbacks Getter called\r\n");
-      {
-	  struct SCallbacks_t *callbacks = callbacksGetter();
+      printf("Init function is %p\r\n", elf_application_environment->init);
+      printf("Install function is %p\r\n", elf_application_environment->install);
+      printf("Shutdown function is %p\r\n", elf_application_environment->shutdown);
+      printf("URLS Tree is %p\r\n", elf_application_environment->urls_tree);
+      printf("Resources index is %p\r\n", elf_application_environment->resources_index);
 
-	  printf("Callback 0 %p\r\n", callbacks->c0);
-	  printf("Callback 1 %p\r\n", callbacks->c1);
-	  printf("%d\r\n", callbacks->c0());
-	  printf("%d\r\n", callbacks->c1());
-      }
-
+      if(!application_add(file->filename, file->size, elf_application_environment)) {
+	out_str("Failed to add application ");
+	out_str(file->filename);
+        out_str(".");
+        printf("Failed to add application %s.\r\n", file->filename);
+	clean_up(file);
+        return 1;
+      } 
 
     } else {
 

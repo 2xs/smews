@@ -3,7 +3,7 @@
 
 #include "../../core/elf_application.h"
 
-extern char application_add(const char *filename, uint16_t size, struct elf_application_environment_t *callbacks);
+extern char application_add(const char *filename, uint16_t size, struct elf_application_environment_t *environment);
 extern void application_remove(const char *filename);
 
 #endif

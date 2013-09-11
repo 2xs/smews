@@ -1,8 +1,9 @@
 #ifndef DISABLE_ELF
 
 #include "elf_application.h"
+#include "memory.h"
 
-static unsigned int elf_applications_count = 0;
+const unsigned int elf_applications_count __attribute__ ((section(".persistent_data"))) = 0;
 
 struct elf_application_t *all_applications;
 
@@ -18,14 +19,15 @@ static elf_application_free_t     elf_application_free;
 
 void elf_applications_init(elf_application_allocate_t allocate, elf_application_free_t free) {
   elf_application_allocate = allocate;
-	elf_application_free     = free;
+  elf_application_free     = free;
 }
 
 int elf_application_get_count() { return elf_applications_count; }
 
 
 char elf_application_add(struct elf_application_t *application) {
-  // Head insert
+  struct elf_application_parsing_t *parsing;
+  /* Head insert */
   struct elf_application_t *buf[1];
   /*application->previous = NULL; */
   buf[0] = NULL;
@@ -43,25 +45,52 @@ char elf_application_add(struct elf_application_t *application) {
 
   /* all_applications             = application; */
   APPLICATION_WRITE(all_applications, application, sizeof(struct elf_application_t *));
-  elf_applications_count++;
+  
+  {
+    unsigned int elfApplicationsCount = elf_applications_count + 1;
+    APPLICATION_WRITE((void *)&elf_applications_count, &elfApplicationsCount, sizeof(unsigned int));
+  }
+   
+  printf("%s Applications count is now : %d\r\n", __FUNCTION__, elf_applications_count);
+
+  /* Add all existing connections to the application's parsing */
+  FOR_EACH_CONN(conn, {
+	      if(!IS_HTTP(conn)) {
+		      NEXT_CONN(conn);
+		      continue;
+	      }
+
+        parsing = (struct elf_application_parsing_t *)mem_alloc(sizeof(struct elf_application_parsing_t));
+        parsing->connection = conn;
+        parsing->blob       = application->environment->urls_tree;
+        parsing->previous   = NULL;
+        parsing->next       = application->parsing;
+
+        if(application->parsing != NULL) {
+          application->parsing->previous = parsing;
+        }
+  
+        APPLICATION_WRITE(application->parsing, parsing, sizeof(struct elf_application_parsing_t *));
+  })
+
 
   return 1;
 }
 
 void elf_application_remove(const struct elf_application_t *application) {
-    if(elf_applications_count > 0 ) {
+    if(elf_application_get_count() > 0 ) {
       struct elf_application_t *appli = all_applications;
 
       while(appli) {
         if(application == appli) {
 
           /* remove the parsing data */
-          if(elf_application_free) {
+          {
             struct elf_application_parsing_t *parsing = appli->parsing;
             struct elf_application_parsing_t *parsingNext;
             while(parsing) {
               parsingNext = parsing->next;
-              elf_application_free(parsing);
+              mem_free(parsing, sizeof(struct elf_application_parsing_t));
               parsing = parsingNext;
             }
           }
@@ -87,7 +116,10 @@ void elf_application_remove(const struct elf_application_t *application) {
             APPLICATION_WRITE(application->next->previous, application->previous, sizeof(struct elf_application_t *));
           }
 
-          elf_applications_count--;
+          {
+            unsigned int elfApplicationsCount = elf_applications_count - 1;
+            APPLICATION_WRITE((void *)&elf_applications_count, &elfApplicationsCount, sizeof(unsigned int));
+          }
           return;
       }
       appli = appli->next;
@@ -95,29 +127,27 @@ void elf_application_remove(const struct elf_application_t *application) {
   }
 }
 
-static struct elf_application_parsing_t elf_application_parsing_buffer;
-
 /* When a connection has been created */
 void elf_application_add_connection(struct connection *connection) {
-  if(connection && elf_application_allocate) {
-    if(elf_applications_count > 0 ) {
+  if(connection) {
+
+    if(!IS_HTTP(connection))
+	return;
+
+    if(elf_application_get_count() > 0 ) {
       struct elf_application_parsing_t *parsing;
       struct elf_application_t *        appli = all_applications;
 
-  		while(appli) {
+      while(appli) {
+        parsing = (struct elf_application_parsing_t *)mem_alloc(sizeof(struct elf_application_parsing_t));
         /* Head insert */
-        elf_application_parsing_buffer.connection = connection;
-        elf_application_parsing_buffer.blob       = appli->environment->urls_tree;
-        elf_application_parsing_buffer.previous   = NULL;
-        elf_application_parsing_buffer.next       = appli->parsing;
-        
-        parsing = (struct elf_application_parsing_t *)elf_application_allocate(sizeof(struct elf_application_parsing_t));
+        parsing->connection = connection;
+        parsing->blob       = appli->environment->urls_tree;
+        parsing->previous   = NULL;
+        parsing->next       = appli->parsing;
 
-        APPLICATION_WRITE(parsing, &elf_application_parsing_buffer, sizeof(struct elf_application_parsing_t));
-
-        if(appli->parsing != NULL) {
-          APPLICATION_WRITE(appli->parsing->previous, parsing, sizeof(struct elf_application_parsing_t *));
-        }
+        if(appli->parsing != NULL)
+          appli->parsing->previous = parsing;
   
         APPLICATION_WRITE(appli->parsing, parsing, sizeof(struct elf_application_parsing_t *));
 
@@ -128,13 +158,10 @@ void elf_application_add_connection(struct connection *connection) {
 }
 /* When a connection has been terminated */
 void elf_application_remove_connection(const struct connection *connection) {
-  if(connection && elf_application_free) {
-    if(elf_applications_count > 0 ) {
-      struct elf_application_parsing_t *buf[1];
+  if(connection) {
+    if(elf_application_get_count() > 0 ) {
       struct elf_application_parsing_t *parsing;
       struct elf_application_t *        appli = all_applications;
-
-      buf[0] = NULL;
 
       while(appli) {
         
@@ -143,15 +170,17 @@ void elf_application_remove_connection(const struct connection *connection) {
         while(parsing) {
           if(parsing->connection == connection) {
               
-            if(parsing->previous) {
-              APPLICATION_WRITE(parsing->previous->next, parsing->next, sizeof(struct elf_application_parsing_t *));
-            }
+            if(parsing->previous)
+              parsing->previous->next = parsing->next;
 
-            if(parsing->next) {
-              APPLICATION_WRITE(parsing->next->previous, parsing->previous, sizeof(struct elf_application_parsing_t *));
-            }
+            if(parsing->next)
+              parsing->next->previous = parsing->previous;
 
-            elf_application_free(parsing);
+            if(parsing == appli->parsing)
+              APPLICATION_WRITE(appli->parsing, parsing->next, sizeof(struct elf_application_parsing_t *));
+
+            mem_free(parsing, sizeof(struct elf_application_parsing_t));
+
             break;
           }
 
@@ -206,12 +235,12 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
         if (blob_next & 2)
           blob += offsetEq;
         else {
-          APPLICATION_WRITE(url_blob, &blob, sizeof(unsigned char *));
+          *url_blob = blob;
           return &http_404_handler;
         }
       }
 
-      APPLICATION_WRITE(url_blob, &blob, sizeof(unsigned char *));
+      *url_blob = blob;
       return NULL;
     } 
     else if (byte < blob_curr) {
@@ -219,7 +248,7 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
         blob += offsetInf;
       }
       else {
-        APPLICATION_WRITE(url_blob, &blob, sizeof(unsigned char *));
+        *url_blob = blob;
         return &http_404_handler;
       }
     }
@@ -230,7 +259,7 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
         blob += offsetSup;
       }
       else {
-        APPLICATION_WRITE(url_blob, &blob, sizeof(unsigned char *));
+        *url_blob = blob;
         return &http_404_handler;
       }
     }
@@ -240,7 +269,7 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
 }
 
 void elf_application_parsing_start(const struct connection *connection) {
-  if(elf_applications_count > 0) {
+  if(elf_application_get_count() > 0) {
     struct elf_application_parsing_t *parsing;
     struct elf_application_t *appli = all_applications;
     while(appli) {
@@ -263,7 +292,7 @@ void elf_application_parsing_start(const struct connection *connection) {
 }
 
 struct output_handler_t *elf_application_parse_step(const struct connection *connection, uint8_t byte) {
-  if(elf_applications_count > 0) {
+  if(elf_application_get_count() > 0) {
     struct elf_application_parsing_t *parsing;
     struct output_handler_t *output_handler = NULL;
     struct elf_application_t *appli = all_applications;
@@ -281,10 +310,8 @@ struct output_handler_t *elf_application_parse_step(const struct connection *con
           if(output_handler == NULL)
             still_parsing = 1;
           else {
-
             if(output_handler != &http_404_handler)
               return output_handler;
-
           }
 
           break;

@@ -130,7 +130,7 @@
 /* Gets an address from address x */
 #define APPLICATION_READ_ADDR(x) CONST_READ_ADDR(x)
 
-#define APPLICATION_WRITE(dst, src, len) rflpc_iap_write_to_sector(dst, src, len)
+#define APPLICATION_WRITE(dst, src, len) rflpc_iap_write_buffer(dst, src, len)
 
 /* Endianness: define ENDIANNESS as LITTLE_ENDIAN or BIG_ENDIAN */
 #ifndef ENDIANNESS

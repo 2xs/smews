@@ -5,7 +5,7 @@
 #include "../../core/timers.h"
 
 const struct symbols symbols[] = {
-
+	{"get_all_connections",     get_all_connections     },
 	{"get_current_remote_ip",   get_current_remote_ip   },
 	{"get_local_ip",            get_local_ip            },
 #ifndef DISABLE_GP_IP_HANDLER
@@ -34,6 +34,8 @@ const struct symbols symbols[] = {
 	{"server_push",             server_push},
 #endif
 	{"set_timer",               set_timer},
+
+	{"something_to_send",       something_to_send },
 };
 
 const int symbols_nelts = sizeof(symbols)/sizeof(struct symbols);
