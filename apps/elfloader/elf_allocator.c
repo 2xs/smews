@@ -11,7 +11,8 @@
 #endif
 
 #ifndef ELF_ALLOCATOR_FLASH_ADDRESS
-#define ELF_ALLOCATOR_FLASH_ADDRESS ((char *)0x00009000)
+extern char _persistent_data_end;
+#define ELF_ALLOCATOR_FLASH_ADDRESS ((char *)&_persistent_data_end)
 #endif
 
 #ifndef ELF_ALLOCATOR_FLASH_SECTOR_INDEX

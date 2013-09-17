@@ -304,7 +304,7 @@ relocate_section(void *input_fd,
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return ELFLOADER_INPUT_ERROR;
-      /*printf("\r\n------------->SYMBOL name: %s\r\n", name);*/
+      printf("\r\n------------->SYMBOL name: %s\r\n", name);
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
@@ -776,8 +776,9 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   }
 
   /* If we have any data segment relocations, we process them too. */
-  printf("elfloader: relocate data\r\n");
+  
   if(datarelasize > 0) {
+    printf("elfloader: relocate data\r\n");
     ret = copy_segment(input_fd, output,
 		       datarelaoff, datarelasize,
 		       dataoff,

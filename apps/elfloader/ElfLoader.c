@@ -194,6 +194,12 @@ static char doPostOut(uint8_t content_type, void *data) {
       printf("Shutdown function is %p\r\n", elf_application_environment->shutdown);
       printf("URLS Tree is %p\r\n", elf_application_environment->urls_tree);
       printf("Resources index is %p\r\n", elf_application_environment->resources_index);
+      printf("Resources index[0] %p\r\n", elf_application_environment->resources_index[0]);
+      printf("Resources index[0]->handler.type %d\r\n", elf_application_environment->resources_index[0]->handler_type);
+      printf("Resources index[1] %p\r\n", elf_application_environment->resources_index[1]);
+      printf("Resources index[2] %p\r\n", elf_application_environment->resources_index[2]);
+      printf("Resources index[3] %p\r\n", elf_application_environment->resources_index[3]);
+      printf("Resources index[4] %p\r\n", elf_application_environment->resources_index[4]);
 
       if(!application_add(file->filename, file->size, elf_application_environment)) {
 	out_str("Failed to add application ");

@@ -263,7 +263,7 @@ void smews_send_packet (struct connection *connection)
     /* Full IPv6 adress of the packet */
     unsigned char full_ipv6_addr[16];
 #endif
-
+    printf("%s connection = %p\r\n", __FUNCTION__, connection);
 #ifdef SMEWS_SENDING
     SMEWS_SENDING;
 #endif
@@ -288,6 +288,7 @@ void smews_send_packet (struct connection *connection)
 	    current_inseqno = connection->protocol.http.current_inseqno;
 	}
 	output_handler = connection->output_handler;
+	printf("Output handler is %p (type : %d)\r\n\r\n", output_handler, CONST_UI8 (output_handler->handler_type));
     }
     else
     {
@@ -303,19 +304,24 @@ void smews_send_packet (struct connection *connection)
     switch (handler_type)
     {
 	case type_control:
+		printf("TYPE CONTROL\r\n");
 	    segment_length = CONST_UI8 (GET_CONTROL (output_handler).length);
 	    break;
 	case type_file:
 	{
 	    uint16_t max_out_size;
 	    uint32_t file_remaining_bytes;
+
 	    max_out_size = MAX_OUT_SIZE (connection->protocol.http.tcp_mss);
 	    file_remaining_bytes = UI32 (connection->protocol.http.final_outseqno) - UI32 (next_outseqno);
 	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
 	    index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
+		printf("TYPE FILE max_out_size %d file_remaining_byte_size %d segment_length %d index_in_file %d\r\n",
+			max_out_size, file_remaining_bytes, segment_length, index_in_file);
 	    break;
 	}
 	case type_generator:
+		printf("TYPE GENERATOR\r\n");
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
 	    break;
@@ -601,6 +607,7 @@ void smews_send_packet (struct connection *connection)
 	    const char *tmpptr =
 		(const char *) (CONST_ADDR (GET_FILE (output_handler).data) +
 				index_in_file);
+	printf("%s tmpptr %p data %p, segment_length %d\r\n", __FUNCTION__, tmpptr, CONST_ADDR (GET_FILE (output_handler).data), segment_length);
 	    DEV_PUTN_CONST (tmpptr, segment_length);
 	    break;
 	}
@@ -793,6 +800,7 @@ char smews_send (void)
 	    char has_ended = 0;
 	    struct in_flight_infos_t *if_infos = NULL;
 
+
 	    /* Set the maximum available size for generator so that the mss is respected */
 	    /* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
 	     * thus, the http header size used is only the no header one (the chunk size).
@@ -836,8 +844,11 @@ char smews_send (void)
 		else
 		{
 #endif
+
 #ifndef DISABLE_COROUTINES
 		    curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget);
+		printf("%s TYPE GENERATOR 3a) Curr_output_service->coroutine %p \r\n", __FUNCTION__, &curr_output.service->coroutine);
+		printf("%s TYPE GENERATOR 3b) func.func_get %p \r\n", __FUNCTION__, CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget));
 #ifndef DISABLE_ARGS
 		    curr_output.service->coroutine.params.args = active_connection->protocol.http.args;
 #endif
@@ -874,6 +885,7 @@ char smews_send (void)
 		}
 #endif
 	    } /* End if generator_service == NULL */
+
 
 	    /* init the global curr_output structure (usefull for out_c) */
 	    curr_output.service = active_connection->protocol.http.generator_service;
@@ -942,6 +954,7 @@ char smews_send (void)
 #else
 		has_ended = curr_output.dynamic_service_state != none && !curr_output.in_handler;
 #endif
+
 /* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
  * else, run the coroutine to generate one segment */
 		if (!has_ended)
@@ -1131,6 +1144,7 @@ char smews_send (void)
 #endif
 	    {
 /* simply send the segment */
+		printf("%s Sending Packet Connection %p\r\n", active_connection);
 		smews_send_packet (active_connection);
 	    }
 

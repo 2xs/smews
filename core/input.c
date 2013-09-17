@@ -1109,7 +1109,7 @@ char smews_receive(void) {
 #endif
                         tmp_connection.protocol.http.parsing_state = parsing_url;
                         blob = urls_tree;
-			/*elf_application_parsing_start(connection);*/
+			elf_application_parsing_start(connection);
                     } else {
                         if(tmp_char == ' ') {
 #ifndef DISABLE_POST
@@ -1304,9 +1304,18 @@ char smews_receive(void) {
                         }
                     } while(1);
 
-                   /*elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
-		   if(elf_application_output_handler != &http_404_handler)
-			output_handler = elf_application_output_handler;*/
+                    /*printf("==>OUTPUT handler is %p\r\n", output_handler);*/
+                    elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
+                    if((output_handler == &http_404_handler)) {
+                      output_handler = elf_application_output_handler;
+                      printf("ELF APPLICATION OUTPUT_HANDLER is %p (404 is %p)\r\n", output_handler, &http_404_handler);
+
+                      if((tmp_char == ' ') && (output_handler != &http_404_handler) && (output_handler != NULL)){
+                        printf("---> Handler found %p.. Breaking loop\r\n", output_handler);
+                        tmp_connection.protocol.http.parsing_state = parsing_end;
+                        break;
+                      }
+                    }
                 }
         }
 
@@ -1476,6 +1485,8 @@ char smews_receive(void) {
             } else {
                 /* update the current connection */
                 *connection = tmp_connection;
+                printf("Updating connection %p\r\n", connection);
+                printf("Connection->outputhandler is %p \r\n", connection->output_handler);
 #ifdef IPV6
                 copy_compressed_ip(connection->ip_addr, comp_ipv6_addr);
 #endif

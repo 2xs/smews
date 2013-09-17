@@ -9,7 +9,7 @@ char application_add(const char *filename, uint16_t size, struct elf_application
   char   res;
   int    filenameLength;
 
-	if((filename == NULL) || (size == 0) || (environment == NULL))
+  if((filename == NULL) || (size == 0) || (environment == NULL))
 		return 0;
 
   if(environment->init) {
@@ -24,7 +24,12 @@ char application_add(const char *filename, uint16_t size, struct elf_application
   /* +1 to keep the '\0' character */
   filenameLength = strlen(filename) + 1;
   application_buffer.filename = elf_allocator_flash_alloc(filenameLength);
-  APPLICATION_WRITE(application_buffer.filename, filename, filenameLength);
+  if(APPLICATION_WRITE(application_buffer.filename, filename, filenameLength) != 0) {
+    printf("FAILED TO WRITE application filename\r\n");
+    return 0;
+  }
+
+  printf("Application name is %s\r\n", application_buffer.filename);
 
   application_buffer.size        = size;
   application_buffer.environment = environment;
@@ -32,7 +37,11 @@ char application_add(const char *filename, uint16_t size, struct elf_application
 
   applicationInFlash = (struct elf_application_t *)elf_allocator_flash_alloc(sizeof(struct elf_application_t));
   
-  APPLICATION_WRITE(applicationInFlash, &application_buffer, sizeof(struct elf_application_t));
+  res = APPLICATION_WRITE(applicationInFlash, &application_buffer, sizeof(struct elf_application_t));
+
+  printf("Res is %d\n", res);
+  printf("Application In Flash : name %s, size %d, environment %p, parsing : %p\r\n",
+         applicationInFlash->filename, applicationInFlash->size, applicationInFlash->environment, applicationInFlash->parsing);
 
   return elf_application_add(applicationInFlash);
 }

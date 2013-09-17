@@ -87,7 +87,7 @@ struct elf_application_t {
 		} while(item); \
 	}
 
-extern struct elf_application_t *all_applications;
+extern struct elf_application_t * all_applications;
 
 extern void elf_applications_init(elf_application_allocate_t allocate, elf_application_free_t free);
 
