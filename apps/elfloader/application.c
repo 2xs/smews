@@ -12,11 +12,15 @@ char application_add(const char *filename, uint16_t size, struct elf_application
   if((filename == NULL) || (size == 0) || (environment == NULL))
 		return 0;
 
-  if(environment->init) {
-    res = environment->init();
-    if(res != 0) {
-      printf("Application %s failed to initialize (%d).\r\n", filename, res);
-      return 0;
+  if(environment->install) {
+    int i = 0;
+    while(environment->install[i] != NULL) {
+      res = environment->install[i]();
+      if(res != 0) {
+        printf("Application %s failed to install (%d).\r\n", filename, res);
+        return 0;
+      }
+      i++;
     }
   }
 
@@ -54,8 +58,13 @@ void application_remove(const char *filename) {
 
         elf_application_remove(application);
 
-        if(application->environment->shutdown)
-          application->environment->shutdown();
+        if(application->environment->remove) {
+          int i = 0;
+          while(application->environment->remove[i] != NULL) {
+            application->environment->remove[i]();
+            i++;
+          }
+        }
 	// @WARNING We should deallocate memory here but doesn't have any free function in elf_allocator.
 	return;
       }

@@ -71,10 +71,9 @@ void cr_run(struct coroutine_t *coroutine
 		, enum coroutine_type_e type
 #endif
 		) {
-	printf("%s 0 coroutine is %p\r\n", __FUNCTION__, coroutine);
 	/* push all working registers */
 	PUSHREGS;
-;
+
 	/* backup current context stack pointer(s) */
 	if(current_cr) {
 		BACKUP_CTX(current_cr->curr_context.sp);
@@ -90,8 +89,6 @@ void cr_run(struct coroutine_t *coroutine
 		/* test if this is the first time we run this context */
 		if(current_cr->curr_context.status == cr_ready) {
 			current_cr->curr_context.status = cr_active;
-	printf("%s (cor_type == %d)\r\n", __FUNCTION__, type);
-	printf("%s func_get is %p\r\n", __FUNCTION__, current_cr->func.func_get);
 #ifndef DISABLE_POST
 			if(type == cor_type_post_out)
 				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);
@@ -99,7 +96,9 @@ void cr_run(struct coroutine_t *coroutine
 			    current_cr->func.func_post_in(current_cr->params.in.content_type,/* current_cr->params.in.content_length,*/ current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
 			else
 #endif
+			printf("Coroutine func get %p\r\n", current_cr->func.func_get);
 				current_cr->func.func_get(current_cr->params.args);
+			printf("Coroutine func get %p done\r\n", current_cr->func.func_get);
 
 			current_cr->curr_context.status = cr_terminated;
 			current_cr = NULL;
@@ -118,7 +117,6 @@ void cr_run(struct coroutine_t *coroutine
 /* prepare a coroutine for usage: the context is copied in the shared stack
  * (which information is possibly backuped in the coroutine using it) */
 struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
-        printf("%s coroutine = %p\r\n", __FUNCTION__, coroutine);
 	if(cr_in_stack != coroutine) {
 		if(cr_in_stack != NULL) { /* is there a coroutine currently using the shared stack? */
 
@@ -128,6 +126,7 @@ struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 			cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
 
 			if(cr_in_stack->curr_context.stack == NULL) {
+				printf("%s unable to allocate stack\r\n", __FUNCTION__);
 				return NULL;
 			}
 			cr_in_stack->curr_context.stack_size = stack_size;

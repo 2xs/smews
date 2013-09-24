@@ -3,6 +3,7 @@
 #include "../../core/generators.h"
 #include "../../core/connections.h"
 #include "../../core/timers.h"
+#include "../../core/memory.h"
 
 
 const struct symbols symbols[] = {
@@ -34,8 +35,9 @@ const struct symbols symbols[] = {
 #ifndef DISABLE_COMET
 	{"server_push",             server_push},
 #endif
+#ifndef DISABLE_TIMERS
 	{"set_timer",               set_timer},
-
+#endif
 	{"something_to_send",       something_to_send },
 };
 

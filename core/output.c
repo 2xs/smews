@@ -263,7 +263,7 @@ void smews_send_packet (struct connection *connection)
     /* Full IPv6 adress of the packet */
     unsigned char full_ipv6_addr[16];
 #endif
-    printf("%s connection = %p\r\n", __FUNCTION__, connection);
+
 #ifdef SMEWS_SENDING
     SMEWS_SENDING;
 #endif
@@ -288,7 +288,6 @@ void smews_send_packet (struct connection *connection)
 	    current_inseqno = connection->protocol.http.current_inseqno;
 	}
 	output_handler = connection->output_handler;
-	printf("Output handler is %p (type : %d)\r\n\r\n", output_handler, CONST_UI8 (output_handler->handler_type));
     }
     else
     {
@@ -304,7 +303,6 @@ void smews_send_packet (struct connection *connection)
     switch (handler_type)
     {
 	case type_control:
-		printf("TYPE CONTROL\r\n");
 	    segment_length = CONST_UI8 (GET_CONTROL (output_handler).length);
 	    break;
 	case type_file:
@@ -316,12 +314,12 @@ void smews_send_packet (struct connection *connection)
 	    file_remaining_bytes = UI32 (connection->protocol.http.final_outseqno) - UI32 (next_outseqno);
 	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
 	    index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
-		printf("TYPE FILE max_out_size %d file_remaining_byte_size %d segment_length %d index_in_file %d\r\n",
-			max_out_size, file_remaining_bytes, segment_length, index_in_file);
+/*		printf("TYPE FILE max_out_size %d file_remaining_byte_size %d segment_length %d index_in_file %d\r\n",
+			max_out_size, file_remaining_bytes, segment_length, index_in_file);*/
 	    break;
 	}
 	case type_generator:
-		printf("TYPE GENERATOR\r\n");
+/*		printf("TYPE GENERATOR\r\n");*/
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
 	    break;
@@ -607,7 +605,6 @@ void smews_send_packet (struct connection *connection)
 	    const char *tmpptr =
 		(const char *) (CONST_ADDR (GET_FILE (output_handler).data) +
 				index_in_file);
-	printf("%s tmpptr %p data %p, segment_length %d\r\n", __FUNCTION__, tmpptr, CONST_ADDR (GET_FILE (output_handler).data), segment_length);
 	    DEV_PUTN_CONST (tmpptr, segment_length);
 	    break;
 	}
@@ -741,7 +738,6 @@ char smews_send (void)
     {
 	old_output_handler = active_connection->output_handler;
 	active_connection->output_handler = &ref_ack;
-	
     }
 #ifndef DISABLE_COMET
     /* do we need to acknowledge a comet request without answering it? */
@@ -1001,7 +997,8 @@ char smews_send (void)
 		    curr_output.service->in_flight_infos = if_infos;
 		    curr_output.service->in_flight_infos->next = NULL;
 #endif
-
+		
+			printf("%S coroutine % run\r\n", __FUNCTION__, &curr_output.service->coroutine);
 #ifndef DISABLE_COROUTINES
 		    /* run the coroutine (generate one segment) */
 #ifndef DISABLE_POST
@@ -1012,6 +1009,8 @@ char smews_send (void)
 #else
 		    cr_run (&curr_output.service->coroutine);
 #endif
+
+			printf("%S coroutine % run done\r\n", __FUNCTION__, &curr_output.service->coroutine);
 
 		    has_ended =	curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */
@@ -1144,7 +1143,6 @@ char smews_send (void)
 #endif
 	    {
 /* simply send the segment */
-		printf("%s Sending Packet Connection %p\r\n", active_connection);
 		smews_send_packet (active_connection);
 	    }
 

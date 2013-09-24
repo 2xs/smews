@@ -161,6 +161,11 @@ if len(targets) == 0:
 # will generate :
 # / -> smews, myApp/ -> myApplication, test/ -> test
 appDirs = originalAppDirs.split(',')
+
+if( dynApp and len(appDirs)>1) :
+  print 'Only 1 uploadable application at a time'
+  sys.exit(1);
+
 dirsMap = {}
 for appDir in set(appDirs + [httpCodesDir]):
 	if appDir != '':

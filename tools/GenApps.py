@@ -192,6 +192,92 @@ def getAppFilesRec(appPath,path):
 def getAppFiles(path):
 	return getAppFilesRec(path,path)
 
+def extractXMLElfApplicationLifeCycle(sourceFile, installList, removeList) :
+	# open the source file in order to parse the XML and return the file data
+	file = open(sourceFile,'r')
+	lines = file.readlines()
+	if len(lines) > 1:
+		fileData = reduce(lambda x,y: x + y,lines)
+	else:
+		fileData = ''
+	def start_element(name, attrs):
+		global elfInfos
+		if name == 'lifeCycle':
+			elfInfos = attrs
+	def end_element(name):
+		return
+	def char_data(data):
+		return
+
+        # select the XML part of the c file
+	xmlRoot = 'elf'
+	xmlData = fileData[fileData.rfind('<' + xmlRoot + '>'):]
+	xmlData = xmlData[:xmlData.rfind('</' + xmlRoot + '>') + len(xmlRoot) + 3]
+	if len(xmlData) > 1:
+		global elfInfos
+		# init globals used for parsing
+		elfInfos = {}
+
+		# parse the XML
+		p = xml.parsers.expat.ParserCreate()
+		p.StartElementHandler = start_element
+		p.EndElementHandler = end_element
+		p.CharacterDataHandler = char_data
+		p.Parse(xmlData, 0)
+
+		if elfInfos.has_key('onInstall'):
+			installList.append(elfInfos['onInstall'])
+		if elfInfos.has_key('onRemove'):
+			removeList.append(elfInfos['onRemove'])
+
+def generateElfApplication(dstFile, installList, removeList) :
+	generatedHeader = '#include "elf_application.h"\n\n'
+	forwardDeclarations = ''
+	generatedDynApp = '' 
+
+	#install
+	if(len(installList)>0):
+		for install in installList :
+			forwardDeclarations += 'extern elf_application_install_t ' + install + ';\n'
+		generatedDynApp += 'static elf_application_install_t elf_application_installs[] = {'
+		generatedDynApp += '&' + ',&'.join(installList) + ", NULL};\n\n"
+
+	#remove
+	if(len(removeList)>0):
+		for remove in removeList :
+			forwardDeclarations += 'extern elf_application_remove_t ' + remove + ';\n'
+		generatedDynApp += 'static elf_application_remove_t elf_application_removes[] = {'
+		generatedDynApp += '&' + ',&'.join(removeList) + ", NULL};\n\n"
+
+	# elf application environment	
+
+	generatedDynApp += 'struct elf_application_environment_t elf_application_environment = {\n' 
+
+	forwardDeclarations += 'extern struct output_handler_t * resources_index[];\n'
+#	forwardDeclarations += 'extern CONST_VAR(struct output_handler_t *, resources_index[]);\n'
+	forwardDeclarations += 'extern CONST_VAR(unsigned char, urls_tree[]);\n'
+
+	if(len(installList)>0):
+		generatedDynApp += '\t.install = elf_application_installs,\n'
+	else :
+		generatedDynApp += '\t.install = NULL,\n'
+
+	if(len(removeList)>0):
+		generatedDynApp += '\t.remove = elf_application_removes,\n'
+	else :
+		generatedDynApp += '\t.remove = NULL,\n'
+
+	generatedDynApp += '\t.urls_tree = urls_tree,\n';
+	generatedDynApp += '\t.resources_index = resources_index,\n'
+	generatedDynApp = generatedHeader + forwardDeclarations + '\n' + generatedDynApp + '};\n'
+	
+	cOut = open(dstFile,'w')
+	writeHeader(cOut, 0)
+	cOut.write(generatedDynApp)
+	cOut.close()
+
+
+
 # Web resource type from original applicative file
 def getResourceType(path):
 	if path.endswith('.c') or path.endswith('.h'):
@@ -374,14 +460,14 @@ def generateResourceProps(srcFile,dstFileInfos):
 	pOut.close()
 
 # launches a Web applicative resource file generation
-def generateResource(srcFile,dstFile,dynApp, chuncksNbits,gzipped,dstFileInfos):
+def generateResource(srcFile,dstFile, chuncksNbits,gzipped,dstFileInfos):
 	if getResourceType(srcFile) == DynamicResource:
-		generateDynamicResource(srcFile,dstFile,dstFileInfos, dynApp)
+		generateDynamicResource(srcFile,dstFile,dstFileInfos)
 	else:
 		generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped)
 
 # dynamic resources: the generator file is enriched
-def generateDynamicResource(srcFile,dstFile,dstFileInfos, dynApp):
+def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 	# extract the properties from the XML (if needed)
 	fileData = extractPropsFromXml(srcFile,dstFileInfos)
 	# if the c/h file does not conatin any XML, we simply copy it: this is not a generator
@@ -577,36 +663,6 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos, dynApp):
 			generatedIndex += '\t{arg_type: ' + argsTypesMap[attrs['type']] + ', arg_size: sizeof(' + tmpType + '), arg_offset: offsetof(struct args_t,' + attrs['name'] + ')},\n'
 		generatedIndex += '};\n'
 
-
-		# uploadable application
-		generatedDynApp = '';
-		if dynApp :
-			generatedHeader += '#include "elf_application.h"\n\n'
-			forwardDeclarations = '';
-			generatedDynApp += 'struct elf_application_environment_t elf_application_environment = {\n' 
-			# already declared before
-			if dstFileInfos.has_key('init'):
-				generatedDynApp += '\t.init = ' + dstFileInfos['init'] + ',\n'
-			else :
-				generatedDynApp += '\t.init = NULL,\n'
-
-			if dstFileInfos.has_key('install'):
-				forwardDeclarations += 'static elf_application_install_t ' + dstFileInfos['install'] + ';\n'
-				generatedDynApp += '\t.install = ' + dstFileInfos['install'] + ',\n'
-			else :
-				generatedDynApp += '\t.install = NULL,\n'
-
-			if dstFileInfos.has_key('shutdown'):
-				forwardDeclarations += 'static elf_application_shutdown_t ' + dstFileInfos['shutdown'] + ';\n'
-				generatedDynApp += '\t.shutdown = ' + dstFileInfos['shutdown'] + ',\n'
-			else :
-				generatedDynApp += '\t.shutdown = NULL,\n'
-			forwardDeclarations += 'extern struct output_handler_t * resources_index[];\n'
-			forwardDeclarations += 'extern CONST_VAR(unsigned char, urls_tree[]);\n'
-			generatedDynApp += '\t.urls_tree = urls_tree,\n';
-			generatedDynApp += '\t.resources_index = resources_index,\n';
-			generatedDynApp = forwardDeclarations + generatedDynApp + '};\n'
-
 		# new c file creation
 		cOut = open(dstFile,'w')
 		writeHeader(cOut,1)
@@ -625,8 +681,6 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos, dynApp):
 			cOut.write('#endif\n')
 		cOut.write('\n')
 		cOut.write(generatedOutputHandler)
-		cOut.write('\n')
-		cOut.write(generatedDynApp)
 		# the end of the file contains the original c file
 		cOut.write('\n/* End of the enriched part */\n\n')
 		cOut.write(fileData)
@@ -744,7 +798,8 @@ def generateChannelsH(dstFile,propsFilesMap):
 		# for each channel: external structure declaration, macro for the channel name
 		if propsFilesMap[fileName]['channel'] != '':
 			cStructName = getCName(fileName[:fileName.rfind('.c')])
-			hOut.write('extern CONST_VAR(struct output_handler_t, ' + cStructName + ');\n')
+			hOut.write('extern struct output_handler_t ' + cStructName + ';\n')
+#			hOut.write('extern CONST_VAR(struct output_handler_t, ' + cStructName + ');\n')
 			hOut.write('#define ' + propsFilesMap[fileName]['channel'] + ' ' + cStructName + '\n')
 	hOut.write('\n#endif\n')
 	hOut.close()
@@ -832,7 +887,7 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 	# files index creation (table of ordered output_handlers)
 	cOut.write('\n/********** Files index **********/\n')
 	cOut.write('struct output_handler_t /*CONST_VAR*/ * resources_index[] = {\n')
-	#cOut.write('CONST_VAR(const struct output_handler_t /*CONST_VAR*/ *, resources_index[]) = {\n')
+#	cOut.write('CONST_VAR(struct output_handler_t /*CONST_VAR*/ *, resources_index[]) = {\n')
 	# insert each handler
 	for file in filesList:
 		cOut.write('\t&' + filesRefs[file] + ',\n')

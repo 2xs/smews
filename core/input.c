@@ -1127,6 +1127,7 @@ char smews_receive(void) {
                                     tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
                                     blob = blob_http_header_content;
                                     tmp_connection.protocol.http.ready_to_send = 0;
+					printf("%s parsing post attributes http protocol not ready to send\r\n", __FUNCTION__);
                                 }
                                 else{
 #endif
@@ -1304,14 +1305,12 @@ char smews_receive(void) {
                         }
                     } while(1);
 
-                    /*printf("==>OUTPUT handler is %p\r\n", output_handler);*/
+
                     elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
                     if((output_handler == &http_404_handler)) {
                       output_handler = elf_application_output_handler;
-                      printf("ELF APPLICATION OUTPUT_HANDLER is %p (404 is %p)\r\n", output_handler, &http_404_handler);
 
                       if((tmp_char == ' ') && (output_handler != &http_404_handler) && (output_handler != NULL)){
-                        printf("---> Handler found %p.. Breaking loop\r\n", output_handler);
                         tmp_connection.protocol.http.parsing_state = parsing_end;
                         break;
                       }
@@ -1405,6 +1404,7 @@ char smews_receive(void) {
 
     /* acknowledge received and processed TCP data if no there is no current output_handler */
     if(!tmp_connection.output_handler && tmp_connection.protocol.http.tcp_state == tcp_established && segment_length) {
+	printf("%s No output handler, setting ack\r\n", __FUNCTION__);
         tmp_connection.output_handler = &ref_ack;
     }
 
@@ -1485,8 +1485,6 @@ char smews_receive(void) {
             } else {
                 /* update the current connection */
                 *connection = tmp_connection;
-                printf("Updating connection %p\r\n", connection);
-                printf("Connection->outputhandler is %p \r\n", connection->output_handler);
 #ifdef IPV6
                 copy_compressed_ip(connection->ip_addr, comp_ipv6_addr);
 #endif

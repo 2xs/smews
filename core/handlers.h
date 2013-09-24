@@ -164,7 +164,7 @@ struct output_handler_t {
 #define GET_FLAGS(r) (CONST_UI8((r)->handler_type) == type_control ? CONST_UI8(GET_CONTROL(r).flags) : (TCP_ACK | TCP_PSH))
 
 /* Global output_handler table */
-extern struct output_handler_t *resources_index[];
+extern struct output_handler_t * resources_index[];
 
 /* URL tree: parsing an URL to retrieve an output_handler */
 extern CONST_VAR(unsigned char, urls_tree[]);

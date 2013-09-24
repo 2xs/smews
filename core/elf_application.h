@@ -46,12 +46,11 @@ typedef void  (*elf_application_free_t)(void *memory);
 
 /* Callbacks */
 typedef char (*elf_application_install_t)();
-typedef void (*elf_application_shutdown_t)();
+typedef void (*elf_application_remove_t)();
 
 struct elf_application_environment_t {
-  generator_init_func_t      *init;
-  elf_application_install_t  install;
-  elf_application_shutdown_t shutdown;
+  elf_application_install_t  *install;
+  elf_application_remove_t   *remove;
   unsigned char *            urls_tree;
   struct output_handler_t ** resources_index;
 };
@@ -95,6 +94,8 @@ extern int  elf_application_get_count();
 extern char elf_application_add(struct elf_application_t *application);
 extern void elf_application_remove(const struct elf_application_t *application);
 
+/* When the device resets, init all dynamic applications*/
+extern void elf_application_init();
 
 /* When a connection has been created */
 extern void elf_application_add_connection(struct connection *connection);

@@ -42,6 +42,7 @@
 #include "coroutines.h"
 #include "timers.h"
 #include "memory.h"
+#include "elf_application.h"
 
 extern void smews_retransmit(void);
 
@@ -99,6 +100,9 @@ static inline void smews_init(void) {
 		}
 		x++;
 	}
+
+        elf_application_init();
+
 #ifndef DISABLE_TIMERS
 	set_timer(&smews_retransmit,1000);
 #endif

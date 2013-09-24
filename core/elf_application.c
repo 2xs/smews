@@ -136,9 +136,40 @@ void elf_application_remove(const struct elf_application_t *application) {
   }
 }
 
+/* When the device resets, init all dynamic applications*/
+void elf_application_init() {
+
+    if(elf_application_get_count() > 0) {
+      struct elf_application_t *appli = all_applications;
+      const struct output_handler_t * /*CONST_VAR*/ output_handler;
+      int i;
+
+      while(appli) {
+        i = 0;
+        while((output_handler = CONST_ADDR(appli->environment->resources_index[i])) != NULL) {
+
+          if(CONST_UI8(output_handler->handler_type) == type_generator 
+#ifndef DISABLE_GP_IP_HANDLER
+             || CONST_UI8(output_handler->handler_type) == type_general_ip_handler
+#endif
+                                                                     ) {
+            generator_init_func_t * init_handler = CONST_ADDR(GET_GENERATOR(output_handler).init);
+            if(init_handler)
+	      init_handler();
+          }
+
+          i++;
+        }
+
+        appli = appli->next;
+      }
+
+    }
+}
+
 /* When a connection has been created */
 void elf_application_add_connection(struct connection *connection) {
-  printf("=============================>%s Connection %p\r\n", __FUNCTION__, connection);
+  /*printf("=============================>%s Connection %p\r\n", __FUNCTION__, connection);*/
   if(connection) {
 
     if(!IS_HTTP(connection))
@@ -228,7 +259,7 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
     blob_curr = CONST_READ_UI8(blob);
   }
 
-  printf("%s byte >%c< (%d), blob_curr >%c< (%d)\r\n", __FUNCTION__, byte, blob_curr, byte, blob_curr);
+  /*printf("%s byte >%c< (%d), blob_curr >%c< (%d)\r\n", __FUNCTION__, byte, blob_curr, byte, blob_curr);*/
 
   if(blob_curr >= 128) {
     if (byte == ' ') {
@@ -298,7 +329,7 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
 }
 
 void elf_application_parsing_start(const struct connection *connection) {
-  printf("%s Connection %p\r\n", __FUNCTION__, connection);
+/*  printf("%s Connection %p\r\n", __FUNCTION__, connection);*/
   if(elf_application_get_count() > 0) {
     struct elf_application_parsing_t *parsing;
     struct elf_application_t *appli = all_applications;
@@ -329,7 +360,7 @@ struct output_handler_t *elf_application_parse_step(const struct connection *con
     struct elf_application_t *appli = all_applications;
     char still_parsing = 0;
 
-    printf("%s Connection %p byte %c (404 handler %p)\r\n", __FUNCTION__, connection, byte, &http_404_handler);
+    /*printf("%s Connection %p byte %c (404 handler %p)\r\n", __FUNCTION__, connection, byte, &http_404_handler);*/
 
     while(appli) {
       

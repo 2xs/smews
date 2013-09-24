@@ -29,7 +29,7 @@ const char *elf_loader_return_labels[] = {
 
 
 /* Storage buffer */
-#define STORAGE_BUFFER_SIZE 128
+#define STORAGE_BUFFER_SIZE 512
 
 static uint8_t storage_buffer[STORAGE_BUFFER_SIZE];
 
@@ -64,12 +64,12 @@ void flash_dump() {
 
   printf("\r\n");
 }
-
+extern char _text_end;
 /*-----------------------------------------------------------------------------*/
 static char initElfLoader() {
   
   elf_applications_init(elf_allocator_flash_alloc, NULL);
-
+  printf("text end %p\r\n", &_text_end);
   return 1;
 }
 
@@ -108,7 +108,7 @@ static char doPostIn(uint8_t content_type, /*uint16_t content_length,*/ uint8_t 
   /* Size + storage */
   i = 0;
   while((value = in()) != -1) {
-    //printf("%c", value);
+    /*printf("%d\r\n", i);*/
 
     if(j < STORAGE_BUFFER_SIZE) {
       storage_buffer[j] = value;
@@ -120,6 +120,8 @@ static char doPostIn(uint8_t content_type, /*uint16_t content_length,*/ uint8_t 
         printf("An error happened while flashing elf to storage\r\n");
         return 1;
       }
+/*      int t = TIME_MILLIS;
+      for(; TIME_MILLIS < t + 400;);*/
 
       k += STORAGE_BUFFER_SIZE;
       printf("%d\r\n", k);
@@ -131,15 +133,14 @@ static char doPostIn(uint8_t content_type, /*uint16_t content_length,*/ uint8_t 
   }
 
   if(j > 0) {
-    if(APPLICATION_WRITE(elf_allocator_storage + k, storage_buffer, j) != 0) {
+    if(APPLICATION_WRITE(((uint8_t *)elf_allocator_storage) + k, storage_buffer, j) != 0) {
         printf("An error happened while flashing elf to storage\r\n");
         return 1;
       }
   }
-
   file->size = i;
 
-//  printf("File Size is %d\r\n", file->size);
+  //printf("File Size is %d\r\n", file->size);
 
     
   *post_data = file;
@@ -189,9 +190,8 @@ static char doPostOut(uint8_t content_type, void *data) {
       /*flash_dump();*/
       printf("Elf Application Environment is %p\r\n", elf_application_environment);
 
-      printf("Init function is %p\r\n", elf_application_environment->init);
       printf("Install function is %p\r\n", elf_application_environment->install);
-      printf("Shutdown function is %p\r\n", elf_application_environment->shutdown);
+      printf("Remove function is %p\r\n", elf_application_environment->remove);
       printf("URLS Tree is %p\r\n", elf_application_environment->urls_tree);
       printf("Resources index is %p\r\n", elf_application_environment->resources_index);
       printf("Resources index[0] %p\r\n", elf_application_environment->resources_index[0]);

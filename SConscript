@@ -52,9 +52,9 @@ def getAllSourceFiles(dir, dstDir):
 # used to generate both static and dynamic resources
 def generateResource(target, source, env):
 	if propsFilesMap.has_key(str(source[0])):
-		GenApps.generateResource(str(source[0]),str(target[0]), dynApp, chuncksNbits,gzipped,propsFilesMap[str(source[0])])
+		GenApps.generateResource(str(source[0]),str(target[0]), chuncksNbits,gzipped,propsFilesMap[str(source[0])])
 	else:
-		GenApps.generateResource(str(source[0]),str(target[0]), dynApp, chuncksNbits,gzipped,None)
+		GenApps.generateResource(str(source[0]),str(target[0]), chuncksNbits,gzipped,None)
 	return None
 
 # builder used to generate the file index, with the URLs tree
@@ -101,10 +101,13 @@ VariantDir(os.path.join(binDir,'drivers'), driversDir, duplicate=0)
 # applications files index and channel files settings
 resourcesIndexO = os.path.join(binDir,'gen','resources_index')
 resourcesIndexC = os.path.join(genDir,'resources_index.c')
+elfEnvironmentO = os.path.join(binDir,'gen','elf_environment')
+elfEnvironmentC = os.path.join(genDir,'elf_environment.c')
 channelsH = os.path.join(genDir,'channels.h')
 appListName = os.path.join(genDir,'appList')
 definesH = os.path.join(genDir,'defines.h')
 blobsH = os.path.join(genDir,'blobs.h')
+
 # loop on each web resource in order to generate associated c files
 # static resources generate pre-computed c files
 # dynamic resources are enriched with new declarations (from their XML)
@@ -156,6 +159,18 @@ env.Depends(channelsH,toolsList)
 env.GenDefinesH(definesH,[])
 env.GenBlobsH(blobsH,[])
 if dynApp :
+
+	installList = []
+	removeList  = []
+	for file in sourcesMap.keys():
+		if file.endswith('.h') or file.endswith('.c'):
+			GenApps.extractXMLElfApplicationLifeCycle(file, installList, removeList)
+
+	# elf application environment generation
+	GenApps.generateElfApplication(elfEnvironmentC, installList, removeList)
+	# elf application environment object file
+	genObjects.append(env.Object(elfEnvironmentO, elfEnvironmentC))
+
 	linkerCommand = env.subst('$LINK')
 	linkerCommand += ' -r '
 
