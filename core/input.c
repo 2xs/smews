@@ -1127,7 +1127,6 @@ char smews_receive(void) {
                                     tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
                                     blob = blob_http_header_content;
                                     tmp_connection.protocol.http.ready_to_send = 0;
-					printf("%s parsing post attributes http protocol not ready to send\r\n", __FUNCTION__);
                                 }
                                 else{
 #endif

@@ -136,10 +136,8 @@ struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 				cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
 
 				if(cr_in_stack->curr_context.stack == NULL) {
-					printf("%s coroutine %p unable to allocate stack (%d bytes) (shared stack %p sp %p)\r\n", __FUNCTION__, cr_in_stack, stack_size, shared_stack, sp);
 					return NULL;
-				} else
-					printf("%s coroutine %p Stack allocated (%d bytes) (shared stack %p sp %p)\r\n", __FUNCTION__, cr_in_stack, stack_size, shared_stack, sp);
+				}
 
 				cr_in_stack->curr_context.stack_size = stack_size;
 				/* process the copy from (big) shared stack to the new (small) buffer */
