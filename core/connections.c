@@ -164,12 +164,15 @@ struct connection *add_connection(const struct connection *from
 #else
 	connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
 #endif
+
 	if (connection == NULL)
 		return NULL;
 
 	/* copy the connection */
-	if (from != NULL)
+	if (from != NULL) {
 		*connection = *from;
+	}
+
 	/* insert the new connection */
 	if(all_connections == NULL) {
 		connection->next = connection;
@@ -209,6 +212,9 @@ void free_connection(const struct connection *connection) {
 #endif
 	if(connection->protocol.http.generator_service) {
 	    clean_service(connection->protocol.http.generator_service, NULL);
+#ifndef DISABLE_COROUTINES
+            cr_clean(&connection->protocol.http.generator_service->coroutine);
+#endif
 	    mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
 	}
 #ifndef DISABLE_ELF

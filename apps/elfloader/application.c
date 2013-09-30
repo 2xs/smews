@@ -43,7 +43,6 @@ char application_add(const char *filename, uint16_t size, struct elf_application
   
   res = APPLICATION_WRITE(applicationInFlash, &application_buffer, sizeof(struct elf_application_t));
 
-  printf("Res is %d\n", res);
   printf("Application In Flash : name %s, size %d, environment %p, parsing : %p\r\n",
          applicationInFlash->filename, applicationInFlash->size, applicationInFlash->environment, applicationInFlash->parsing);
 

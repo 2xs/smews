@@ -20,7 +20,6 @@ struct RamFileSystem RFS = {
 void *rfs_open(const char *aMemoryBank) {
   RFS.base    = aMemoryBank;
   RFS.current = aMemoryBank;
-  printf("rfs_open : base : 0x%x\r\n", aMemoryBank);
   return &RFS;
 }
 
@@ -36,10 +35,7 @@ int rfs_tell(const void *aHandle) {
 
 int rfs_seek(void *aHandle, int anOffset) {
   struct RamFileSystem *rfs = (struct RamFileSystem *)aHandle;
-/*  printf("SEEK rfs: %p, base %p offset: %d\r\n", rfs, rfs->base, anOffset);
-  printf("SEEK current: %p\r\n", rfs->current);*/
   rfs->current = rfs->base + anOffset;
-/*  printf("-SEEK current: %p\r\n", rfs->current);*/
 
   return anOffset;
 }
@@ -50,8 +46,7 @@ int rfs_write(const void *aBuffer, int aLength, int aCount, void *aHandle) {
 
 int rfs_read(void *aBuffer, int aLength, int aCount, void *aHandle) {
   struct RamFileSystem *rfs = (struct RamFileSystem *)aHandle;
-/*  printf("read from %p->%p to %p (%d bytes)\r\n", rfs, rfs->current, aBuffer, aLength*aCount);*/
-/*  printf("rfsRead 0x%x count %d\r\n", rfs->current, aCount * aLength);*/
+
   fake_memcpy(aBuffer, rfs->current, aLength * aCount);
   rfs->current += aLength * aCount;
   return (aLength * aCount);

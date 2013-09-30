@@ -68,7 +68,6 @@ static void out_const_str(const unsigned char /*CONST_VAR*/ *str) {
 static char doGetContacts(struct args_t *args) {
 	uint16_t i = 0;
 	uint16_t n = CONST_UI16(n_contacts);
-	printf("%s IN\r\n", __FUNCTION__);
 	out_const_str(str0);
 	
 	for(i=0; i<n; i++) {
@@ -84,6 +83,5 @@ static char doGetContacts(struct args_t *args) {
 	}
 
 	out_const_str(str5);
-	printf("%s OUT\r\n", __FUNCTION__);
 	return 1;
 }

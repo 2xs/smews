@@ -796,7 +796,6 @@ char smews_send (void)
 	    char has_ended = 0;
 	    struct in_flight_infos_t *if_infos = NULL;
 
-
 	    /* Set the maximum available size for generator so that the mss is respected */
 	    /* The value set here is the needed value for the following segments (i.e. not the first) of a same http data stream
 	     * thus, the http header size used is only the no header one (the chunk size).
@@ -811,6 +810,7 @@ char smews_send (void)
 		{
 		    return 1;
 		}
+
 		curr_output.service = active_connection->protocol.http.generator_service;
 /* if we create the service, it is the first segment of the answer stream, we need
  * to reduce its size to fit the mss if the segment is not the last.
@@ -821,6 +821,7 @@ char smews_send (void)
 		curr_output.service->in_flight_infos = NULL;
 		curr_output.service->is_persistent = CONST_UI8 (GET_GENERATOR (active_connection->output_handler).prop) == prop_persistent;
 		UI32 (curr_output.service->curr_outseqno) = UI32 (active_connection->protocol.http.next_outseqno);
+
 #ifndef DISABLE_COROUTINES
 /* init coroutine */
 		cr_init (&curr_output.service->coroutine);
@@ -843,8 +844,6 @@ char smews_send (void)
 
 #ifndef DISABLE_COROUTINES
 		    curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget);
-		printf("%s TYPE GENERATOR 3a) Curr_output_service->coroutine %p \r\n", __FUNCTION__, &curr_output.service->coroutine);
-		printf("%s TYPE GENERATOR 3b) func.func_get %p \r\n", __FUNCTION__, CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget));
 #ifndef DISABLE_ARGS
 		    curr_output.service->coroutine.params.args = active_connection->protocol.http.args;
 #endif
@@ -853,9 +852,11 @@ char smews_send (void)
 #ifndef DISABLE_POST
 		}
 #endif
+
 /* we don't know yet the final output sequence number for this service */
 		UI32 (active_connection->protocol.http.final_outseqno) = UI32 (active_connection->protocol.http.next_outseqno) - 1;
 #ifndef DISABLE_COMET
+
 /* if this is a comet generator, manage all listenning clients */
 		if (CONST_UI8 (active_connection->output_handler->handler_comet))
 		{
@@ -870,6 +871,7 @@ char smews_send (void)
 				   }
 			)
 		}
+
 /* manage streamed comet data */
 		if (CONST_UI8 (active_connection->output_handler->handler_stream))
 		{
@@ -940,7 +942,6 @@ char smews_send (void)
 		{
 		    curr_output.service_header = curr_output.service->service_header;
 		}
-
 /* initializations before generating the segment */
 		curr_output.content_length = 0;
 		checksum_init ();
@@ -950,7 +951,6 @@ char smews_send (void)
 #else
 		has_ended = curr_output.dynamic_service_state != none && !curr_output.in_handler;
 #endif
-
 /* is has_ended is true, the segment is a void chunk: no coroutine call is needed.
  * else, run the coroutine to generate one segment */
 		if (!has_ended)
@@ -997,8 +997,7 @@ char smews_send (void)
 		    curr_output.service->in_flight_infos = if_infos;
 		    curr_output.service->in_flight_infos->next = NULL;
 #endif
-		
-			printf("%S coroutine % run\r\n", __FUNCTION__, &curr_output.service->coroutine);
+
 #ifndef DISABLE_COROUTINES
 		    /* run the coroutine (generate one segment) */
 #ifndef DISABLE_POST
@@ -1009,8 +1008,6 @@ char smews_send (void)
 #else
 		    cr_run (&curr_output.service->coroutine);
 #endif
-
-			printf("%S coroutine % run done\r\n", __FUNCTION__, &curr_output.service->coroutine);
 
 		    has_ended =	curr_output.service->coroutine.curr_context.status == cr_terminated;
 #else /* DISABLE_COROUTINES */

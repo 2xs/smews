@@ -1305,9 +1305,8 @@ char smews_receive(void) {
                         }
                     } while(1);
 
-
                     elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
-                    if((output_handler == &http_404_handler)) {
+                    if(output_handler == &http_404_handler) {
                       output_handler = elf_application_output_handler;
 
                       if((tmp_char == ' ') && (output_handler != &http_404_handler) && (output_handler != NULL)){
@@ -1332,6 +1331,7 @@ char smews_receive(void) {
             tmp_connection.protocol.http.parsing_state = parsing_end;
             tmp_connection.protocol.http.ready_to_send = 1;
         }
+
         if(!output_handler)
             tmp_connection.protocol.http.blob = blob;
         else {
@@ -1404,7 +1404,6 @@ char smews_receive(void) {
 
     /* acknowledge received and processed TCP data if no there is no current output_handler */
     if(!tmp_connection.output_handler && tmp_connection.protocol.http.tcp_state == tcp_established && segment_length) {
-	printf("%s No output handler, setting ack\r\n", __FUNCTION__);
         tmp_connection.output_handler = &ref_ack;
     }
 
@@ -1439,13 +1438,14 @@ char smews_receive(void) {
 #endif
 	    }
 	}
-	
+
 	if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
 	    connection = add_connection(&tmp_connection
 #ifdef IPV6
 					, compressed_ip_size(comp_ipv6_addr)
 #endif
 		);
+
 	    /* update the pointer in the tmp_connection because
 	     * it will be copied later so if the pointers do not have the right value, the list
 	     * will be screwed */

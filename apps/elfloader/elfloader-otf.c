@@ -159,31 +159,32 @@ const static unsigned char elf_magic_header[] =
    0x01,                    /* Only ELF version 1. */
   };
 
+#define COPY_SEGMENT_DATA_BUFFER_SIZE 128
 
+static char copy_segment_data_buffer[COPY_SEGMENT_DATA_BUFFER_SIZE];
 /* Copy data from the elf file to a segment */
 static int
 copy_segment_data(void *input_fd, unsigned int offset,
 		  struct elfloader_output *output, unsigned int len)
 {
-  char buffer[16];
   int res;
 
   /*printf("Copy Segment Data IN input %p output %p buffer %p, len : %d\r\n", input_fd, output, buffer, len);*/
 
   if (rfs_seek(input_fd, offset) != offset) return ELFLOADER_INPUT_ERROR;
-  while(len > sizeof(buffer)) {
-    res = rfs_read(buffer, sizeof(buffer), 1, input_fd);
-    if (res != sizeof(buffer)) return ELFLOADER_INPUT_ERROR;
-    res = elfloader_output_write_segment(output, buffer, sizeof(buffer));
-    if (res != sizeof(buffer)) return ELFLOADER_OUTPUT_ERROR;
-    len -= sizeof(buffer);
+  while(len > sizeof(copy_segment_data_buffer)) {
+    res = rfs_read(copy_segment_data_buffer, sizeof(copy_segment_data_buffer), 1, input_fd);
+    if (res != sizeof(copy_segment_data_buffer)) return ELFLOADER_INPUT_ERROR;
+    res = elfloader_output_write_segment(output, copy_segment_data_buffer, sizeof(copy_segment_data_buffer));
+    if (res != sizeof(copy_segment_data_buffer)) return ELFLOADER_OUTPUT_ERROR;
+    len -= sizeof(copy_segment_data_buffer);
   }
 
   if (len)
   {
-	res = rfs_read(buffer, len, 1, input_fd);
+	res = rfs_read(copy_segment_data_buffer, len, 1, input_fd);
   	if (res != len) return ELFLOADER_INPUT_ERROR;
-	res = elfloader_output_write_segment(output, buffer, len);
+	res = elfloader_output_write_segment(output, copy_segment_data_buffer, len);
   	if (res != len) return ELFLOADER_OUTPUT_ERROR;
   }
   /*printf("Copy Segment Data OUT input %p output %p\r\n", input_fd, output);*/
@@ -222,11 +223,6 @@ find_local_symbol(void *input_fd, const char *symbol,
       if (ret < 0) return NULL;
       /*printf("====>Name : %s\r\n", name);*/
       if(strcmp(name, symbol) == 0) {
-	/*printf("s.st_shndx %d\r\n", s.st_shndx);*/
-	/*printf("bss number %d\r\n", bss.number);
-	printf("data number %d\r\n", data.number);
-	printf("text number %d\r\n", text.number);
-	printf("rodata number %d\r\n", rodata.number);*/
 	if(s.st_shndx == bss.number) {
 	  sect = &bss;
 	} else if(s.st_shndx == data.number) {
@@ -244,7 +240,7 @@ find_local_symbol(void *input_fd, const char *symbol,
 	  }
           return NULL;
 	}
-	/*printf("sect->address %p + %d\r\n", sect->address, s.st_value);*/
+
 	return &(sect->address[s.st_value]);
       }
     }
@@ -304,13 +300,11 @@ relocate_section(void *input_fd,
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return ELFLOADER_INPUT_ERROR;
-      printf("\r\n------------->SYMBOL name: %s\r\n", name);
+
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
-	/*printf("name not found in global: %s\r\n", name);*/
 	addr = find_local_symbol(input_fd, name, symtab, symtabsize, strtab, rodatas);
-	/*printf("found address %p\r\n", addr);*/
       }
       if(addr == NULL) {
 	if(s.st_shndx == bss.number) {
@@ -376,29 +370,7 @@ relocate_section(void *input_fd,
 
   return ELFLOADER_OK;
 }
-/*---------------------------------------------------------------------------*/
-static void *
-find_program_processes(void *input_fd,
-		       unsigned int symtab, unsigned short size,
-		       unsigned int strtab)
-{
-  struct elf32_sym s;
-  unsigned int a;
-  char name[30];
-  
-  for(a = symtab; a < symtab + size; a += sizeof(s)) {
-    seek_read(input_fd, a, (char *)&s, sizeof(s));
 
-    if(s.st_name != 0) {
-      seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
-      if(strcmp(name, ELF_APPLICATION_ENVIRONMENT_NAME) == 0) {
-	return &data.address[s.st_value];
-      }
-    }
-  }
-  return NULL;
-/*   return find_local_symbol(fd, "autostart_processes", symtab, size, strtab); */
-}
 /*---------------------------------------------------------------------------*/
 void
 elfloader_init(void)
@@ -451,8 +423,6 @@ copy_segment(void *input_fd,
   if (ret != ELFLOADER_OK) return ret;
 
   offset = elfloader_output_segment_offset(output);
-  /*printf("%s offset %x sectionaddr %p offset+sectionaddr = %p seg_size %d (seg_size - offset = %d)\r\n",
-         __FUNCTION__, offset, sectionaddr, offset+sectionaddr, seg_size, seg_size - offset);*/
   ret = copy_segment_data(input_fd, offset+sectionaddr, output,seg_size - offset);
 
   if (ret != ELFLOADER_OK) return ret;
@@ -571,8 +541,6 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
     
     if(strncmp(name, ".rodata", 7) == 0) {
 
-      printf("RODATA : %d %s\r\n", i, name);
-
       temp_rodata = mem_alloc(sizeof(struct relevant_rodata_section));
       if(!temp_rodata) {
         PRINTF("Unable to allocate relevant rodata section.\r\n");
@@ -630,7 +598,6 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
        .strtab). */
     /* added support for .rodata, .rel.text and .rel.data). */
 
-    //printf("%d %s\r\n", i, name);
 
     if(strcmp(name, ".text") == 0) {
       textoff = shdr.sh_offset;
@@ -722,18 +689,10 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
     if (!rodata.address) return ELFLOADER_OUTPUT_ERROR;
   }
 
-/*  printf("bss base address: bss.address = %p\r\n", bss.address);
-  printf("data base address: data.address = %p\r\n", data.address);
-  printf("text base address: text.address = %p\r\n", text.address);
-  printf("rodata base address: rodata.address = %p\r\n", rodata.address);
-
-
-  printf("elfloader : textrelasize %d rodatarelasize %d datarelasize %d \r\n\r\n", textrelasize, rodatarelasize, datarelasize);
-  */
 
 /* If we have text segment relocations, we process them. */
   if(textrelasize > 0) {
-    printf("elfloader: relocate text\r\n");
+    PRINTF("elfloader: relocate text\r\n");
     ret = copy_segment(input_fd, output,
 		       textrelaoff, textrelasize,
 		       textoff,
@@ -751,7 +710,7 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   /* If we have any rodata segment relocations, we process them too. */
   
   if(rodatarelasize > 0) {
-    printf("elfloader: relocate rodata %d\r\n", rodatarelaoff, rodatarelasize, rodataoff);
+    PRINTF("elfloader: relocate rodata %d\r\n", rodatarelaoff, rodatarelasize, rodataoff);
     ret = copy_segment(input_fd, output,
 		       rodatarelaoff, rodatarelasize,
 		       rodataoff,
@@ -778,7 +737,7 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   /* If we have any data segment relocations, we process them too. */
   
   if(datarelasize > 0) {
-    printf("elfloader: relocate data\r\n");
+    PRINTF("elfloader: relocate data\r\n");
     ret = copy_segment(input_fd, output,
 		       datarelaoff, datarelasize,
 		       dataoff,
@@ -807,9 +766,6 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
 /*   elfloader_arch_write_rom(fd, textoff, textsize, text.address); */
 /*   elfloader_arch_write_rom(fd, rodataoff, rodatasize, rodata.address); */
 
-/*   memset(bss.address, 0, bsssize); */
-/*   seek_read(fd, dataoff, data.address, datasize); */
-
   {
     /* Write zeros to bss segment */
     unsigned int len = bsssize;
@@ -826,14 +782,14 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
     if (ret != len) return ELFLOADER_OUTPUT_ERROR;
   }
 
-  printf("elfloader: elf application environment search\r\n");
+  PRINTF("elfloader: elf application environment search\r\n");
 
   localSymbol = find_local_symbol(input_fd, ELF_APPLICATION_ENVIRONMENT_NAME, symtaboff, symtabsize, strtaboff, rodatas);
 
   cleanup_rodatas(rodatas);
 
   if(localSymbol != NULL) {
-    printf("elfloader: elf application environment %p\r\n", localSymbol);
+    PRINTF("elfloader: elf application environment %p\r\n", localSymbol);
     elf_application_environment = (struct elf_application_environment_t *)localSymbol;
 
     return ELFLOADER_OK;

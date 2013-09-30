@@ -53,6 +53,15 @@ static struct coroutine_t *cr_in_stack = NULL;
 /* Currently running coroutine. Null when the main program is running. */
 static volatile struct coroutine_t *current_cr = NULL;
 
+void dumpCRInStack() {
+  if(cr_in_stack == NULL) {
+     printf("No cr in stack\r\n");
+     return;
+  }
+
+  printf("CR in stack %p, sp %p\r\n", cr_in_stack, cr_in_stack->curr_context.sp[0]);
+}
+
 /* initialize a coroutine structure */
 void cr_init(struct coroutine_t *coroutine) {
 	coroutine->curr_context.status = cr_ready;
@@ -96,9 +105,7 @@ void cr_run(struct coroutine_t *coroutine
 			    current_cr->func.func_post_in(current_cr->params.in.content_type,/* current_cr->params.in.content_length,*/ current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
 			else
 #endif
-			printf("Coroutine func get %p\r\n", current_cr->func.func_get);
 				current_cr->func.func_get(current_cr->params.args);
-			printf("Coroutine func get %p done\r\n", current_cr->func.func_get);
 
 			current_cr->curr_context.status = cr_terminated;
 			current_cr = NULL;
@@ -123,15 +130,21 @@ struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 			/* backup its context in a freshly allocated buffer of the exact needed size */
 			char *sp = cr_in_stack->curr_context.sp[0];
 			uint16_t stack_size = shared_stack + STACK_SIZE - sp;
-			cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
 
-			if(cr_in_stack->curr_context.stack == NULL) {
-				printf("%s unable to allocate stack\r\n", __FUNCTION__);
-				return NULL;
+			if(stack_size>0) {
+
+				cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
+
+				if(cr_in_stack->curr_context.stack == NULL) {
+					printf("%s coroutine %p unable to allocate stack (%d bytes) (shared stack %p sp %p)\r\n", __FUNCTION__, cr_in_stack, stack_size, shared_stack, sp);
+					return NULL;
+				} else
+					printf("%s coroutine %p Stack allocated (%d bytes) (shared stack %p sp %p)\r\n", __FUNCTION__, cr_in_stack, stack_size, shared_stack, sp);
+
+				cr_in_stack->curr_context.stack_size = stack_size;
+				/* process the copy from (big) shared stack to the new (small) buffer */
+				memcpy(cr_in_stack->curr_context.stack, sp, stack_size);
 			}
-			cr_in_stack->curr_context.stack_size = stack_size;
-			/* process the copy from (big) shared stack to the new (small) buffer */
-			memcpy(cr_in_stack->curr_context.stack, sp, stack_size);
 		}
 		if(coroutine->curr_context.stack != NULL) { /* does the new coroutine already has an allocated stack? */
 			/* restore its context to the (big) shared stack */

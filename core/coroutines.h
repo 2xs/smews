@@ -117,6 +117,8 @@ enum coroutine_type_e { cor_type_get, cor_type_post_in, cor_type_post_out } coro
 
 /* Functions and variables for coroutines */
 
+extern void dumpCRInStack();
+
 /* initialize a coroutine structure */
 extern void cr_init(struct coroutine_t *coroutine);
 /* prepare a coroutine for usage: the context is copied in the shared stack
