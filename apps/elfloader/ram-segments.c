@@ -6,19 +6,6 @@
 
 
 #include "elf_allocator.h"
-/*#include <sys/types.h>
-#include <string.h>
-#include <stdio.h>*/
-
-#ifdef LINUX
-
-#include <stdio.h>
-#include <string.h>
-
-#else
-
-#include <rflpc17xx/rflpc17xx.h>
-#endif
 
 #include "tinyLibC.h"
 

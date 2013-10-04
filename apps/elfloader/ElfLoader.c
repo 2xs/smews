@@ -165,12 +165,6 @@ static char doPostOut(uint8_t content_type, void *data) {
     void *storage_handle;
     int loading;
 
-    out_str("The file \"");
-    out_str(file->filename);
-    out_str("\" contains ");
-    out_uint(file->size);
-    out_str(" characters\n");
-
     storage_handle   = rfs_open((void *)elf_allocator_storage);
 
     if(storage_handle == NULL) {
@@ -201,6 +195,12 @@ static char doPostOut(uint8_t content_type, void *data) {
 	clean_up(file);
         return 1;
       } 
+
+      out_str("The file \"");
+      out_str(file->filename);
+      out_str("\" has been updated successfully (");
+      out_uint(file->size);
+      out_str(" bytes)\n");
 
     } else {
 
