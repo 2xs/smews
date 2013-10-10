@@ -35,7 +35,7 @@ import os
 import GenApps
 
 # imports from SConstruct
-Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test dynApp projectName')
+Import('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test dynApp dynamicAppName')
 # returns the list of .c and .s files in dir, prefixed by dstDir
 def getAllSourceFiles(dir, dstDir):
 	sourceFiles = []
@@ -180,8 +180,14 @@ if dynApp :
 			pathes.append(inner_elt.path)
 	linkerCommand += ' '.join(pathes)
 	linkerCommand += ' -o $TARGET'
-	
-	env.Command(os.path.join(binDir, projectName + '.o'), None, linkerCommand)
+
+	finalDynamicAppName = os.path.join(binDir, dynamicAppName + '.o')
+
+	env.Command(finalDynamicAppName, None, linkerCommand)
+
+	for elt in genObjects :
+		for inner_elt in elt.data :
+			env.Depends(finalDynamicAppName, inner_elt.path)
 else:
 	# engine source code dependencies
 	coreFiles = getAllSourceFiles(coreDir, os.path.join(binDir,'core'))

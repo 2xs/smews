@@ -162,10 +162,6 @@ if len(targets) == 0:
 # / -> smews, myApp/ -> myApplication, test/ -> test
 appDirs = originalAppDirs.split(',')
 
-if( dynApp and len(appDirs)>1) :
-  print 'Only 1 uploadable application at a time'
-  sys.exit(1);
-
 dirsMap = {}
 for appDir in set(appDirs + [httpCodesDir]):
 	if appDir != '':
@@ -174,6 +170,18 @@ for appDir in set(appDirs + [httpCodesDir]):
 			dirsMap[appDir[idx+1:]] = '/' + appDir[:idx]
 		else:
 			dirsMap[appDir] = '/' + appDir
+
+dynamicAppName = ''
+if dynApp :
+	appDirNames = []
+	for appDir in appDirs:
+		if appDir != '':
+			idx = appDir.find(':')
+			if idx != -1:
+				appDirNames.append(appDir[idx+1:])
+			else:
+				appDirNames.append(appDir)
+	dynamicAppName = '_'.join(appDirNames)
 
 # association between web applicative resources and their final URLs
 # appDir did only contain association of embedded applications
@@ -235,7 +243,7 @@ for target in targets:
 				os.mkdir(dir)
 
 	# export variables for external SConscript files
-	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test dynApp')
+	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test dynApp dynamicAppName')
 	Export('env targetDir binDir projectName elfName')
 	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
 	# target dependent SConscript call
