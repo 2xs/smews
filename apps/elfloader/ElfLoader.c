@@ -198,7 +198,7 @@ static char doPostOut(uint8_t content_type, void *data) {
 
       out_str("The file \"");
       out_str(file->filename);
-      out_str("\" has been updated successfully (");
+      out_str("\" has been uploaded successfully (");
       out_uint(file->size);
       out_str(" bytes)\n");
 
