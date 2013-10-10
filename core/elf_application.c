@@ -39,7 +39,7 @@ char elf_application_add(struct elf_application_t *application) {
     APPLICATION_WRITE(&application->next, buf, sizeof(struct elf_application_t *));
   } else {
     /* application->next          = all_applications; */
-    APPLICATION_WRITE(&application->next, all_applications, sizeof(struct elf_application_t *));
+    APPLICATION_WRITE(&application->next, &all_applications, sizeof(struct elf_application_t *));
     /* all_applications->previous = application; */
     APPLICATION_WRITE(&all_applications->previous, application, sizeof(struct elf_application_t *));
   }
@@ -167,7 +167,9 @@ void elf_application_add_connection(struct connection *connection) {
       struct elf_application_parsing_t *parsing;
       struct elf_application_t *        appli = all_applications;
 
+
       while(appli) {
+
         parsing = (struct elf_application_parsing_t *)mem_alloc(sizeof(struct elf_application_parsing_t));
         /* Head insert */
         parsing->connection = connection;
@@ -177,7 +179,7 @@ void elf_application_add_connection(struct connection *connection) {
 
         if(appli->parsing != NULL)
           appli->parsing->previous = parsing;
-  
+
         APPLICATION_WRITE(&appli->parsing, &parsing, sizeof(struct elf_application_parsing_t *));
 
         appli = appli->next;
@@ -193,12 +195,11 @@ void elf_application_remove_connection(const struct connection *connection) {
       struct elf_application_t *        appli = all_applications;
 
       while(appli) {
-        
         parsing = appli->parsing;
 
         while(parsing) {
-          if(parsing->connection == connection) {
 
+          if(parsing->connection == connection) {
             if(parsing->previous)
               parsing->previous->next = parsing->next;
 
@@ -300,7 +301,6 @@ struct output_handler_t *url_parse_step(uint8_t byte, unsigned char **url_blob, 
 }
 
 void elf_application_parsing_start(const struct connection *connection) {
-
   if(elf_application_get_count() > 0) {
     struct elf_application_parsing_t *parsing;
     struct elf_application_t *appli = all_applications;
@@ -324,7 +324,6 @@ void elf_application_parsing_start(const struct connection *connection) {
 }
 
 struct output_handler_t *elf_application_parse_step(const struct connection *connection, uint8_t byte) {
-  
   if(elf_application_get_count() > 0) {
     struct elf_application_parsing_t *parsing;
     struct output_handler_t *output_handler = NULL;
