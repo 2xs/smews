@@ -93,6 +93,8 @@ void cr_run(struct coroutine_t *coroutine
 	/* set new current context */
 	current_cr = coroutine;
 
+	printf("%s Coroutine->func.func_get %p\r\n", __FUNCTION__, current_cr->func.func_get);
+
 	if(current_cr) {
 		RESTORE_CTX(current_cr->curr_context.sp);
 		/* test if this is the first time we run this context */

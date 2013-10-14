@@ -526,6 +526,9 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
 
   bss.number = data.number = rodata.number = text.number = -1;
 
+  bss.address = data.address = rodata.address = text.address = NULL;
+  bss.offset = data.offset = rodata.offset = text.offset = 0;
+
   shdrptr = ehdr.e_shoff;
 
   // first, find all .rodata.* sections

@@ -42,7 +42,7 @@ void *elf_allocator_flash_alloc(unsigned int size) {
     elf_allocator_last_flash_used = (char *)elf_allocator_flash_buffer;
 
   result                         = elf_allocator_last_flash_used;
-  elf_allocator_last_flash_used += size;
+  elf_allocator_last_flash_used += ((size % 2) == 0) ? size : size +1; // align on an even address
 
   return result;
 }
