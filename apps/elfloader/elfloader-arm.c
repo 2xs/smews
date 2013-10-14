@@ -66,8 +66,8 @@ elfloader_arch_relocate(void *input_fd,
       rfs_read((char*)&addend, 4, 1, input_fd);
       addr += addend;
       elfloader_output_write_segment(output,(char*) &addr, 4);
-      printf("%p: addr: %p addend %p\r\n", sectionaddr +rela->r_offset,
-	     addr, addend);
+      /*printf("%p: addr: %p addend %p\r\n", sectionaddr +rela->r_offset,
+	     addr, addend);*/
     }
     break;
 
