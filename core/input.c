@@ -734,6 +734,7 @@ char smews_receive(void) {
 #endif
                 x++;
                 DEV_GETC(tmp_char);
+
 #ifndef DISABLE_POST
                 /* updating content length */
                 if((tmp_connection.protocol.http.parsing_state == parsing_init_buffer
@@ -1119,6 +1120,11 @@ char smews_receive(void) {
                             }
                             else{
 #endif
+
+				elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
+				if((elf_application_output_handler != NULL) && (elf_application_output_handler != &http_404_handler))
+                                  output_handler = elf_application_output_handler;
+
                                 if(!output_handler) {
                                     output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
                                 }
@@ -1257,6 +1263,7 @@ char smews_receive(void) {
                         if (tmp_char != blob_curr && blob_next >= 128) {
                             blob_next = CONST_READ_UI8(++blob);
                         }
+
                         if (blob_next < 32) {
                             offsetInf += ((blob_next>>2) & 1) + ((blob_next>>1) & 1) + (blob_next & 1);
                             offsetEq = offsetInf + ((blob_next & 2)?CONST_READ_UI8(blob+1):0);
