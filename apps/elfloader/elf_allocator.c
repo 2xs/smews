@@ -7,8 +7,7 @@
 
 /* FLASH */
 #ifndef ELF_ALLOCATOR_FLASH_ADDRESS
-extern char _persistent_data_end;
-#define ELF_ALLOCATOR_FLASH_ADDRESS ((char *)&_persistent_data_end)
+#define ELF_ALLOCATOR_FLASH_ADDRESS ((char *)0x00001000)
 #endif
 
 #ifndef ELF_ALLOCATOR_FLASH_STORAGE_ADDRESS

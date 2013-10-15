@@ -70,6 +70,7 @@ cflags = check_output(args)
 
 args[1] = '--ldflags'
 ldflags = check_output(args)
+ldflags = ("-L" + os.path.join(targetDir) + " " + ldflags).replace("rflpc17xx.ld", "smews.ld")
 
 args[1] = '--lib'
 lib = check_output(args)
