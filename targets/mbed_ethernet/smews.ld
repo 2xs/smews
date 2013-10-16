@@ -65,6 +65,7 @@ SECTIONS
   _interrupt_end = .;
 
   . = 0x10000;
+
   *(.text*) ;
   /* Constant data is also put in flash */
   *(.rodata*) ;

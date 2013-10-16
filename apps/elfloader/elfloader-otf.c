@@ -300,7 +300,6 @@ relocate_section(void *input_fd,
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return ELFLOADER_INPUT_ERROR;
-
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
@@ -692,7 +691,6 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
     if (!rodata.address) return ELFLOADER_OUTPUT_ERROR;
   }
 
-
 /* If we have text segment relocations, we process them. */
   if(textrelasize > 0) {
     PRINTF("elfloader: relocate text\r\n");
@@ -711,7 +709,6 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   }
 
   /* If we have any rodata segment relocations, we process them too. */
-  
   if(rodatarelasize > 0) {
     PRINTF("elfloader: relocate rodata %d\r\n", rodatarelaoff, rodatarelasize, rodataoff);
     ret = copy_segment(input_fd, output,
@@ -738,7 +735,6 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   }
 
   /* If we have any data segment relocations, we process them too. */
-  
   if(datarelasize > 0) {
     PRINTF("elfloader: relocate data\r\n");
     ret = copy_segment(input_fd, output,

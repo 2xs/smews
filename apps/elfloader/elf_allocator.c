@@ -2,7 +2,7 @@
 
 /* RAM */
 #ifndef ELF_ALLOCATOR_RAM_SIZE
-#define ELF_ALLOCATOR_RAM_SIZE 1024*4
+#define ELF_ALLOCATOR_RAM_SIZE 1024*10
 #endif
 
 /* FLASH */

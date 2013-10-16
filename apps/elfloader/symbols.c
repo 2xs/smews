@@ -23,6 +23,8 @@ const struct symbols symbols[] = {
 #if  !defined(DISABLE_POST) || !defined(DISABLE_GP_IP_HANDLER)
 	{"in",                      in         },
 #endif
+	{"mem_alloc",               mem_alloc  },
+        {"mem_free",                mem_free   },
 	{"out_c",                   out_c      },
 	{"out_str",                 out_str    },
 	{"out_uint",                out_uint   },
