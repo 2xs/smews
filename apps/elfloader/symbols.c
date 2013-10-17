@@ -30,9 +30,13 @@ const struct symbols symbols[] = {
 	{"out_uint",                out_uint   },
 	{"printf",                  printf},
 
+	{"rand",                    rand  },
+
 #ifndef DISABLE_GP_IP_HANDLER
 	{"request_packet_out_call", request_packet_out_call },
 #endif
+
+        {"rflpc_timer_get_counter", rflpc_timer_get_counter },
 
 #ifndef DISABLE_COMET
 	{"server_push",             server_push},
@@ -41,6 +45,8 @@ const struct symbols symbols[] = {
 	{"set_timer",               set_timer},
 #endif
 	{"something_to_send",       something_to_send },
+
+	{"srand",                   srand }
 };
 
 const int symbols_nelts = sizeof(symbols)/sizeof(struct symbols);

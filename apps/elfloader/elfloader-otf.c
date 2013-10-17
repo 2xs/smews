@@ -300,6 +300,7 @@ relocate_section(void *input_fd,
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return ELFLOADER_INPUT_ERROR;
+
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
@@ -315,7 +316,7 @@ relocate_section(void *input_fd,
 	} else if(s.st_shndx == text.number ) {
 	  sect = &text;
 	} else {
-	  printf("elfloader unknown name: '%30s'\n", name);
+	  printf("elfloader unknown name: '%s'\n", name);
 	  memcpy(elfloader_unknown, name, sizeof(elfloader_unknown));
 	  elfloader_unknown[sizeof(elfloader_unknown) - 1] = 0;
 	  return ELFLOADER_SYMBOL_NOT_FOUND;

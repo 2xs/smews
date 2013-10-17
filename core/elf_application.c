@@ -29,6 +29,8 @@ char elf_application_add(struct elf_application_t *application) {
   struct elf_application_parsing_t *parsing;
   /* Head insert */
   struct elf_application_t *buf[1];
+  unsigned int i;
+  const struct output_handler_t * /*CONST_VAR*/ output_handler;
 
   /*application->previous = NULL; */
   buf[0] = NULL;
@@ -50,6 +52,22 @@ char elf_application_add(struct elf_application_t *application) {
   {
     unsigned int elfApplicationsCount = elf_applications_count + 1;
     APPLICATION_WRITE((void *)&elf_applications_count, &elfApplicationsCount, sizeof(unsigned int));
+  }
+
+  i = 0;
+  while((output_handler = CONST_ADDR(application->environment->resources_index[i])) != NULL) {
+
+    if(CONST_UI8(output_handler->handler_type) == type_generator 
+  #ifndef DISABLE_GP_IP_HANDLER
+       || CONST_UI8(output_handler->handler_type) == type_general_ip_handler
+  #endif
+                                                               ) {
+      generator_init_func_t * init_handler = CONST_ADDR(GET_GENERATOR(output_handler).init);
+      if(init_handler)
+        init_handler();
+    }
+
+    i++;
   }
 
   /* Add all existing connections to the application's parsing */
