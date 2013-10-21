@@ -253,8 +253,8 @@ def generateElfApplication(dstFile, installList, removeList) :
 
 	generatedDynApp += 'struct elf_application_environment_t elf_application_environment = {\n' 
 
-	forwardDeclarations += 'extern struct output_handler_t * resources_index[];\n'
-#	forwardDeclarations += 'extern CONST_VAR(struct output_handler_t *, resources_index[]);\n'
+#	forwardDeclarations += 'extern struct output_handler_t * resources_index[];\n'
+	forwardDeclarations += 'extern CONST_VAR(struct output_handler_t * const, resources_index[]);\n'
 	forwardDeclarations += 'extern CONST_VAR(unsigned char, urls_tree[]);\n'
 
 	if(len(installList)>0):
@@ -886,8 +886,8 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 
 	# files index creation (table of ordered output_handlers)
 	cOut.write('\n/********** Files index **********/\n')
-	cOut.write('struct output_handler_t /*CONST_VAR*/ * resources_index[] = {\n')
-#	cOut.write('CONST_VAR(struct output_handler_t /*CONST_VAR*/ *, resources_index[]) = {\n')
+#	cOut.write('struct output_handler_t /*CONST_VAR*/ * resources_index[] = {\n')
+	cOut.write('CONST_VAR(struct output_handler_t /*CONST_VAR*/ * const, resources_index[]) = {\n')
 	# insert each handler
 	for file in filesList:
 		cOut.write('\t&' + filesRefs[file] + ',\n')

@@ -221,18 +221,22 @@ find_local_symbol(void *input_fd, const char *symbol,
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return NULL;
-      /*printf("====>Name : %s\r\n", name);*/
+      
       if(strcmp(name, symbol) == 0) {
+	printf("====>Name : %s\r\n", name);
 	if(s.st_shndx == bss.number) {
 	  sect = &bss;
 	} else if(s.st_shndx == data.number) {
 	  sect = &data;
 	} else if(s.st_shndx == text.number) {
 	  sect = &text;
-	} else {
+	} else if(s.st_shndx == rodata.number){
+	  sect = &rodata;
+        } else {
           struct relevant_rodata_section *rodata = rodatas;	  
 	  while(rodata) {
             if(rodata->number == s.st_shndx) {
+		printf("rodata->address %p + %d = %p\r\n", rodata->address, s.st_value, rodata->address + s.st_value);
               return &(rodata->address[s.st_value]);
 	    }
 
@@ -279,6 +283,8 @@ relocate_section(void *input_fd,
     rel_size = sizeof(struct elf32_rel);
   }
 
+  addr = NULL;
+
 //  printf("elfloader : Section %x size :%d relsize %d\r\n", section, size, rel_size);
   
   for(a = section; a < section + size; a += rel_size) {
@@ -294,18 +300,20 @@ relocate_section(void *input_fd,
     if (ret < 0) return ELFLOADER_INPUT_ERROR;
 
 
-    /*printf("\r\ns.st_name %p\r\n", s.st_name);
+/*    printf("\r\ns.st_name %p\r\n", s.st_name);
     printf("s.st_shndx %d\r\n", s.st_shndx);*/
 
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return ELFLOADER_INPUT_ERROR;
 
+	/*printf("Symbol %s (section %d)\r\n", name, s.st_shndx);*/
       addr = (char *)symtab_lookup(name);
       /* ADDED */
       if(addr == NULL) {
 	addr = find_local_symbol(input_fd, name, symtab, symtabsize, strtab, rodatas);
       }
+
       if(addr == NULL) {
 	if(s.st_shndx == bss.number) {
 	  sect = &bss;
@@ -325,18 +333,28 @@ relocate_section(void *input_fd,
       }
     } else {
       if(s.st_shndx == bss.number) {
-	sect = &bss;
+	addr = bss.address;
       } else if(s.st_shndx == data.number) {
-	sect = &data;
+	addr = data.address;
       } else if(s.st_shndx == rodata.number) {
-	sect = &rodata;
+	addr = rodata.address;
       } else if(s.st_shndx == text.number) {
-	sect = &text;
+	addr = text.address;
       } else {
+          struct relevant_rodata_section *rodata = rodatas;	  
+	  while(rodata) {
+            if(rodata->number == s.st_shndx) {
+              addr = rodata->address; 
+              break;
+	    }
+
+            rodata = rodata->next;
+	  }
+      }
+
+      if(addr == NULL) {
 	return ELFLOADER_SEGMENT_NOT_FOUND;
       }
-      
-      addr = sect->address;
     }
     
 #if 0 /* We don't know how big the relocation is or even if we need to read it.
@@ -542,7 +560,7 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
     ret = seek_read(input_fd, nameptr, name, sizeof(name));
     if (ret != sizeof(name)) return ELFLOADER_INPUT_ERROR;
     
-    if(strncmp(name, ".rodata", 7) == 0) {
+    if(strncmp(name, ".rodata.str", 11) == 0) {
 
       temp_rodata = mem_alloc(sizeof(struct relevant_rodata_section));
       if(!temp_rodata) {
@@ -559,6 +577,8 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
 	PRINTF("Unable to allocate relevant rodata section space.\r\n");
         return ELFLOADER_OUTPUT_ERROR;
       }
+
+	printf("rodata.str allocated \r\n");
 
       ret = elfloader_output_start_segment(output, ELFLOADER_SEG_RODATA,
                                            temp_rodata->address, shdr.sh_size);
@@ -689,6 +709,7 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   if (rodatasize) {
     rodata.address =  (char *)
       elfloader_output_alloc_segment(output,ELFLOADER_SEG_RODATA,rodatasize);
+	printf("Rodata address %p rodatasize %d\r\n", rodata.address, rodatasize);
     if (!rodata.address) return ELFLOADER_OUTPUT_ERROR;
   }
 
