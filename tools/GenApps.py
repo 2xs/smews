@@ -251,9 +251,8 @@ def generateElfApplication(dstFile, installList, removeList) :
 
 	# elf application environment	
 
-	generatedDynApp += 'struct elf_application_environment_t elf_application_environment = {\n' 
+	generatedDynApp += 'CONST_VAR(struct elf_application_environment_t const, elf_application_environment) = {\n' 
 
-#	forwardDeclarations += 'extern struct output_handler_t * resources_index[];\n'
 	forwardDeclarations += 'extern CONST_VAR(struct output_handler_t * const, resources_index[]);\n'
 	forwardDeclarations += 'extern CONST_VAR(unsigned char, urls_tree[]);\n'
 
@@ -508,8 +507,8 @@ def generateDynamicResource(srcFile,dstFile,dstFileInfos):
 			generatedOutputHandler += '#endif\n'
 
 		# output_handler structure creation
-		generatedOutputHandler += 'struct output_handler_t ' + cFuncName + ' = {\n'
-#		generatedOutputHandler += 'CONST_VAR(struct output_handler_t, ' + cFuncName + ') = {\n'
+#		generatedOutputHandler += 'struct output_handler_t ' + cFuncName + ' = {\n'
+		generatedOutputHandler += 'CONST_VAR(struct output_handler_t, ' + cFuncName + ') = {\n'
 		# handler type
 		if dstFileInfos.has_key('doPacketIn'):
 			generatedOutputHandler += '\t.handler_type = type_general_ip_handler,\n'
@@ -757,8 +756,8 @@ def generateStaticResource(srcFile,dstFile,chuncksNbits,gzipped):
 
 	# we fill the output handler structure
 	cOut.write('\n/********** File handler **********/\n')
-	cOut.write('struct output_handler_t ' + cName + '_handler = {\n')
-#	cOut.write('CONST_VAR(struct output_handler_t, ' + cName + '_handler) = {\n')
+#	cOut.write('struct output_handler_t ' + cName + '_handler = {\n')
+	cOut.write('CONST_VAR(struct output_handler_t, ' + cName + '_handler) = {\n')
 	cOut.write('\t.handler_type = type_file,\n'
 		+ '\t.handler_data = {\n'
 			+ '\t\t.file = {\n'
@@ -798,8 +797,8 @@ def generateChannelsH(dstFile,propsFilesMap):
 		# for each channel: external structure declaration, macro for the channel name
 		if propsFilesMap[fileName]['channel'] != '':
 			cStructName = getCName(fileName[:fileName.rfind('.c')])
-			hOut.write('extern struct output_handler_t ' + cStructName + ';\n')
-#			hOut.write('extern CONST_VAR(struct output_handler_t, ' + cStructName + ');\n')
+#			hOut.write('extern struct output_handler_t ' + cStructName + ';\n')
+			hOut.write('extern CONST_VAR(struct output_handler_t, ' + cStructName + ');\n')
 			hOut.write('#define ' + propsFilesMap[fileName]['channel'] + ' ' + cStructName + '\n')
 	hOut.write('\n#endif\n')
 	hOut.close()
@@ -829,12 +828,12 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 	cOut.write('\n/********** External references **********/\n')
 	for fileName in staticFilesNames:
 		cName = getCName(fileName)
-		cOut.write('extern struct output_handler_t ' + cName + '_handler;\n')
-#		cOut.write('extern CONST_VAR(struct output_handler_t, ' + cName + '_handler);\n')
+#		cOut.write('extern struct output_handler_t ' + cName + '_handler;\n')
+		cOut.write('extern CONST_VAR(struct output_handler_t, ' + cName + '_handler);\n')
 	for fileName in generatorFilesNames:
 		cFuncName = getCName(fileName[:fileName.rfind('.c')])
-		cOut.write('extern struct output_handler_t ' + cFuncName + ';\n')
-#		cOut.write('extern CONST_VAR(struct output_handler_t, ' + cFuncName + ');\n')
+#		cOut.write('extern struct output_handler_t ' + cFuncName + ';\n')
+		cOut.write('extern CONST_VAR(struct output_handler_t, ' + cFuncName + ');\n')
 
 	# filesRef is a map used to associate URLs to output_handlers
 	filesRefs = {}
@@ -886,7 +885,6 @@ def generateIndex(dstDir,sourcesMap,target,chuncksNbits,appBase,propsFilesMap):
 
 	# files index creation (table of ordered output_handlers)
 	cOut.write('\n/********** Files index **********/\n')
-#	cOut.write('struct output_handler_t /*CONST_VAR*/ * resources_index[] = {\n')
 	cOut.write('CONST_VAR(struct output_handler_t /*CONST_VAR*/ * const, resources_index[]) = {\n')
 	# insert each handler
 	for file in filesList:

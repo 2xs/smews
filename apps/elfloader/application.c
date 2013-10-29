@@ -4,13 +4,25 @@
 
 static struct elf_application_t application_buffer;
 
-char application_add(const char *filename, uint16_t size, struct elf_application_environment_t *environment) {
+char application_add(const char *filename, uint16_t size, 
+                     char *data_address, unsigned int data_size, 
+                     struct elf_application_environment_t *environment) {
   struct elf_application_t *applicationInFlash;
   char   res;
   int    filenameLength;
+  char   *data_source;
 
   if((filename == NULL) || (size == 0) || (environment == NULL))
 		return 0;
+
+  data_source = NULL;
+  if(data_size > 0) {
+    data_source = (char *)elf_allocator_flash_alloc(data_size);
+    if(APPLICATION_WRITE(data_source, data_address, data_size) != 0) {
+      printf("FAILED to allocate data storage\r\n");
+      return 0;
+    }
+  }
 
   if(environment->install) {
     int i = 0;
@@ -35,9 +47,12 @@ char application_add(const char *filename, uint16_t size, struct elf_application
 
   printf("Application name is %s\r\n", application_buffer.filename);
 
-  application_buffer.size        = size;
-  application_buffer.environment = environment;
-  application_buffer.parsing     = NULL;
+  application_buffer.size             = size;
+  application_buffer.environment      = environment;
+  application_buffer.parsing          = NULL;
+  application_buffer.data_destination = data_address;
+  application_buffer.data_source      = data_source;
+  application_buffer.data_size        = data_size;
 
   applicationInFlash = (struct elf_application_t *)elf_allocator_flash_alloc(sizeof(struct elf_application_t));
   

@@ -211,7 +211,7 @@ find_local_symbol(void *input_fd, const char *symbol,
   struct relevant_section *sect;
   int ret;
   
-  /*printf("Symbol Name : %s\r\n", symbol);*/
+  //printf("Symbol : %s\r\n", symbol);
 
 
   for(a = symtab; a < symtab + symtabsize; a += sizeof(s)) {
@@ -221,9 +221,8 @@ find_local_symbol(void *input_fd, const char *symbol,
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return NULL;
-      
+
       if(strcmp(name, symbol) == 0) {
-	printf("====>Name : %s\r\n", name);
 	if(s.st_shndx == bss.number) {
 	  sect = &bss;
 	} else if(s.st_shndx == data.number) {
@@ -236,7 +235,6 @@ find_local_symbol(void *input_fd, const char *symbol,
           struct relevant_rodata_section *rodata = rodatas;	  
 	  while(rodata) {
             if(rodata->number == s.st_shndx) {
-		printf("rodata->address %p + %d = %p\r\n", rodata->address, s.st_value, rodata->address + s.st_value);
               return &(rodata->address[s.st_value]);
 	    }
 
@@ -244,7 +242,7 @@ find_local_symbol(void *input_fd, const char *symbol,
 	  }
           return NULL;
 	}
-
+	
 	return &(sect->address[s.st_value]);
       }
     }
@@ -270,12 +268,11 @@ relocate_section(void *input_fd,
   int rel_size = 0;
   struct elf32_sym s;
   unsigned int a;
-  char name[30];
   char *addr;
   struct relevant_section *sect;
   int ret;
+  char name[30];
 
-//  printf("\r\n------------>%s IN fd = %p %p\r\n", __FUNCTION__, input_fd,output);
   /* determine correct relocation entry sizes */
   if(using_relas) {
     rel_size = sizeof(struct elf32_rela);
@@ -295,20 +292,18 @@ relocate_section(void *input_fd,
     ret = seek_read(input_fd,
 		    (symtab +
 		     sizeof(struct elf32_sym) * ELF32_R_SYM(rela.r_info)),
-		    (char *)&s, sizeof(s));
+		    (char *)&s, sizeof(struct elf32_sym));
 
     if (ret < 0) return ELFLOADER_INPUT_ERROR;
-
-
-/*    printf("\r\ns.st_name %p\r\n", s.st_name);
-    printf("s.st_shndx %d\r\n", s.st_shndx);*/
 
     if(s.st_name != 0) {
       ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
       if (ret < 0) return ELFLOADER_INPUT_ERROR;
 
-	/*printf("Symbol %s (section %d)\r\n", name, s.st_shndx);*/
+      printf("");
+      
       addr = (char *)symtab_lookup(name);
+
       /* ADDED */
       if(addr == NULL) {
 	addr = find_local_symbol(input_fd, name, symtab, symtabsize, strtab, rodatas);
@@ -461,6 +456,10 @@ static void cleanup_rodatas(struct relevant_rodata_section *rodatas) {
 
 /*---------------------------------------------------------------------------*/
 struct elf_application_environment_t *elf_application_environment;
+char *data_address;
+unsigned int data_size;
+
+
 int
 elfloader_load(void *input_fd, struct elfloader_output *output)
 {
@@ -696,10 +695,17 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
       elfloader_output_alloc_segment(output, ELFLOADER_SEG_BSS, bsssize);
     if (!bss.address) return ELFLOADER_OUTPUT_ERROR;
   }
+
+
+  data_address = NULL;
+  data_size    = 0;
   if (datasize) {
     data.address = (char *)
       elfloader_output_alloc_segment(output,ELFLOADER_SEG_DATA,datasize);
     if (!data.address) return ELFLOADER_OUTPUT_ERROR;
+
+    data_address = data.address;
+    data_size    = datasize;
   }
   if (textsize) {
     text.address = (char *)
@@ -709,7 +715,7 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
   if (rodatasize) {
     rodata.address =  (char *)
       elfloader_output_alloc_segment(output,ELFLOADER_SEG_RODATA,rodatasize);
-	printf("Rodata address %p rodatasize %d\r\n", rodata.address, rodatasize);
+	/*printf("RODATA ADDRESS IS %p\r\n", rodata.address);*/
     if (!rodata.address) return ELFLOADER_OUTPUT_ERROR;
   }
 
@@ -732,7 +738,7 @@ elfloader_load(void *input_fd, struct elfloader_output *output)
 
   /* If we have any rodata segment relocations, we process them too. */
   if(rodatarelasize > 0) {
-    PRINTF("elfloader: relocate rodata %d\r\n", rodatarelaoff, rodatarelasize, rodataoff);
+    PRINTF("elfloader: relocate rodata %d %d %d\r\n", rodatarelaoff, rodatarelasize, rodataoff);
     ret = copy_segment(input_fd, output,
 		       rodatarelaoff, rodatarelasize,
 		       rodataoff,

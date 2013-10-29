@@ -67,6 +67,10 @@ struct elf_application_parsing_t {
 struct elf_application_t {
   char *                                filename;
   uint16_t                              size;
+
+  char *                                data_source;
+  char *                                data_destination;
+  unsigned int                          data_size;
   
   struct elf_application_parsing_t *    parsing;
 

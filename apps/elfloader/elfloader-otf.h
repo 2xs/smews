@@ -288,6 +288,8 @@ int elfloader_load(void *input_fd,
 #define ELF_APPLICATION_ENVIRONMENT_NAME "elf_application_environment"
 
 extern struct elf_application_environment_t *elf_application_environment;
+extern char *data_address;
+extern unsigned int data_size;
 
 /**
  * If elfloader_load() could not find a specific symbol, it is copied

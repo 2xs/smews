@@ -98,6 +98,8 @@ void cr_run(struct coroutine_t *coroutine
 		/* test if this is the first time we run this context */
 		if(current_cr->curr_context.status == cr_ready) {
 			current_cr->curr_context.status = cr_active;
+
+
 #ifndef DISABLE_POST
 			if(type == cor_type_post_out)
 				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);

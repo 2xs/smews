@@ -152,6 +152,13 @@ void elf_application_init() {
       int i;
 
       while(appli) {
+
+
+        if(appli->data_size>0) {
+          memcpy(appli->data_destination, appli->data_source, appli->data_size);
+        }
+
+
         i = 0;
         while((output_handler = CONST_ADDR(appli->environment->resources_index[i])) != NULL) {
 

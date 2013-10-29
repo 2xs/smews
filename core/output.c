@@ -314,12 +314,10 @@ void smews_send_packet (struct connection *connection)
 	    file_remaining_bytes = UI32 (connection->protocol.http.final_outseqno) - UI32 (next_outseqno);
 	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
 	    index_in_file = CONST_UI32 (GET_FILE (output_handler).length) - file_remaining_bytes;
-/*		printf("TYPE FILE max_out_size %d file_remaining_byte_size %d segment_length %d index_in_file %d\r\n",
-			max_out_size, file_remaining_bytes, segment_length, index_in_file);*/
 	    break;
 	}
 	case type_generator:
-/*		printf("TYPE GENERATOR\r\n");*/
+
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
 	    break;
@@ -684,7 +682,6 @@ char smews_send (void)
     struct connection *active_connection = NULL;
     const struct output_handler_t * /*CONST_VAR */ old_output_handler = NULL;
 
-
     /* sending reset has the highest priority */
     if (UI16 (rst_connection.port))
     {
@@ -747,7 +744,7 @@ char smews_send (void)
 	active_connection->output_handler = &ref_ack;
     }
 #endif
-
+ 
     /* get the type of web applicative resource */
     switch (CONST_UI8 (active_connection->output_handler->handler_type))
     {
@@ -883,7 +880,6 @@ char smews_send (void)
 		}
 #endif
 	    } /* End if generator_service == NULL */
-
 
 	    /* init the global curr_output structure (usefull for out_c) */
 	    curr_output.service = active_connection->protocol.http.generator_service;

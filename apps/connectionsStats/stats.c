@@ -43,18 +43,6 @@
 #include "generators.h"
 #include "connections.h"
 
-struct fake_t {
-	const char *label;
-	unsigned int id;
-};
-
-const struct fake_t titi = { "POUET", 0 };
-const struct fake_t tata = { "GLOP",  1 };
-
-const struct fake_t * const toto []= {
-	&titi, &tata
-};
-
 static char doGet(struct args_t *args) {
 	int cpt = 0;
 	FOR_EACH_CONN(conn, {
@@ -77,7 +65,6 @@ static char doGet(struct args_t *args) {
 			out_str("NULL\n");
 		out_str("\tsomething to send: "); out_uint(something_to_send(conn)); out_str("\n");
 	})
-	printf("%s\r\n", toto[0]->label);
-	printf("%p\r\n", toto[0]->label);
+
 	return 1;
 }
