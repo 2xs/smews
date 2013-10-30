@@ -68,6 +68,8 @@
 //#define PRINTF(...) printf(__VA_ARGS__)
 #endif
 
+
+
 #define EI_NIDENT 16
 
 
@@ -148,7 +150,7 @@ struct relevant_rodata_section {
   struct relevant_rodata_section *next;
 };
 
-char elfloader_unknown[30];	/* Name that caused link error. */
+char elfloader_unknown[MAX_SYMBOL_SIZE];	/* Name that caused link error. */
 
 static struct relevant_section bss, data, rodata, text;
 
@@ -207,7 +209,7 @@ find_local_symbol(void *input_fd, const char *symbol,
 {
   struct elf32_sym s;
   unsigned int a;
-  char name[30];
+  char name[MAX_SYMBOL_SIZE];
   struct relevant_section *sect;
   int ret;
   
@@ -250,6 +252,10 @@ find_local_symbol(void *input_fd, const char *symbol,
   return NULL;
 }
 
+static const char *plop(const char *plip) {
+  return plip;
+}
+
 /*---------------------------------------------------------------------------*/
 static int
 relocate_section(void *input_fd,
@@ -271,7 +277,7 @@ relocate_section(void *input_fd,
   char *addr;
   struct relevant_section *sect;
   int ret;
-  char name[30];
+  char name[MAX_SYMBOL_SIZE];
 
   /* determine correct relocation entry sizes */
   if(using_relas) {
@@ -297,11 +303,20 @@ relocate_section(void *input_fd,
     if (ret < 0) return ELFLOADER_INPUT_ERROR;
 
     if(s.st_name != 0) {
-      ret = seek_read(input_fd, strtab + s.st_name, name, sizeof(name));
-      if (ret < 0) return ELFLOADER_INPUT_ERROR;
+      char c;
+      int offset = 0;
+      rfs_seek(input_fd, strtab + s.st_name);
 
-      printf("");
-      
+      do {
+        rfs_read(&c, 1, 1, input_fd);
+	name[offset++] = c;
+      } while(c != '\0' && offset < sizeof(name));
+
+      /*ret = seek_read(input_fd, offset, name, sizeof(name));
+      if (ret < 0) return ELFLOADER_INPUT_ERROR;*/
+      if (offset >= sizeof(name)) return ELFLOADER_INPUT_ERROR;
+
+  
       addr = (char *)symtab_lookup(name);
 
       /* ADDED */

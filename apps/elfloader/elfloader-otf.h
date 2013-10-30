@@ -158,6 +158,8 @@
 #define ELFLOADER_SEG_DATA 3
 #define ELFLOADER_SEG_BSS 4
 
+#define MAX_SYMBOL_SIZE 128
+
 /**
  * elfloader output object
  *
@@ -295,7 +297,7 @@ extern unsigned int data_size;
  * If elfloader_load() could not find a specific symbol, it is copied
  * into this array.
  */
-extern char elfloader_unknown[30];
+extern char elfloader_unknown[MAX_SYMBOL_SIZE];
 
 #ifdef ELFLOADER_CONF_DATAMEMORY_SIZE
 #define ELFLOADER_DATAMEMORY_SIZE ELFLOADER_CONF_DATAMEMORY_SIZE

@@ -47,7 +47,7 @@ int rfs_write(const void *aBuffer, int aLength, int aCount, void *aHandle) {
 int rfs_read(void *aBuffer, int aLength, int aCount, void *aHandle) {
   struct RamFileSystem *rfs = (struct RamFileSystem *)aHandle;
 
-  fake_memcpy(aBuffer, rfs->current, aLength * aCount);
+  memcpy(aBuffer, rfs->current, aLength * aCount);
   rfs->current += aLength * aCount;
   return (aLength * aCount);
 }
