@@ -4,9 +4,19 @@
 
 <head>
 	<title>Smews Elf Loader</title>
+	<link rel="stylesheet" type="text/css" href="style.css" />
+	<script language="Javascript" src="elfScript.js"> </script>
 </head>
 
-<body>
+<body onload = "init();">
+	<h1>Welcome to the elf applications manager</h1>
+	<h3>Uploaded applications</h3>
+	<table id="applicationsTable">
+		<tr>
+			<th>Name</th><th>Size</th>
+		</tr>
+	</table>
+	<h3>Upload a file</h3>
 	<form enctype=multipart/form-data action="ElfLoader" method=post>
 		<input type=file name=filename value="Choose file"/>
 		<input type=submit name=ok value="Submit"/>

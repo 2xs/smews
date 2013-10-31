@@ -175,11 +175,15 @@ copy_segment_data(void *input_fd, unsigned int offset,
 
   if (rfs_seek(input_fd, offset) != offset) return ELFLOADER_INPUT_ERROR;
   while(len > sizeof(copy_segment_data_buffer)) {
+
     res = rfs_read(copy_segment_data_buffer, sizeof(copy_segment_data_buffer), 1, input_fd);
     if (res != sizeof(copy_segment_data_buffer)) return ELFLOADER_INPUT_ERROR;
+
     res = elfloader_output_write_segment(output, copy_segment_data_buffer, sizeof(copy_segment_data_buffer));
+
     if (res != sizeof(copy_segment_data_buffer)) return ELFLOADER_OUTPUT_ERROR;
     len -= sizeof(copy_segment_data_buffer);
+
   }
 
   if (len)
@@ -252,10 +256,6 @@ find_local_symbol(void *input_fd, const char *symbol,
   return NULL;
 }
 
-static const char *plop(const char *plip) {
-  return plip;
-}
-
 /*---------------------------------------------------------------------------*/
 static int
 relocate_section(void *input_fd,
@@ -293,7 +293,6 @@ relocate_section(void *input_fd,
   for(a = section; a < section + size; a += rel_size) {
     ret = seek_read(input_fd, a, (char *)&rela, rel_size);
     if (ret < 0) return ELFLOADER_INPUT_ERROR;
-
 
     ret = seek_read(input_fd,
 		    (symtab +
@@ -392,6 +391,7 @@ relocate_section(void *input_fd,
 
     ret = elfloader_arch_relocate(input_fd, output, sectionaddr, sectionbase,
 				  &rela, addr, &s);
+
 
     if (ret != ELFLOADER_OK) return ret;
   }

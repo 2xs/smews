@@ -72,8 +72,8 @@ write_segment(struct elfloader_output *output, const char *buf,
 	      unsigned int len)
 {
   struct ram_output * const memory = (struct ram_output *)output;
-  /*printf("ram-segments.write Base %p + Ram Offset %x = %p (%d bytes)\r\n", memory->base, memory->offset, memory->base + memory->offset,len);*/
-
+  printf("ram-segments.write Base %p + Ram Offset %x = %p (%d bytes)\r\n", memory->base, memory->offset, memory->base + memory->offset,len);
+  printf("Output->ops %p 0\r\n", output->ops);
   switch(memory->type) {
 	case ELFLOADER_SEG_TEXT :
 	case ELFLOADER_SEG_RODATA : {
@@ -87,20 +87,24 @@ write_segment(struct elfloader_output *output, const char *buf,
 	     }
 	   }
 
+	  printf("Output->ops %p 1 Memory %p\r\n", output->ops, memory->base + memory->offset);
 	   ret = APPLICATION_WRITE(memory->base + memory->offset, buf, len);
-
-
+	  printf("Output->ops %p 2\r\n", output->ops);
 	   if(ret != 0) {
 		printf("An error happened while writing to flash %d\r\n", ret);
 		return ret;
 	   }
 	}
+	
 	break;
 	default :
 	  fake_memcpy(memory->base + memory->offset, buf, len);
+	break;
+
   }
 
   memory->offset += len;
+
   return len;
 }
 
@@ -118,7 +122,6 @@ static const struct elfloader_output_ops elf_output_ops =
     write_segment,
     segment_offset
   };
-
 
 static struct ram_output seg_output = {
   {&elf_output_ops},

@@ -82,7 +82,7 @@ struct elf_application_t {
 
 
 #define FOR_EACH_APPLICATION(item, code) \
-	if(elf_applications_get_count() > 0) { \
+	if(elf_application_get_count() > 0) { \
 		struct elf_application_t *(item) = all_applications; \
 		do { \
 			{code} \

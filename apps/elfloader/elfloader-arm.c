@@ -75,7 +75,7 @@ elfloader_arch_relocate(void *input_fd,
 	uint16_t instr[2];
 	int32_t offset;
 	int32_t addend;
-        
+
         rfs_read((char *)instr, 4, 1, input_fd);
 
         // Build the addend from the instructions
@@ -111,7 +111,7 @@ elfloader_arch_relocate(void *input_fd,
 	instr[0] = ((offset >> 12) & 0x7FF) | 0xF000;
 	instr[1] = ((offset >> 1) & 0x7FF) | 0xF800;
 
-	//printf("R_ARM_THM_CALL after relocation: %04x %04x\r\n",instr[0], instr[1]);
+	/*printf("R_ARM_THM_CALL after relocation: %04x %04x\r\n",instr[0], instr[1]);*/
 	elfloader_output_write_segment(output, (char*)instr, 4);
   }
    break;
