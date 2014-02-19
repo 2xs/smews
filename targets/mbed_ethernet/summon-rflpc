@@ -7,7 +7,7 @@
 # Created:
 # Time-stamp: <2012-05-16 14:48:37 (hauspie)>
 #
-RFLPC_REPOSITORY="http://github.com/hauspie/rflpc"
+RFLPC_REPOSITORY="https://github.com/hauspie/rflpc"
 RFLPC_RELEASE="v0.11"
 LOCAL_FOLDER="`cd \`dirname $0\` && pwd`"
 RFLPC_FOLDER=$LOCAL_FOLDER/rflpc
