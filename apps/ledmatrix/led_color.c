@@ -62,7 +62,7 @@
    while (needed_divider / serial_clock_rate_divider > 254) \
       serial_clock_rate_divider++; \
    needed_divider /= serial_clock_rate_divider; \
-   rflpc_spi_init(SPI_PORT, RFLPC_SPI_MASTER, RFLPC_CCLK_8, 8, needed_divider, serial_clock_rate_divider); \
+   rflpc_spi_init(SPI_PORT, RFLPC_SPI_MASTER, RFLPC_CCLK_8, 8, needed_divider, serial_clock_rate_divider, 0); \
    }while(0);
 
 #define INIT_WAIT do { \
