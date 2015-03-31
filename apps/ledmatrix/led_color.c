@@ -123,6 +123,7 @@ static char init_led(void)
    text_size = strlen("Smews: Smart & Mobile Embedded Web Server");
    do_display();
    set_timer(&do_display, 100);
+   init_serial_matrix();
    return 1;
 }
 
