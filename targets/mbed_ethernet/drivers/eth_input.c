@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-08-31
-  Time-stamp: <2013-02-28 10:59:14 (hauspie)>
+  Time-stamp: <2015-03-31 16:03:37 (hauspie)>
 */
 #include <rflpc17xx/rflpc17xx.h>
 
@@ -58,7 +58,7 @@ const uint8_t * volatile current_rx_frame = NULL;
 volatile uint32_t current_rx_frame_size = 0;
 volatile uint32_t current_rx_frame_idx = 0;
 
-volatile int byte_count = 0;
+volatile static int byte_count = 0;
 
 int16_t mbed_eth_get_byte()
 {
@@ -127,6 +127,8 @@ int mbed_process_input(const uint8_t *packet, int size)
 
     current_rx_frame = packet;
     current_rx_frame_size = proto_ip_get_size(packet + PROTO_MAC_HLEN) + PROTO_MAC_HLEN;
+    if (current_rx_frame_size >= DEV_MTU) /* prevent faulty IP packets */
+       current_rx_frame_size = DEV_MTU;
     current_rx_frame_idx = PROTO_MAC_HLEN; /* idx points to the first IP byte */
     return ETH_INPUT_KEEP_PACKET; /* do not get the packet back to the driver,
 				   * keep it while smews process it. The packet
