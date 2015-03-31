@@ -45,5 +45,7 @@ int strlen(const char *str);
 void strcpy(char *dst, const char *src);
 uint8_t htoi(char hexa);
 
+#define DEFAULT_TEXT "Smews: Smart & Mobile Embedded Web Server"
+
 #endif
 

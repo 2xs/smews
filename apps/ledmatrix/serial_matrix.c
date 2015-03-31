@@ -33,6 +33,7 @@
 * knowledge of the CeCILL license and that you accept its terms.
 */
 #include "timers.h"
+#include "led_common.h"
 
 #define INIT_SERIAL do { rflpc_uart_init(RFLPC_UART2); } while(0)
 #define SEND_SERIAL(c) rflpc_uart_putchar(RFLPC_UART2, ((c)))
@@ -338,13 +339,14 @@ static int my_strlen(const char *msg)
    return i;
 }
 
+#define MSG_FONT_SIZE (512*6)
 /* Global vars for current text properties */
 typedef struct
 {
    int size;
    int current_pos;
    unsigned char msg_affichage[DISPLAY_WIDTH+2]; 
-   unsigned char msg_font[DISPLAY_WIDTH*6];
+   unsigned char msg_font[MSG_FONT_SIZE];
    unsigned char buffer[DISPLAY_WIDTH]; // the display matrix
 } matrix_t;
 
@@ -393,6 +395,8 @@ void matrix_display(const char *msg)
    matrix.msg_affichage[DISPLAY_WIDTH+1] = SLIP_END;
 
    /* convert the message to hexa */
+   if (matrix.size >= MSG_FONT_SIZE)
+      matrix.size = MSG_FONT_SIZE - 1;
    convert_msg(msg, matrix.msg_font, matrix.size);
    /* print the msg for debug */
    print_msg(matrix.msg_font, matrix.size*6);
@@ -401,6 +405,6 @@ void matrix_display(const char *msg)
 void init_serial_matrix(void)
 {
    INIT_SERIAL;
-   matrix_display("");
+   matrix_display(DEFAULT_TEXT);
    set_timer(&display_step, 100);
 }

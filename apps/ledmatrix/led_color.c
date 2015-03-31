@@ -119,8 +119,8 @@ static char init_led(void)
    color = str_to_color("FFFFFF");
    strcpy(color_text, "FFFFFF");
    position = 0;
-   strcpy(text, "Smews: Smart & Mobile Embedded Web Server");
-   text_size = strlen("Smews: Smart & Mobile Embedded Web Server");
+   strcpy(text, DEFAULT_TEXT);
+   text_size = strlen(text);
    do_display();
    set_timer(&do_display, 100);
    init_serial_matrix();
