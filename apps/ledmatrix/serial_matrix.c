@@ -35,7 +35,7 @@
 #include "timers.h"
 #include "led_common.h"
 
-#define INIT_SERIAL do { rflpc_uart_init(RFLPC_UART2); } while(0)
+#define INIT_SERIAL do { rflpc_uart_init_ex(RFLPC_UART2, 52, 0, 1, 2); } while(0) /* 9600 bauds configuration */
 #define SEND_SERIAL(c) rflpc_uart_putchar(RFLPC_UART2, ((c)))
 
 #define BUFFER_SIZE		60
@@ -336,6 +336,7 @@ static int my_strlen(const char *msg)
    int i = 0;
    while (*msg++)
       i++;
+   printf("%d\n",i);
    return i;
 }
 
@@ -356,7 +357,15 @@ static void write_serial(const unsigned char *msg, int size)
 {
    int i;
    for (i = 0 ; i < size ; ++i)
+   {
+      if (msg[i] == 0xC0 ||
+          msg[i] == 0xDB ||
+          msg[i] == 0xDC ||
+          msg[i] == 0xDD)
+         printf("Ahhhhhhh: %x: %d\r\n", msg[i], i);
+          
       SEND_SERIAL(msg[i]);
+   }
 }
 
 /* Do a display step of the matrix 
@@ -379,7 +388,7 @@ static void display_step(void)
    /* create and send the command to bangles */
    for(j=0; j<DISPLAY_WIDTH; j++)
    {
-      printf("%x ", matrix.buffer[j]);
+/*      printf("%x ", matrix.buffer[j]);*/
       matrix.msg_affichage[j+1] = matrix.buffer[j];
    }
    write_serial(matrix.msg_affichage, DISPLAY_WIDTH+2);
@@ -391,6 +400,7 @@ void matrix_display(const char *msg)
    matrix.size = my_strlen(msg);
    matrix.current_pos = 0;
    init_buffer(matrix.buffer, DISPLAY_WIDTH);
+   init_buffer(matrix.msg_affichage, DISPLAY_WIDTH+2);
    matrix.msg_affichage[0] = 'd';
    matrix.msg_affichage[DISPLAY_WIDTH+1] = SLIP_END;
 
@@ -398,8 +408,9 @@ void matrix_display(const char *msg)
    if (matrix.size >= MSG_FONT_SIZE)
       matrix.size = MSG_FONT_SIZE - 1;
    convert_msg(msg, matrix.msg_font, matrix.size);
+   printf("Sending %s\r\n", msg);
    /* print the msg for debug */
-   print_msg(matrix.msg_font, matrix.size*6);
+/*   print_msg(matrix.msg_font, matrix.size*6);*/
 }
 
 void init_serial_matrix(void)

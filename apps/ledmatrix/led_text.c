@@ -48,6 +48,7 @@ static char get_led_text(struct args_t *args)
 {
    strcpy(text, args->text);
    text_size = strlen(text);
+   matrix_display(text);
    position = 0;
    return 1;
 }
