@@ -14,7 +14,7 @@ function updateColor()
                 });
             }
         });
-        setTimeout(updateColor,1000);
+        setTimeout(updateColor,2000);
     }
 }
 function updateText()
@@ -28,7 +28,7 @@ function updateText()
                 $("#textinput").val(responseData);
             }
         });
-        setTimeout(updateText,1000);
+        setTimeout(updateText,2000);
     }
         
 }
