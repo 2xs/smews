@@ -1,0 +1,7 @@
+#!/bin/bash
+
+IP=$1
+TARGET=mbed_ethernet
+DST=$(mount | grep MBED | cut -d' ' -f3)
+
+scons target=$TARGET ipaddr=$IP apps=:welcome,ledmatrix,kernel_console,icmpv4 && cp bin/$TARGET/smews.bin "$DST" && sync
