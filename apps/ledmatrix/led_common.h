@@ -46,7 +46,7 @@ void strcpy(char *dst, const char *src);
 uint8_t htoi(char hexa);
 
 /*#define DEFAULT_TEXT "Smews: Smart & Mobile Embedded Web Server"*/
-#define DEFAULT_TEXT "IRCICA MEL"
+#define DEFAULT_TEXT "CRIStAL CNRS UMR 9189"
 
 #endif
 

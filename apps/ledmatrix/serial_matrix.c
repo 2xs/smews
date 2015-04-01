@@ -336,7 +336,6 @@ static int my_strlen(const char *msg)
    int i = 0;
    while (*msg++)
       i++;
-   printf("%d\n",i);
    return i;
 }
 
@@ -358,14 +357,14 @@ static void write_serial(const unsigned char *msg, int size)
    int i;
    for (i = 0 ; i < size ; ++i)
    {
-      if (msg[i] == 0xC0 ||
-          msg[i] == 0xDB ||
-          msg[i] == 0xDC ||
-          msg[i] == 0xDD)
-         printf("Ahhhhhhh: %x: %d\r\n", msg[i], i);
-          
+#ifdef DEBUG_SERIAL
+      printf("%02x ", msg[i]);
+#endif
       SEND_SERIAL(msg[i]);
    }
+#ifdef DEBUG_SERIAL
+   printf("\r\n");
+#endif
 }
 
 /* Do a display step of the matrix 
@@ -417,5 +416,5 @@ void init_serial_matrix(void)
 {
    INIT_SERIAL;
    matrix_display(DEFAULT_TEXT);
-   set_timer(&display_step, 100);
+   set_timer(&display_step, 500);
 }
