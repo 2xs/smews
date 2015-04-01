@@ -122,7 +122,7 @@ static char init_led(void)
    strcpy(text, DEFAULT_TEXT);
    text_size = strlen(text);
    do_display();
-   set_timer(&do_display, 100);
+   set_timer(&do_display, 200);
    init_serial_matrix();
    return 1;
 }
