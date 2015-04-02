@@ -35,7 +35,7 @@
 /*
   Author: Michael Hauspie <michael.hauspie@univ-lille1.fr>
   Created: 2011-09-29
-  Time-stamp: <2014-11-14 11:30:09 (hauspie)>
+  Time-stamp: <2015-04-02 17:38:39 (hauspie)>
 */
 
 /*
@@ -185,6 +185,11 @@ void kernel_console_connections_state(const char *args)
    int cpt = 0;
    FOR_EACH_CONN(conn, {
          KERNEL_CONSOLE_PRINT("Connection: %d\r\n", cpt++);
+#ifndef IPV6
+         KERNEL_CONSOLE_PRINT("\tIP: %d.%d.%d.%d\r\n",
+                              conn->ip_addr[3], conn->ip_addr[2],
+                              conn->ip_addr[1], conn->ip_addr[0]);
+#endif
          if (IS_HTTP(conn))
          {
             KERNEL_CONSOLE_PRINT("\tport: %d\r\n", UI16(conn->protocol.http.port));
