@@ -261,6 +261,8 @@ void mbed_print_configuration(void)
 	printf("\r\n");
 }
 
+extern char _stack_end;
+
 void mbed_print_motd(void)
 {
     printf("\r\n  ______\r\n");

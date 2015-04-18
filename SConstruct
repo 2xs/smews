@@ -80,6 +80,7 @@ opts.Add(BoolVariable('gzip', 'Set to 1 to gzip (at compile time) static Web res
 opts.Add(BoolVariable('debug', 'Set to 1 to build for debug', False))
 opts.Add(BoolVariable('sdump', 'Set to 1 to include stack dump', False))
 opts.Add(BoolVariable('test', 'Set to 1 to test the test apps', False))
+opts.Add(BoolVariable('dynApp', 'Set to 1 to build an uploadable application', False))
 opts.Add('ipaddr', 'Set the IP address of Smews', None)
 # the list of disableable options
 disabledHash = {}
@@ -106,6 +107,7 @@ if opts.UnknownVariables():
         raise BuildError(err_msg)
 
 # arguments are stored into variables
+dynApp = globalEnv['dynApp']
 gzipped = globalEnv['gzip']
 debug = globalEnv['debug']
 sdump = globalEnv['sdump']
@@ -168,6 +170,7 @@ if len(targets) == 0:
 # will generate :
 # / -> smews, myApp/ -> myApplication, test/ -> test
 appDirs = originalAppDirs.split(',')
+
 dirsMap = {}
 for appDir in set(appDirs + [httpCodesDir]):
 	if appDir != '':
@@ -176,6 +179,18 @@ for appDir in set(appDirs + [httpCodesDir]):
 			dirsMap[appDir[idx+1:]] = '/' + appDir[:idx]
 		else:
 			dirsMap[appDir] = '/' + appDir
+
+dynamicAppName = ''
+if dynApp :
+	appDirNames = []
+	for appDir in appDirs:
+		if appDir != '':
+			idx = appDir.find(':')
+			if idx != -1:
+				appDirNames.append(appDir[idx+1:])
+			else:
+				appDirNames.append(appDir)
+	dynamicAppName = '_'.join(appDirNames)
 
 # association between web applicative resources and their final URLs
 # appDir did only contain association of embedded applications
@@ -194,14 +209,18 @@ for appDir in dirsMap.keys():
 globalEnv.Replace(CC = 'gcc')
 globalEnv.Replace(AS = 'as')
 globalEnv.Replace(AR = 'ar')
+globalEnv.Replace(LINK = 'ld')
 globalEnv.Append(CCFLAGS = '-Wall')
 if sdump:
 	globalEnv.Append(CCFLAGS = '-DSTACK_DUMP')
 if debug:
 	globalEnv.Append(CCFLAGS = '-O0 -g')
 else:
-	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections -fno-strict-aliasing')
-	globalEnv.Append(LINKFLAGS = '-Wl,--gc-sections -Wl,--print-gc-sections')
+	if dynApp :
+		globalEnv.Append(CCFLAGS =  '-Os -fno-strict-aliasing')
+	else :
+		globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections -fno-strict-aliasing')	
+	globalEnv.Append(LINKFLAGS = '--gc-sections --print-gc-sections')
 globalEnv.Append(CPPDEFINES = {'CHUNCKS_NBITS' : str(chuncksNbits)})
 for func in toDisable:
 	globalEnv.Append(CPPDEFINES = { disabledHash[func] : '1'})
@@ -233,7 +252,7 @@ for target in targets:
 				os.mkdir(dir)
 
 	# export variables for external SConscript files
-	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
+	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test dynApp dynamicAppName')
 	Export('env targetDir binDir projectName elfName')
 	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
 	# target dependent SConscript call

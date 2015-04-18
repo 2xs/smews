@@ -53,7 +53,7 @@
 typedef char (cr_func_get)(struct args_t *args);
 #ifndef DISABLE_POST
 typedef char (cr_func_post_out)(uint8_t content_type,void *post_data);
-typedef char (cr_func_post_in)(uint8_t content_type, uint8_t part_number, char *filename, void **post_data);
+typedef char (cr_func_post_in)(uint8_t content_type, /*uint16_t content_length,*/ uint8_t part_number, char *filename, void **post_data);
 #endif
 
 /* A context (possibly several per coroutine) */
@@ -82,6 +82,7 @@ struct coroutine_t {
 #ifndef DISABLE_POST
 		struct in_t { /* used with dopostin function */
 			uint8_t content_type;
+			/*uint16_t content_length;*/
 			uint8_t part_number; /* number of part with multipart data (0 if one part) */
 			char *filename; /* filename of current file */
 			void *post_data; /* data flowing between dopostin and dopostout functions */
@@ -115,6 +116,8 @@ enum coroutine_type_e { cor_type_get, cor_type_post_in, cor_type_post_out } coro
 #endif
 
 /* Functions and variables for coroutines */
+
+extern void dumpCRInStack();
 
 /* initialize a coroutine structure */
 extern void cr_init(struct coroutine_t *coroutine);

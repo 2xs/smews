@@ -53,7 +53,7 @@ typedef char (generator_dopacket_out_func_t)(const void *connection_info);
 #endif
 
 #ifndef DISABLE_POST
-typedef char (generator_dopost_in_func_t)(uint8_t,uint8_t,char *,void **);
+typedef char (generator_dopost_in_func_t)(uint8_t, /*uint16_t,*/ uint8_t,char *,void **);
 typedef char (generator_dopost_out_func_t)(uint8_t,void *);
 #endif
 
@@ -164,7 +164,7 @@ struct output_handler_t {
 #define GET_FLAGS(r) (CONST_UI8((r)->handler_type) == type_control ? CONST_UI8(GET_CONTROL(r).flags) : (TCP_ACK | TCP_PSH))
 
 /* Global output_handler table */
-extern CONST_VAR(const struct output_handler_t *, resources_index[]);
+extern CONST_VAR(struct output_handler_t * const, resources_index[]);
 
 /* URL tree: parsing an URL to retrieve an output_handler */
 extern CONST_VAR(unsigned char, urls_tree[]);

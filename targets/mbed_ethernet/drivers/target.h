@@ -120,6 +120,18 @@
 /* Writes len bytes from src to dst, where dst targets a persistent variable */
 #define CONST_WRITE_NBYTES(dst,src,len)
 
+/* Application */	   
+/* Gets a byte from address x */
+#define APPLICATION_READ_UI8(x) CONST_READ_UI8(x)
+/* Gets two bytes from address x */
+#define APPLICATION_READ_UI16(x) CONST_READ_UI16(x)
+/* Gets four bytes from address x */
+#define APPLICATION_READ_UI32(x) CONST_READ_UI32(x)
+/* Gets an address from address x */
+#define APPLICATION_READ_ADDR(x) CONST_READ_ADDR(x)
+
+#define APPLICATION_WRITE(dst, src, len) rflpc_iap_write_buffer(dst, src, len)
+
 /* Endianness: define ENDIANNESS as LITTLE_ENDIAN or BIG_ENDIAN */
 #ifndef ENDIANNESS
 	#define ENDIANNESS LITTLE_ENDIAN

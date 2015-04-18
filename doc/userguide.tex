@@ -1269,6 +1269,72 @@ We give here an synthetic and exhaustive list of the features available when wri
 \label{tab:gpip-appssyscalls}
 \end{table}
 
+\chapter{Uploading new applications into an embedded Smews}
+\label{ch:uploadingapp}
+
+In a standard behaviour, only applications crafted with Smews are accessible, but there's another way to deploy applications for the MBED device, without having to modify the embedded server, called post-issuance.
+
+\section{Preparing Smews for post-issuance.}
+Post-issuance in Smews is available thanks to an application called ElfLoader, shipped with the server, that will handle the file upload through a POST request and relocation of elf files onto the device. To build such a configuration :
+
+\begin{verbatim}
+$ scons target=mbed_ethernet apps=:elfloader ipaddr=192.168.100.2
+\end{verbatim}
+
+Then, flash the resulting image onto the MBED :
+\begin{verbatim}
+$ cp ./bin/mbed_ethernet/smews.bin /media/MBED/ && sync
+\end{verbatim}
+
+From now on, Smews is able to deploy new applications with no need to rebuild the Smews image.
+
+\section{Building your own elf application}
+
+Building an elf application uploadable to Smews is nothing more complicated than the regular process.
+For example, to build the connections stats application :
+\begin{verbatim}
+$ scons target=mbed_ethernet apps=constat:connectionsStats dynApp=1
+\end{verbatim}
+
+The \verb+dynApp+ option tells SCons to build an uploadable elf file, and the result will be outputted into \verb+bin/mbed_ethernet+ directory.
+
+Though not used here, programmers can handle several application lifecycle steps by declaring XML metadata either in a separate C file and/or directly into their applications.
+\begin{itemize}
+\item \verb+install+ -- function executed during application installation;
+\item \verb+remove+ -- function executed when an application is removed;
+\end{itemize}
+
+The XML metadata should look as the following, and be declared into one single file, or as many times needed into applications' files :
+\begin{lstlisting}
+/*
+<elf>
+        <lifecycle onInstall="functionName" onRemove="functionName"/>
+</elf>
+ */
+\end{lstlisting}
+
+\section{Uploading elf applications.}
+Open up your browser and enter the Smews' ip; a Post form should appear. Then, select the \verb+*.o+ file into \verb+bin/mbed_ethernet+ folder and press the submit button.
+\begin{center}
+\includegraphics[width=15cm]{elf_screenshot}
+\end{center}
+
+
+
+Wait until the process completion, then finally, to access to the newly deployed application, open a new tab and enter the application URL as in the application SCons command line, here \url{http://192.168.100.2/constat/}
+
+\section{Summary}
+  To deploy applications onto Smews for an MBED device :
+\begin{itemize}
+\item 1) Prepare a Smews image : \begin{verbatim} $ scons target=mbed_ethernet apps=:elfloader ipaddr=192.168.100.2\end{verbatim}
+\item 2) Flash it down to the device : \begin{verbatim}$ cp ./bin/mbed_ethernet/smews.bin /media/MBED/ && sync\end{verbatim}
+\item 3) Build your elf application : \begin{verbatim}$ scons target=mbed_ethernet apps=constat:connectionsStats dynApp=1\end{verbatim}
+\item 4) Open your browser and enter the Smews' ip address, here \url{http://192.168.100.2}.
+\item 5) Choose the \verb+*.o+ file into \verb+bin/mbed_ethernet+ directory, then press the Submit button. Wait until the process completes.
+\item 6) Enter in a new tab the application's url. Here, \url{http://192.168.100.2/constat/}
+\end{itemize}
+
+  To add a new application, start again at step 3).
 
 \chapter{Credits}
 

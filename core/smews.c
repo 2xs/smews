@@ -42,7 +42,6 @@
 /*-----------------------------------------------------------------------------------*/
 void smews_retransmit(void) {
  	last_transmission_time++;
-
 	FOR_EACH_CONN(conn, {
 		if(conn->output_handler
 			&& IS_HTTP(conn)

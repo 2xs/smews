@@ -65,5 +65,6 @@ static char doGet(struct args_t *args) {
 			out_str("NULL\n");
 		out_str("\tsomething to send: "); out_uint(something_to_send(conn)); out_str("\n");
 	})
+
 	return 1;
 }

@@ -36,6 +36,8 @@
 #include "connections.h"
 #include "memory.h"
 
+#include "elf_application.h"
+
 /* Local IP address */
 #ifdef IPV6
 
@@ -56,6 +58,10 @@ unsigned char local_ip_addr[4] = { IP_ADDR };
 /* Shared global connections structures */
 struct connection *all_connections;
 struct http_rst_connection rst_connection;
+
+struct connection *get_all_connections() {
+	return all_connections;
+}
 
 #ifdef IPV6
 /*-----------------------------------------------------------------------------------*/
@@ -158,12 +164,15 @@ struct connection *add_connection(const struct connection *from
 #else
 	connection = mem_alloc(sizeof(struct connection)); /* test NULL: done */
 #endif
+
 	if (connection == NULL)
 		return NULL;
 
 	/* copy the connection */
-	if (from != NULL)
+	if (from != NULL) {
 		*connection = *from;
+	}
+
 	/* insert the new connection */
 	if(all_connections == NULL) {
 		connection->next = connection;
@@ -175,6 +184,11 @@ struct connection *add_connection(const struct connection *from
 		connection->next = all_connections;
 		all_connections->prev = connection;
 	}
+
+#ifndef DISABLE_ELF
+	elf_application_add_connection(connection);
+#endif
+
 	return connection;
 }
 
@@ -198,8 +212,15 @@ void free_connection(const struct connection *connection) {
 #endif
 	if(connection->protocol.http.generator_service) {
 	    clean_service(connection->protocol.http.generator_service, NULL);
+#ifndef DISABLE_COROUTINES
+            cr_clean(&connection->protocol.http.generator_service->coroutine);
+#endif
 	    mem_free(connection->protocol.http.generator_service, sizeof(struct generator_service_t));
 	}
+#ifndef DISABLE_ELF
+	elf_application_remove_connection(connection);
+#endif
+
     }
 
 #ifdef IPV6

@@ -152,7 +152,8 @@ void kernel_console_ip(const char *args)
 #endif
 }
 
-extern CONST_VAR(const struct output_handler_t *, resources_index[]);
+extern struct output_handler_t * resources_index[];
+/*extern CONST_VAR(const struct output_handler_t *, resources_index[]);*/
 extern CONST_VAR(unsigned char, urls_tree[]);
 void kernel_console_ressource_index(const char *args)
 {

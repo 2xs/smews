@@ -15,7 +15,7 @@
 #application/mspowerpoint
 #application/msword
 #application/mswordf
-#application/octet-stream
+application/octet-stream
 #application/oda
 #application/pdf
 #application/postscript
@@ -41,6 +41,7 @@ application/x-latex
 #application/x-mif
 #application/x-netcdf
 #application/x-nschat
+application/x-object
 application/x-sh
 #application/x-shar
 #application/x-shockwave-flash

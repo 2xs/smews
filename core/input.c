@@ -42,6 +42,9 @@
 #include "coroutines.h"
 #include "blobs.h"
 #include "defines.h"
+#include "elf_application.h"
+
+#include <stdio.h>
 
 /* Used to dump the runtime stack */
 #ifdef STACK_DUMP
@@ -192,7 +195,7 @@ short in()
 #ifndef DISABLE_POST
 /* called from dopostin or dopacketin */
 short in(){
-    unsigned char tmp;
+    unsigned char tmp, last_position_in_boundary;
 
 #ifndef DISABLE_GP_IP_HANDLER
     /* If post AND general purpose ip, then check if the connection is null
@@ -206,12 +209,16 @@ short in(){
 
     if(coroutine_state.state == cor_out)
         return -1;
+
     if(!curr_input.connection->protocol.http.post_data->content_length)
         return -1;
+
     if(curr_input.connection->protocol.http.post_data->boundary && (curr_input.connection->protocol.http.post_data->boundary->index == (uint8_t)-1)) /* index = -1 => boundary found */
         return -1;
+
     if(!curr_input.length)
         cr_run(NULL,cor_type_get); /* input buffer is empty, changing context */
+
     if(curr_input.connection->protocol.http.post_data->boundary){
         /* getting next value in input buffer */
         tmp = curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index];
@@ -221,7 +228,12 @@ short in(){
         if(curr_input.connection->protocol.http.post_data->boundary->index == curr_input.connection->protocol.http.post_data->boundary->boundary_size)
             curr_input.connection->protocol.http.post_data->boundary->index = 0;
         /* comparing first and last characters of buffer with boundary, then all characters */
-        if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[(unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1) % curr_input.connection->protocol.http.post_data->boundary->boundary_size]
+        if(curr_input.connection->protocol.http.post_data->boundary->index == 0)
+          last_position_in_boundary = curr_input.connection->protocol.http.post_data->boundary->boundary_size - 1;
+        else
+          last_position_in_boundary = (unsigned char)(curr_input.connection->protocol.http.post_data->boundary->index - 1);
+
+        if(curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[last_position_in_boundary]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[curr_input.connection->protocol.http.post_data->boundary->boundary_size-1]
            && curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[curr_input.connection->protocol.http.post_data->boundary->index]
            == curr_input.connection->protocol.http.post_data->boundary->boundary_ref[0]){
@@ -230,6 +242,7 @@ short in(){
             for(i = 1 ; i < curr_input.connection->protocol.http.post_data->boundary->boundary_size-1 ; i++){
                 if(index == curr_input.connection->protocol.http.post_data->boundary->boundary_size)
                     index = 0;
+
                 if(curr_input.connection->protocol.http.post_data->boundary->boundary_ref[i] != curr_input.connection->protocol.http.post_data->boundary->boundary_buffer[index])
                     break;
                 index++;
@@ -240,6 +253,7 @@ short in(){
     }
     else
         DEV_GETC(tmp);
+
     /* updating counters */
     if(curr_input.connection->protocol.http.post_data->content_length != (uint16_t)-1)
         curr_input.connection->protocol.http.post_data->content_length--;
@@ -316,7 +330,7 @@ char smews_receive(void) {
     /* tmp connection used to store the current state until checksums are checked */
     struct connection tmp_connection;
 
-    if(!DEV_DATA_TO_READ)
+    if(!DEV_DATA_TO_READ) 
         return 0;
 
 #ifdef IPV6
@@ -328,7 +342,6 @@ char smews_receive(void) {
     /* get IP version & header length */
     DEV_GETC(tmp_char);
 #endif
-
 
 #ifdef SMEWS_RECEIVING
     SMEWS_RECEIVING;
@@ -360,7 +373,6 @@ char smews_receive(void) {
     if (tmp_char != IP_PROTO_TCP) /* If not TCP and general purpose IP is disabled, drop packet */
         return 1;
 #endif
-
 
     /* We don't care about the Hop Limit (TTL) */
     DEV_GET(tmp_char);
@@ -422,6 +434,7 @@ char smews_receive(void) {
 
     if(UI16(current_checksum) != 0xffff)
         return 1;
+
 #endif
 
 #ifndef DISABLE_GP_IP_HANDLER
@@ -467,6 +480,7 @@ char smews_receive(void) {
         return 1;
     }
 #endif
+
     /* End of IP, starting TCP */
     checksum_init();
 
@@ -540,7 +554,6 @@ char smews_receive(void) {
 
     /* get TCP ack */
     DEV_GETC32(current_inack);
-
 
     /* duplicate ACK: set nextoutseqno for retransmission */
     if(UI32(tmp_connection.protocol.http.next_outseqno) - UI16(tmp_connection.protocol.http.inflight) == UI32(current_inack)) {
@@ -663,7 +676,7 @@ char smews_receive(void) {
     x = 0;
     if(segment_length && tmp_connection.protocol.http.tcp_state == tcp_established && (new_tcp_data || tmp_connection.output_handler == NULL)) {
         const struct output_handler_t * /*CONST_VAR*/ output_handler = NULL;
-
+	struct output_handler_t * elf_application_output_handler     = NULL;
         /* parse the eventual GET request */
         unsigned const char * /*CONST_VAR*/ blob;
         unsigned char blob_curr;
@@ -705,6 +718,7 @@ char smews_receive(void) {
               && output_handler != &http_505_handler
 #endif
             ) {
+
             blob_curr = CONST_READ_UI8(blob);
 #ifndef DISABLE_POST
             /* testing end multipart */
@@ -720,6 +734,7 @@ char smews_receive(void) {
 #endif
                 x++;
                 DEV_GETC(tmp_char);
+
 #ifndef DISABLE_POST
                 /* updating content length */
                 if((tmp_connection.protocol.http.parsing_state == parsing_init_buffer
@@ -727,8 +742,11 @@ char smews_receive(void) {
                     ||(tmp_connection.protocol.http.post_data
                        && tmp_connection.protocol.http.post_data->boundary
                        && tmp_connection.protocol.http.post_data->boundary->ready_to_count))
-                   && tmp_connection.protocol.http.post_data->content_length != (uint16_t)-1)
+                   && tmp_connection.protocol.http.post_data->content_length != (uint16_t)-1) {
+
                     tmp_connection.protocol.http.post_data->content_length--;
+		    
+		}
             }
             /* initializing buffer before parsing data */
             if(tmp_connection.protocol.http.parsing_state == parsing_init_buffer){
@@ -857,6 +875,9 @@ char smews_receive(void) {
                         cr_init(&(tmp_connection.protocol.http.post_data->coroutine));
                         tmp_connection.protocol.http.post_data->coroutine.func.func_post_in = CONST_ADDR(GET_GENERATOR(output_handler).handlers.post.dopostin);
                         tmp_connection.protocol.http.post_data->coroutine.params.in.content_type = tmp_connection.protocol.http.post_data->content_type;
+
+	                      /*tmp_connection.protocol.http.post_data->coroutine.params.in.content_length = tmp_connection.protocol.http.post_data->content_length;*/
+
                         tmp_connection.protocol.http.post_data->coroutine.params.in.filename = tmp_connection.protocol.http.post_data->filename;
                         tmp_connection.protocol.http.post_data->coroutine.params.in.post_data = tmp_connection.protocol.http.post_data->post_data;
                         if(tmp_connection.protocol.http.post_data->boundary){
@@ -914,6 +935,7 @@ char smews_receive(void) {
                         continue;
                     break;
                 }
+
                 /* searching end character of post url detection */
                 if(tmp_connection.protocol.http.parsing_state == parsing_url && blob_curr == URL_POST_END){
                     if(tmp_connection.protocol.http.post_data){
@@ -998,24 +1020,25 @@ char smews_receive(void) {
                         else{
                             /* final reallocation */
                             uint8_t i = 0;
-                            char *new_tab = mem_alloc((tmp_connection.protocol.http.post_data->boundary->index+5)*sizeof(char));
+                            char *new_tab = mem_alloc((tmp_connection.protocol.http.post_data->boundary->index+4)*sizeof(char));
                             if(!new_tab){
                                 output_handler = &http_404_handler;
                                 break;
                             }
-                            new_tab[0] = '\n';
-                            new_tab[1] = '\r';
-                            new_tab[2] = '\n';
+
+                            new_tab[0] = '\r';
+                            new_tab[1] = '\n';
+                            new_tab[2] = '-';
                             new_tab[3] = '-';
-                            new_tab[4] = '-';
                             /* copying boundary */
                             for(i = 0 ; i < tmp_connection.protocol.http.post_data->boundary->index ; i++)
-                                new_tab[i+5] = tmp_connection.protocol.http.post_data->boundary->boundary_ref[i];
+                                new_tab[i+4] = tmp_connection.protocol.http.post_data->boundary->boundary_ref[i];
                             mem_free(tmp_connection.protocol.http.post_data->boundary->boundary_ref,(tmp_connection.protocol.http.post_data->boundary->boundary_size)*sizeof(char));
-                            tmp_connection.protocol.http.post_data->boundary->boundary_size = tmp_connection.protocol.http.post_data->boundary->index + 5;
+                            tmp_connection.protocol.http.post_data->boundary->boundary_size = tmp_connection.protocol.http.post_data->boundary->index + 4;
                             tmp_connection.protocol.http.post_data->boundary->boundary_ref = new_tab;
                             tmp_connection.protocol.http.post_data->boundary->index = -1;
                             tmp_connection.protocol.http.post_data->boundary->boundary_buffer = mem_alloc(tmp_connection.protocol.http.post_data->boundary->boundary_size*sizeof(char));
+
                             if(!tmp_connection.protocol.http.post_data->boundary->boundary_buffer){
                                 /* If no space for boundary_ref, free boundary */
                                 mem_free(tmp_connection.protocol.http.post_data->boundary, sizeof(struct boundary_t));
@@ -1025,6 +1048,7 @@ char smews_receive(void) {
                         }
                     }
                 }
+
                 /* parsing content-type */
                 else if(tmp_connection.protocol.http.parsing_state == parsing_post_content_type){
                     if(blob_curr - 128 == CONTENT_TYPE_MULTIPART_47_FORM_45_DATA){ /* multipart */
@@ -1086,6 +1110,7 @@ char smews_receive(void) {
 #endif
                         tmp_connection.protocol.http.parsing_state = parsing_url;
                         blob = urls_tree;
+			elf_application_parsing_start(connection);
                     } else {
                         if(tmp_char == ' ') {
 #ifndef DISABLE_POST
@@ -1095,8 +1120,14 @@ char smews_receive(void) {
                             }
                             else{
 #endif
-                                if(!output_handler)
+
+				elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
+				if((elf_application_output_handler != NULL) && (elf_application_output_handler != &http_404_handler))
+                                  output_handler = elf_application_output_handler;
+
+                                if(!output_handler) {
                                     output_handler = (struct output_handler_t*)CONST_ADDR(resources_index[blob_curr - 128]);
+                                }
 #ifndef DISABLE_POST
                                 if(tmp_connection.protocol.http.post_data){
                                     tmp_connection.protocol.http.parsing_state = parsing_post_attributes;
@@ -1160,6 +1191,7 @@ char smews_receive(void) {
                     }
                 blob_curr = CONST_READ_UI8(blob);
             }
+
 #ifndef DISABLE_POST
             /* end header detection */
             if(tmp_connection.protocol.http.parsing_state == parsing_post_attributes && tmp_char == 13){
@@ -1231,6 +1263,7 @@ char smews_receive(void) {
                         if (tmp_char != blob_curr && blob_next >= 128) {
                             blob_next = CONST_READ_UI8(++blob);
                         }
+
                         if (blob_next < 32) {
                             offsetInf += ((blob_next>>2) & 1) + ((blob_next>>1) & 1) + (blob_next & 1);
                             offsetEq = offsetInf + ((blob_next & 2)?CONST_READ_UI8(blob+1):0);
@@ -1277,8 +1310,19 @@ char smews_receive(void) {
                             }
                         }
                     } while(1);
+
+                    elf_application_output_handler = elf_application_parse_step(connection, tmp_char);
+                    if(output_handler == &http_404_handler) {
+                      output_handler = elf_application_output_handler;
+
+                      if((tmp_char == ' ') && (output_handler != &http_404_handler) && (output_handler != NULL)){
+                        tmp_connection.protocol.http.parsing_state = parsing_end;
+                        break;
+                      }
+                    }
                 }
         }
+
         /* detecting parsing_end */
         if(
 #ifndef DISABLE_POST
@@ -1289,9 +1333,11 @@ char smews_receive(void) {
               || output_handler == &http_505_handler
 #endif
                 ) && tmp_connection.protocol.http.parsing_state != parsing_cmd)){
+
             tmp_connection.protocol.http.parsing_state = parsing_end;
             tmp_connection.protocol.http.ready_to_send = 1;
         }
+
         if(!output_handler)
             tmp_connection.protocol.http.blob = blob;
         else {
@@ -1357,6 +1403,7 @@ char smews_receive(void) {
                 tmp_connection.protocol.http.blob = blob;
         }
     }
+
     /* drop remaining TCP data */
     while(x++ < segment_length)
         DEV_GETC(tmp_char);
@@ -1397,13 +1444,14 @@ char smews_receive(void) {
 #endif
 	    }
 	}
-	
+
 	if(!connection && tmp_connection.protocol.http.tcp_state == tcp_syn_rcvd) {
 	    connection = add_connection(&tmp_connection
 #ifdef IPV6
 					, compressed_ip_size(comp_ipv6_addr)
 #endif
 		);
+
 	    /* update the pointer in the tmp_connection because
 	     * it will be copied later so if the pointers do not have the right value, the list
 	     * will be screwed */
@@ -1413,7 +1461,7 @@ char smews_receive(void) {
 		tmp_connection.next = connection->next;
 	    }
 	}
-	
+
 	if(!connection) {
 	    /* no valid connection has been found for this packet, send a reset */
 	    UI32(tmp_connection.protocol.http.next_outseqno) = UI32(current_inack);
@@ -1449,5 +1497,6 @@ char smews_receive(void) {
             }
         }
     }
+
     return 1;
 }

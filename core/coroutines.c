@@ -53,6 +53,15 @@ static struct coroutine_t *cr_in_stack = NULL;
 /* Currently running coroutine. Null when the main program is running. */
 static volatile struct coroutine_t *current_cr = NULL;
 
+void dumpCRInStack() {
+  if(cr_in_stack == NULL) {
+     printf("No cr in stack\r\n");
+     return;
+  }
+
+  printf("CR in stack %p, sp %p\r\n", cr_in_stack, cr_in_stack->curr_context.sp[0]);
+}
+
 /* initialize a coroutine structure */
 void cr_init(struct coroutine_t *coroutine) {
 	coroutine->curr_context.status = cr_ready;
@@ -78,31 +87,38 @@ void cr_run(struct coroutine_t *coroutine
 		) {
 	/* push all working registers */
 	PUSHREGS;
+
 	/* backup current context stack pointer(s) */
 	if(current_cr) {
 		BACKUP_CTX(current_cr->curr_context.sp);
 	} else {
 		BACKUP_CTX(main_sp);
 	}
+
 	/* set new current context */
 	current_cr = coroutine;
+
 	if(current_cr) {
 		RESTORE_CTX(current_cr->curr_context.sp);
 		/* test if this is the first time we run this context */
 		if(current_cr->curr_context.status == cr_ready) {
 			current_cr->curr_context.status = cr_active;
+
+
 #ifndef DISABLE_POST
 			if(type == cor_type_post_out)
 				current_cr->func.func_post_out(current_cr->params.out.content_type,current_cr->params.out.post_data);
 			else if(type == cor_type_post_in)
-			    current_cr->func.func_post_in(current_cr->params.in.content_type,current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
+			    current_cr->func.func_post_in(current_cr->params.in.content_type,/* current_cr->params.in.content_length,*/ current_cr->params.in.part_number,current_cr->params.in.filename,(void**)&current_cr->params.in.post_data);
 			else
 #endif
 				current_cr->func.func_get(current_cr->params.args);
+
 			current_cr->curr_context.status = cr_terminated;
 			current_cr = NULL;
 		}
 	}
+
 	if(current_cr == NULL) {
 		/* restore the main program stack pointer if needed */
 		RESTORE_CTX(main_sp);
@@ -117,16 +133,23 @@ void cr_run(struct coroutine_t *coroutine
 struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 	if(cr_in_stack != coroutine) {
 		if(cr_in_stack != NULL) { /* is there a coroutine currently using the shared stack? */
+
 			/* backup its context in a freshly allocated buffer of the exact needed size */
 			char *sp = cr_in_stack->curr_context.sp[0];
 			uint16_t stack_size = shared_stack + STACK_SIZE - sp;
-			cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
-			if(cr_in_stack->curr_context.stack == NULL) {
-				return NULL;
+
+			if(stack_size>0) {
+
+				cr_in_stack->curr_context.stack = mem_alloc(stack_size); /* test NULL: done */
+
+				if(cr_in_stack->curr_context.stack == NULL) {
+					return NULL;
+				}
+
+				cr_in_stack->curr_context.stack_size = stack_size;
+				/* process the copy from (big) shared stack to the new (small) buffer */
+				memcpy(cr_in_stack->curr_context.stack, sp, stack_size);
 			}
-			cr_in_stack->curr_context.stack_size = stack_size;
-			/* process the copy from (big) shared stack to the new (small) buffer */
-			memcpy(cr_in_stack->curr_context.stack, sp, stack_size);
 		}
 		if(coroutine->curr_context.stack != NULL) { /* does the new coroutine already has an allocated stack? */
 			/* restore its context to the (big) shared stack */
@@ -138,6 +161,7 @@ struct coroutine_t *cr_prepare(struct coroutine_t *coroutine) {
 		/* update the cr_in_stack pointer */
 		cr_in_stack = coroutine;
 	}
+
 	return cr_in_stack;
 }
 

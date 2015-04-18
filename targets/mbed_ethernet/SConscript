@@ -35,7 +35,6 @@
 import os
 import sys,subprocess
 
-
 def check_output(args):
     str = ""
     try:
@@ -58,7 +57,7 @@ def execute(args):
     except OSError as e:
         sys.stderr.write("failed to execute process: {}\n".format(args))
 
-Import('env binDir projectName elfName targetDir')
+Import('env binDir projectName elfName targetDir dynApp')
 
 
 # Clone rflpc if needed
@@ -71,6 +70,7 @@ cflags = check_output(args)
 
 args[1] = '--ldflags'
 ldflags = check_output(args)
+ldflags = ("-L" + os.path.join(targetDir) + " " + ldflags).replace("rflpc17xx.ld", "smews.ld")
 
 args[1] = '--lib'
 lib = check_output(args)
@@ -79,11 +79,13 @@ env.Replace(CC = 'arm-none-eabi-gcc')
 env.Replace(AS = 'arm-none-eabi-as')
 env.Replace(AR = 'arm-none-eabi-ar')
 env.Replace(RANLIB = 'arm-none-eabi-ranlib')
+env.Replace(LINK = 'arm-none-eabi-ld')
 env.Append(CCFLAGS = cflags)
 env.Append(CCFLAGS = '-DENABLE_LL_CACHE')
 #env.Append(CCFLAGS = '-DMBED_USE_LCD_DISPLAY')
 env.Append(LIBS = lib)
 env.Append(LINKFLAGS = ldflags)
 
-binaryName = projectName + '.bin'
-env.Command(binaryName, elfName, ['arm-none-eabi-objcopy -O binary -j .text -j .data $SOURCE $TARGET'])
+if not dynApp :
+	binaryName = projectName + '.bin'
+	env.Command(binaryName, elfName, ['arm-none-eabi-objcopy -O binary -j .text -j .data $SOURCE $TARGET'])

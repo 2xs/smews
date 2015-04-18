@@ -178,12 +178,12 @@ struct connection {
 
 /* Loop on each connection */
 #define FOR_EACH_CONN(item, code) \
-	if(all_connections) { \
-		struct connection *(item) = all_connections; \
+	if(get_all_connections()) { \
+		struct connection *(item) = get_all_connections(); \
 		do { \
 			{code} \
 			(item) = (item)->next; \
-		} while((item) != all_connections); \
+		} while((item) != get_all_connections()); \
 	} \
 
 #define NEXT_CONN(item) (item) = (item)->next
@@ -204,6 +204,7 @@ struct http_rst_connection {
 extern struct connection *all_connections;
 extern struct http_rst_connection rst_connection;
 
+extern struct connection *get_all_connections();
 
 
 

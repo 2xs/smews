@@ -309,6 +309,7 @@ void smews_send_packet (struct connection *connection)
 	{
 	    uint16_t max_out_size;
 	    uint32_t file_remaining_bytes;
+
 	    max_out_size = MAX_OUT_SIZE (connection->protocol.http.tcp_mss);
 	    file_remaining_bytes = UI32 (connection->protocol.http.final_outseqno) - UI32 (next_outseqno);
 	    segment_length = file_remaining_bytes > max_out_size ? max_out_size : file_remaining_bytes;
@@ -316,6 +317,7 @@ void smews_send_packet (struct connection *connection)
 	    break;
 	}
 	case type_generator:
+
 	    segment_length = curr_output.content_length;
 	    segment_length += _service_headers_size (curr_output.service_header);
 	    break;
@@ -680,7 +682,6 @@ char smews_send (void)
     struct connection *active_connection = NULL;
     const struct output_handler_t * /*CONST_VAR */ old_output_handler = NULL;
 
-
     /* sending reset has the highest priority */
     if (UI16 (rst_connection.port))
     {
@@ -730,7 +731,7 @@ char smews_send (void)
     }
 #endif
 
-    if (!active_connection->protocol.http.ready_to_send)
+    if(!active_connection->protocol.http.ready_to_send)
     {
 	old_output_handler = active_connection->output_handler;
 	active_connection->output_handler = &ref_ack;
@@ -743,13 +744,21 @@ char smews_send (void)
 	active_connection->output_handler = &ref_ack;
     }
 #endif
-
+ 
     /* get the type of web applicative resource */
     switch (CONST_UI8 (active_connection->output_handler->handler_type))
     {
 	case type_control:
 	    /* preparing to send TCP control data */
-	    smews_send_packet (active_connection);
+#ifndef DISABLE_POST
+      /* Added to prevent from duplicate ack generation while dealing with post requests
+       * When dealing with post requests, it happens that smews has to handle packets acknowlegment while the post data 
+       * are still not fully received :
+       * in the meantime, smews acknowledges multiple times (read dozens) the same packet, till post data reception completes.
+       */
+      //if(!active_connection->protocol.http.post_data)
+#endif
+	      smews_send_packet (active_connection);
 	    active_connection->output_handler = NULL;
 	    if (active_connection->protocol.http.tcp_state == tcp_closing)
 	    {
@@ -798,6 +807,7 @@ char smews_send (void)
 		{
 		    return 1;
 		}
+
 		curr_output.service = active_connection->protocol.http.generator_service;
 /* if we create the service, it is the first segment of the answer stream, we need
  * to reduce its size to fit the mss if the segment is not the last.
@@ -808,6 +818,7 @@ char smews_send (void)
 		curr_output.service->in_flight_infos = NULL;
 		curr_output.service->is_persistent = CONST_UI8 (GET_GENERATOR (active_connection->output_handler).prop) == prop_persistent;
 		UI32 (curr_output.service->curr_outseqno) = UI32 (active_connection->protocol.http.next_outseqno);
+
 #ifndef DISABLE_COROUTINES
 /* init coroutine */
 		cr_init (&curr_output.service->coroutine);
@@ -827,6 +838,7 @@ char smews_send (void)
 		else
 		{
 #endif
+
 #ifndef DISABLE_COROUTINES
 		    curr_output.service->coroutine.func.func_get = CONST_ADDR(GET_GENERATOR(active_connection->output_handler).handlers.get.doget);
 #ifndef DISABLE_ARGS
@@ -837,9 +849,11 @@ char smews_send (void)
 #ifndef DISABLE_POST
 		}
 #endif
+
 /* we don't know yet the final output sequence number for this service */
 		UI32 (active_connection->protocol.http.final_outseqno) = UI32 (active_connection->protocol.http.next_outseqno) - 1;
 #ifndef DISABLE_COMET
+
 /* if this is a comet generator, manage all listenning clients */
 		if (CONST_UI8 (active_connection->output_handler->handler_comet))
 		{
@@ -854,6 +868,7 @@ char smews_send (void)
 				   }
 			)
 		}
+
 /* manage streamed comet data */
 		if (CONST_UI8 (active_connection->output_handler->handler_stream))
 		{
@@ -923,7 +938,6 @@ char smews_send (void)
 		{
 		    curr_output.service_header = curr_output.service->service_header;
 		}
-
 /* initializations before generating the segment */
 		curr_output.content_length = 0;
 		checksum_init ();

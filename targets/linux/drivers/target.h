@@ -107,6 +107,14 @@ extern fd_set fdset;
 
 #define CONST_WRITE_NBYTES(dst,src,len) memcpy(dst,src,len)
 
+/* Application */
+#define APPLICATION_READ_UI8(x) CONST_READ_UI8(x)
+#define APPLICATION_READ_UI16(x) CONST_READ_UI16(x)
+#define APPLICATION_READ_UI32(x) CONST_READ_UI32(x)
+#define APPLICATION_READ_ADDR(x) CONST_READ_ADDR(x)
+
+#define APPLICATION_WRITE(dst, src, len) CONST_WRITE_NBYTES(dst,src,len)
+
 /* Endianness */
 
 #define ENDIANNESS LITTLE_ENDIAN

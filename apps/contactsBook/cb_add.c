@@ -35,7 +35,7 @@
 
 /*
 <generator>
-	<handlers doGet="doGet"/>
+	<handlers doGet="doGetAdd"/>
 	<properties persistence="persistent"/>
 	<args>
 		<arg name="id" type="uint8" />
@@ -47,7 +47,7 @@
 
 #include "cb_shared.h"
 
-static char doGet(struct args_t *args) {
+static char doGetAdd(struct args_t *args) {
 	unsigned char id = 0;
 	uint16_t n = CONST_UI16(n_contacts);
 	if(args && args->num < 5) {

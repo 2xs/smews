@@ -35,7 +35,7 @@
 
 /*
 <generator>
-	<handlers doGet="doGet"/>
+	<handlers doGet="doGetContacts"/>
 	<properties persistence="idempotent"/>
 </generator>
 */
@@ -65,10 +65,9 @@ static void out_const_str(const unsigned char /*CONST_VAR*/ *str) {
 	}
 }
 
-static char doGet(struct args_t *args) {
+static char doGetContacts(struct args_t *args) {
 	uint16_t i = 0;
 	uint16_t n = CONST_UI16(n_contacts);
-
 	out_const_str(str0);
 	
 	for(i=0; i<n; i++) {
@@ -84,6 +83,5 @@ static char doGet(struct args_t *args) {
 	}
 
 	out_const_str(str5);
-
 	return 1;
 }

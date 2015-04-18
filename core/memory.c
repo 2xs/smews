@@ -110,6 +110,7 @@ void *mem_alloc(uint16_t size) {
 
 		return NULL;
 	}
+
 	return curr_free;
 }
 
