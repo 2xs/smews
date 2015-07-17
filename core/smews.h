@@ -43,6 +43,10 @@
 #include "timers.h"
 #include "memory.h"
 
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+#include "auth.h"
+#endif
+
 extern void smews_retransmit(void);
 
 /* Inlinged because used only once */
@@ -101,6 +105,9 @@ static inline void smews_init(void) {
 	}
 #ifndef DISABLE_TIMERS
 	set_timer(&smews_retransmit,1000);
+#endif
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+	http_auth_gen_nonce();
 #endif
 }
 

@@ -1,41 +1,42 @@
 /*
-* Copyright or © or Copr. 2008, Simon Duquennoy
-*
-* Author e-mail: simon.duquennoy@lifl.fr
-*
-* This software is a computer program whose purpose is to design an
-* efficient Web server for very-constrained embedded system.
-*
-* This software is governed by the CeCILL license under French law and
-* abiding by the rules of distribution of free software.  You can  use,
-* modify and/ or redistribute the software under the terms of the CeCILL
-* license as circulated by CEA, CNRS and INRIA at the following URL
-* "http://www.cecill.info".
-*
-* As a counterpart to the access to the source code and  rights to copy,
-* modify and redistribute granted by the license, users are provided only
-* with a limited warranty  and the software's author,  the holder of the
-* economic rights,  and the successive licensors  have only  limited
-* liability.
-*
-* In this respect, the user's attention is drawn to the risks associated
-* with loading,  using,  modifying and/or developing or reproducing the
-* software by the user in light of its specific status of free software,
-* that may mean  that it is complicated to manipulate,  and  that  also
-* therefore means  that it is reserved for developers  and  experienced
-* professionals having in-depth computer knowledge. Users are therefore
-* encouraged to load and test the software's suitability as regards their
-* requirements in conditions enabling the security of their systems and/or
-* data to be ensured and,  more generally, to use and operate it in the
-* same conditions as regards security.
-*
-* The fact that you are presently reading this means that you have had
-* knowledge of the CeCILL license and that you accept its terms.
-*/
+ * Copyright or © or Copr. 2008, Simon Duquennoy
+ *
+ * Author e-mail: simon.duquennoy@lifl.fr
+ *
+ * This software is a computer program whose purpose is to design an
+ * efficient Web server for very-constrained embedded system.
+ *
+ * This software is governed by the CeCILL license under French law and
+ * abiding by the rules of distribution of free software.  You can  use,
+ * modify and/ or redistribute the software under the terms of the CeCILL
+ * license as circulated by CEA, CNRS and INRIA at the following URL
+ * "http://www.cecill.info".
+ *
+ * As a counterpart to the access to the source code and  rights to copy,
+ * modify and redistribute granted by the license, users are provided only
+ * with a limited warranty  and the software's author,  the holder of the
+ * economic rights,  and the successive licensors  have only  limited
+ * liability.
+ *
+ * In this respect, the user's attention is drawn to the risks associated
+ * with loading,  using,  modifying and/or developing or reproducing the
+ * software by the user in light of its specific status of free software,
+ * that may mean  that it is complicated to manipulate,  and  that  also
+ * therefore means  that it is reserved for developers  and  experienced
+ * professionals having in-depth computer knowledge. Users are therefore
+ * encouraged to load and test the software's suitability as regards their
+ * requirements in conditions enabling the security of their systems and/or
+ * data to be ensured and,  more generally, to use and operate it in the
+ * same conditions as regards security.
+ *
+ * The fact that you are presently reading this means that you have had
+ * knowledge of the CeCILL license and that you accept its terms.
+ */
 
 #ifndef __CONNECTIONS_H__
 #define __CONNECTIONS_H__
 
+#include "auth.h"
 #include "handlers.h"
 #include "coroutines.h"
 
@@ -54,150 +55,196 @@
 #ifndef DISABLE_POST
 /* Boundary structure (for multipart) */
 struct boundary_t {
-	char *boundary_ref; /* boundary which separates parts in multipart post data */
-	char *boundary_buffer; /* buffer used to detect boundary */
-	uint8_t boundary_size; /* size of boundary */
-	uint8_t index;
-	uint8_t ready_to_count; /* true when post header is parsed */
-	uint8_t multi_part_counter; /* to know index of part parsed */
+  char *boundary_ref; /* boundary which separates parts in multipart post data */
+  char *boundary_buffer; /* buffer used to detect boundary */
+  uint8_t boundary_size; /* size of boundary */
+  uint8_t index;
+  uint8_t ready_to_count; /* true when post header is parsed */
+  uint8_t multi_part_counter; /* to know index of part parsed */
 };
 
 /* Post data structure */
 struct post_data_t {
-	uint16_t content_length;
-	struct boundary_t *boundary;
-	struct coroutine_t coroutine;
-	char *filename; /* filename of current part */
-	void *post_data; /* data flowing between dopostin and dopostout functions */
-	uint8_t content_type;
+  uint16_t content_length;
+  struct boundary_t *boundary;
+  struct coroutine_t coroutine;
+  char *filename; /* filename of current part */
+  void *post_data; /* data flowing between dopostin and dopostout functions */
+  uint8_t content_type;
 };
 #endif
 
 /* Possible http headers being used */
-enum service_header_e {	header_none, header_standard, header_chunks };
+enum service_header_e {	header_none, header_standard, header_chunks, header_authenticate };
 
 /* Information about one in-flight segment (several per service) */
 struct in_flight_infos_t {
-    unsigned char next_outseqno[4]; /* associated sequence number */
-    unsigned char checksum[2]; /* segment checksum */
-    union if_infos_e { /* either a coroutine context or a data buffer */
+  unsigned char next_outseqno[4]; /* associated sequence number */
+  unsigned char checksum[2]; /* segment checksum */
+  union if_infos_e { /* either a coroutine context or a data buffer */
 #ifndef DISABLE_COROUTINES
-	struct cr_context_t *context;
+    struct cr_context_t *context;
 #endif
-	char *buffer;
-    } infos;
-    struct in_flight_infos_t *next; /* the next in-flight segment */
-    enum service_header_e service_header: 2; /* http header infos */
+    char *buffer;
+  } infos;
+  struct in_flight_infos_t *next; /* the next in-flight segment */
+  enum service_header_e service_header: 2; /* http header infos */
 };
 
 struct generator_service_t {
-	unsigned char curr_outseqno[4];
+  unsigned char curr_outseqno[4];
 #ifndef DISABLE_COROUTINES
-	struct coroutine_t coroutine;
+  struct coroutine_t coroutine;
 #endif
-	struct in_flight_infos_t *in_flight_infos;
-    enum service_header_e service_header: 2;
-    unsigned is_persistent: 1;
+  struct in_flight_infos_t *in_flight_infos;
+  enum service_header_e service_header: 2;
+  unsigned is_persistent: 1;
 };
 
 /* Connection structure */
 struct http_connection {
-	unsigned tcp_mss: 12;
-	unsigned ready_to_send:1;
-	enum tcp_state_e {tcp_listen, tcp_syn_rcvd, tcp_established, tcp_closing, tcp_last_ack} tcp_state: 3;
-	unsigned char next_outseqno[4];
-	unsigned char final_outseqno[4];
-	unsigned char current_inseqno[4];
+  unsigned tcp_mss: 12;
+  unsigned ready_to_send:1;
+  enum tcp_state_e {tcp_listen, tcp_syn_rcvd, tcp_established, tcp_closing, tcp_last_ack} tcp_state: 3;
+  unsigned char next_outseqno[4];
+  unsigned char final_outseqno[4];
+  unsigned char current_inseqno[4];
 
-	unsigned char port[2];
-	unsigned char cwnd[2];
-	unsigned char inflight[2];
+  unsigned char port[2];
+  unsigned char cwnd[2];
+  unsigned char inflight[2];
 
-	unsigned const char * /*CONST_VAR*/ blob;
-	struct generator_service_t *generator_service;
+  unsigned const char * /*CONST_VAR*/ blob;
+  struct generator_service_t *generator_service;
 
 #ifndef DISABLE_ARGS
-	struct args_t *args;
-	unsigned char *curr_arg;
-	unsigned char arg_ref_index;
+  struct args_t *args;
+  unsigned char *curr_arg;
+  unsigned char arg_ref_index;
 #endif
+
 #ifndef DISABLE_TIMERS
-	unsigned char transmission_time;
+  unsigned char transmission_time;
 #endif
-	enum parsing_state_e {parsing_out, parsing_cmd, parsing_url, parsing_end
+
 #ifndef DISABLE_POST
-	, parsing_post_attributes, parsing_post_end, parsing_post_content_type, parsing_post_args, parsing_post_data, parsing_boundary, parsing_init_buffer	} parsing_state: 4;
-	uint8_t post_url_detected:1; /* bit used to know if url is post or get request */
-	struct post_data_t *post_data;
-#else
-} parsing_state/*: 2*/; /* this field will be on one byte anyway as previous fields are exactly 16 bits.
-			   Using a full char does not change the struct size, but lower the code size needed to access it */
+  enum parsing_state_e {
+    parsing_out,
+    parsing_cmd,
+    parsing_url,
+    parsing_end,
+#if defined(HTTP_AUTH) && HTTP_AUTH == HTTP_AUTH_DIGEST
+    parsing_authorization_username,
 #endif
+    parsing_post_attributes,
+    parsing_post_end,
+    parsing_post_content_type,
+    parsing_post_args,
+    parsing_post_data,
+    parsing_boundary,
+    parsing_init_buffer,
+  } parsing_state : 4;
+
+  uint8_t post_url_detected : 1;
+  struct post_data_t *post_data;
+#else
+#ifdef HTTP_AUTH
+  enum parsing_state_e {
+    parsing_out,
+    parsing_cmd,
+    parsing_url,
+    parsing_end,
+#if HTTP_AUTH == HTTP_AUTH_DIGEST
+    parsing_authorization_username,
+#endif
+    parsing_post_attributes,
+    parsing_post_end
+  } parsing_state : 3;
+#else
+  enum parsing_state_e {
+    parsing_out,
+    parsing_cmd,
+    parsing_url,
+    parsing_end
+  } parsing_state : 2;
+#endif
+#endif
+
+/*   enum parsing_state_e {parsing_out, parsing_cmd, parsing_url, parsing_end */
+/* #ifndef DISABLE_POST */
+/* 			, parsing_post_attributes, parsing_post_end, parsing_post_content_type, parsing_post_args, parsing_post_data, parsing_boundary, parsing_init_buffer	} parsing_state: 4; */
+/*   uint8_t post_url_detected:1; /\* bit used to know if url is post or get request *\/ */
+/*   struct post_data_t *post_data; */
+/* #else */
+/* } parsing_state/\*: 2*\/; /\* this field will be on one byte anyway as previous fields are exactly 16 bits. */
+/* 			   Using a full char does not change the struct size, but lower the code size needed to access it *\/ */
+/* #endif */
+
 #ifndef DISABLE_COMET
-	unsigned char comet_passive: 1;
-	unsigned char comet_send_ack: 1;
-	unsigned char comet_streaming: 1;
+  unsigned char comet_passive: 1;
+  unsigned char comet_send_ack: 1;
+  unsigned char comet_streaming: 1;
 #endif
 };
 
 #ifndef DISABLE_GP_IP_HANDLER
 struct gp_ip_connection {
-	uint16_t payload_size;
-	uint8_t protocol;
-	uint8_t want_to_send;
+  uint16_t payload_size;
+  uint8_t protocol;
+  uint8_t want_to_send;
 };
 #endif
 
 /* Generic connection structure */
 struct connection {
 #ifndef IPV6
-	unsigned char ip_addr[4];
+  unsigned char ip_addr[4];
 #endif
-	const struct output_handler_t * /*CONST_VAR*/ output_handler;
-	union {
+  const struct output_handler_t * /*CONST_VAR*/ output_handler;
+  union {
 #ifndef DISABLE_GP_IP_HANDLER
-		struct gp_ip_connection gpip;
+    struct gp_ip_connection gpip;
 #endif
-		struct http_connection http;
-	} protocol;
+    struct http_connection http;
+  } protocol;
 
-	struct connection *next;
-	struct connection *prev;
+  struct connection *next;
+  struct connection *prev;
 #ifdef IPV6
-	unsigned char ip_addr[0];
+  unsigned char ip_addr[0];
 #endif
 };
 
 #ifndef DISABLE_GP_IP_HANDLER
-	#define IS_GPIP(connection) (connection && connection->output_handler && IS_GPIP_HANDLER(connection->output_handler))
-	#define IS_HTTP(connection) (!IS_GPIP(connection))
+#define IS_GPIP(connection) (connection && connection->output_handler && IS_GPIP_HANDLER(connection->output_handler))
+#define IS_HTTP(connection) (!IS_GPIP(connection))
 #else
-	#define IS_HTTP(connection) (connection)
+#define IS_HTTP(connection) (connection)
 #endif
 
 
 /* Loop on each connection */
-#define FOR_EACH_CONN(item, code) \
-	if(all_connections) { \
-		struct connection *(item) = all_connections; \
-		do { \
-			{code} \
-			(item) = (item)->next; \
-		} while((item) != all_connections); \
-	} \
+#define FOR_EACH_CONN(item, code)			\
+  if(all_connections) {					\
+    struct connection *(item) = all_connections;	\
+    do {						\
+      {code}						\
+      (item) = (item)->next;				\
+    } while((item) != all_connections);			\
+  }							\
 
 #define NEXT_CONN(item) (item) = (item)->next
 
 /* Pseudo connection for RST */
 struct http_rst_connection {
 #ifdef IPV6
-	unsigned char ip_addr[16];
+  unsigned char ip_addr[16];
 #else
-	unsigned char ip_addr[4];
+  unsigned char ip_addr[4];
 #endif
-	unsigned char current_inseqno[4];
-	unsigned char next_outseqno[4];
-	unsigned char port[2];
+  unsigned char current_inseqno[4];
+  unsigned char next_outseqno[4];
+  unsigned char port[2];
 };
 
 /* Shared global connections structures */
@@ -208,16 +255,16 @@ extern struct http_rst_connection rst_connection;
 
 
 struct curr_output_t {
-    struct generator_service_t *service;
-    char *buffer;
-    unsigned char checksum[2];
-    uint16_t content_length;
-    uint16_t max_bytes;
-    unsigned char next_outseqno[4];
-    enum service_header_e service_header: 2;
+  struct generator_service_t *service;
+  char *buffer;
+  unsigned char checksum[2];
+  uint16_t content_length;
+  uint16_t max_bytes;
+  unsigned char next_outseqno[4];
+  enum service_header_e service_header: 2;
 #ifdef DISABLE_COROUTINES
-    enum dynamic_state {none, in_dynamic, sending_segment,waiting_ack, ack_received, connection_terminated} dynamic_service_state:3;
-    unsigned char in_handler:1;
+  enum dynamic_state {none, in_dynamic, sending_segment,waiting_ack, ack_received, connection_terminated} dynamic_service_state:3;
+  unsigned char in_handler:1;
 #endif
 };
 
@@ -235,11 +282,11 @@ extern unsigned char * decompress_ip(const unsigned char comp_ip_addr[], unsigne
 extern unsigned char * compress_ip(const unsigned char full_ip_addr[], unsigned char comp_ip_addr[], unsigned char * indexes);
 static inline uint8_t compressed_ip_size(const unsigned char ip[])
 {
-	return (17-((ip[0])&15));
+  return (17-((ip[0])&15));
 }
 static inline unsigned char * copy_compressed_ip(unsigned char dst[], const unsigned char src[])
 {
-	return memcpy(dst, src, compressed_ip_size(src));
+  return memcpy(dst, src, compressed_ip_size(src));
 }
 
 
@@ -255,10 +302,10 @@ extern void free_connection(const struct connection *connection);
 /* Allocates and insert a new connection. The inserted connection will be a copy of the from parameter */
 extern struct connection *add_connection(const struct connection *from
 #ifdef IPV6
-				  , uint8_t compressed_ip_size /* Used in ipv6 to allocation enough bytes to 
-								  store the compressed ip */
+					 , uint8_t compressed_ip_size /* Used in ipv6 to allocation enough bytes to 
+									 store the compressed ip */
 #endif
-    );
+					 );
 
 /* deallocate all the memory used by in-flight segments that are now acknowledged (with out_seqno < inack) */
 extern void clean_service(struct generator_service_t *service, unsigned char inack[]);
@@ -266,7 +313,7 @@ extern void clean_service(struct generator_service_t *service, unsigned char ina
 #ifndef DISABLE_POST
 /* Shared coroutine state (in = 0 / out = 1)*/
 struct coroutine_state_t {
-	enum coroutine_state_e {cor_in, cor_out} state:1;
+  enum coroutine_state_e {cor_in, cor_out} state:1;
 };
 extern struct coroutine_state_t coroutine_state;
 #endif

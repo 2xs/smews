@@ -35,6 +35,7 @@ import os
 import sys
 sys.path.append('tools')
 import GenApps
+import GenAuthData
 from SCons.Errors import BuildError
 
 import sys, string
@@ -66,6 +67,7 @@ toolsDir = 'tools'
 tmpBase = 'tmp'
 appBase = 'apps'
 httpCodesDir = 'httpCodes'
+httpAuthType = ''
 # the list of python files used by this SConstruct
 toolsList = map(lambda x: os.path.join(toolsDir,x),filter(lambda x: x.endswith('.py'), os.listdir(toolsDir)))
 projectName = 'smews'
@@ -81,6 +83,7 @@ opts.Add(BoolVariable('debug', 'Set to 1 to build for debug', False))
 opts.Add(BoolVariable('sdump', 'Set to 1 to include stack dump', False))
 opts.Add(BoolVariable('test', 'Set to 1 to test the test apps', False))
 opts.Add('ipaddr', 'Set the IP address of Smews', None)
+opts.Add('accessfile', 'Set the path to XML-defined restrictions file', None)
 # the list of disableable options
 disabledHash = {}
 disabledHash['timers'] = 'DISABLE_TIMERS'
@@ -190,6 +193,15 @@ for appDir in dirsMap.keys():
 		appSource = os.path.join(appBase,appDir,file)
 		sourcesMap[appSource] = os.path.join(dirsMap[appDir],file)
 
+# Contains a data structure for HTTP authentication restrictions.
+# Refer to GenAuthData.py for more details.
+# TODO: Improve the file generation by stripping the "core/" path and
+# allow automatic generation in gen/target
+restrictMap = { }
+if globalEnv.has_key('accessfile'):
+	httpAuthType = GenAuthData.parseXMLFile(globalEnv['accessfile'])
+	restrictMap = GenAuthData.genHTTPAuthDataFile('core/http_auth_data')
+		
 # compilation options
 globalEnv.Replace(CC = 'gcc')
 globalEnv.Replace(AS = 'as')
@@ -203,6 +215,12 @@ else:
 	globalEnv.Append(CCFLAGS =  '-Os -ffunction-sections -fdata-sections -fno-strict-aliasing')
 	globalEnv.Append(LINKFLAGS = '-Wl,--gc-sections -Wl,--print-gc-sections')
 globalEnv.Append(CPPDEFINES = {'CHUNCKS_NBITS' : str(chuncksNbits)})
+
+if httpAuthType == 'basic':
+	globalEnv.Append(CPPDEFINES = { 'HTTP_AUTH' : 'HTTP_AUTH_BASIC' })
+elif httpAuthType == 'digest':
+	globalEnv.Append(CPPDEFINES = { 'HTTP_AUTH' : 'HTTP_AUTH_DIGEST' })
+
 for func in toDisable:
 	globalEnv.Append(CPPDEFINES = { disabledHash[func] : '1'})
 if endian:
@@ -235,7 +253,7 @@ for target in targets:
 	# export variables for external SConscript files
 	Export('env libFileName elfFileName binDir coreDir driversDir genDir appBase toolsList chuncksNbits sourcesMap gzipped test')
 	Export('env targetDir binDir projectName elfName')
-	Export('dirsMap sourcesMap target sconsBasePath httpCodesDir tmpBase')
+	Export('dirsMap sourcesMap restrictMap httpAuthType target sconsBasePath httpCodesDir tmpBase')
 	# target dependent SConscript call
 	SConscript(os.path.join(targetDir,'SConscript'),variant_dir = binDir,duplicate = 0)
 	# possible web applications SConscript calls
